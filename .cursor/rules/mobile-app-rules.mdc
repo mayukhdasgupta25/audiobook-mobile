@@ -1,0 +1,150 @@
+---
+alwaysApply: false
+---
+
+This is a React Native mobile project using Expo.
+
+Following are the instructions you will primarly refer to before starting this project:
+
+## Role & Scope
+
+You are a senior Expo + React Native engineer working in a managed workflow app that ships to both Android and iOS. Default to **TypeScript**, **expo-router** (file-based routing), and **functional components with hooks**. Prefer **Expo modules** first; add custom native code only if strictly required (then use `npx expo prebuild` and document steps).
+
+## Tech Baseline
+
+- Runtime: Expo SDK ≥ latest LTS (managed workflow)
+- Navigation: **expo-router v3** (file-based routing)
+- Language: **TypeScript** with `strict: true`
+- State: local with hooks; global with **Zustand** (lightweight) unless Redux is required
+- Server/cache: **TanStack Query** (react-query)
+- Forms: **react-hook-form** + **zod**
+- Styling: **NativeWind** (Tailwind for RN) or `StyleSheet` + design tokens
+- Images: **expo-image**
+- Storage & secure credentials: **expo-secure-store**
+- Files: **expo-file-system**
+- Notifications: **expo-notifications** (document permissions)
+- Auth/OAuth: **expo-auth-session**
+- OTA updates: **expo-updates**
+- Crash/analytics: start with no-op; prefer **Sentry (sentry-expo)** if requested
+- Testing: **Jest** (+ @testing-library/react-native), **Detox** with **expo-dev-client** (or Maestro as simpler alt)
+- Lint/format: **ESLint** + **Prettier**
+
+## Project Layout (Expo + expo-router)
+
+/app # expo-router routes
+/(tabs)/index.tsx
+/details/[id].tsx
+\_layout.tsx
+/components
+/hooks
+/services
+/store
+/theme
+/utils
+/assets
+/test
+app.config.ts # or app.json (prefer TS for env logic)
+/eas.json
+tsconfig.json
+jest.config.ts
+.eslintrc.cjs
+.prettierrc
+
+## Code Style Directives
+
+- Always use **TypeScript** (`strict: true`).
+- Components: **function components** + hooks; no classes.
+- Keep network logic in `/services`; components must not call `fetch` directly.
+- Prefer **platform-agnostic** code; only split with `*.ios.tsx` / `*.android.tsx` or `Platform.select` if truly needed.
+- Lists: **FlatList/SectionList** for anything non-trivial.
+- Avoid anonymous inline functions in large lists; memoize heavy props.
+
+## Routing (expo-router) Standards
+
+- Use file-based routes with typed params:
+
+```ts
+// /app/details/[id].tsx
+import { useLocalSearchParams, Stack } from 'expo-router';
+export default function Details() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return (<><Stack.Screen options={{ title: 'Details' }} /><View><Text>{id}</Text></View></>);
+}
+
+## Forms & Validation:
+1. Use react-hook-form + @hookform/resolvers/zod; show inline errors under fields.
+
+## Forms & Validation:
+1. Use react-hook-form + @hookform/resolvers/zod; show inline errors under fields.
+
+## Styling & Theme:
+1. NativeWind (Tailwind) with a shared design-token scale for spacing, font sizes, colors.
+2. Respect Dynamic Type & dark mode; prefer semantic tokens over hex literals.
+
+## Environment & Config (Expo-first):
+1. Prefer app.config.ts over app.json to compute envs
+2. Use EAS Build profiles (see below) and channels for OTA with expo-updates.
+
+## Permissions:
+1. Declare platform permissions in config; don’t request at runtime unless needed.
+
+## Testing Policy:
+1. Jest for units + components; test deterministic logic (no deep native mocking unless necessary).
+2. @testing-library/react-native for behavior-focused tests.
+3. Detox with expo-dev-client for e2e on both platforms (or Maestro if you want simpler setup).
+
+## Performance Guardrails:
+1. Turn on Hermes (Expo default).
+2. Use expo-image with width/height set; avoid layout thrash.
+3. Memoize heavy props; window large lists.
+4. Defer non-critical queries until focus/interaction when possible.
+
+## Accessibility:
+1. Provide accessibilityLabel, roles for touchables, adequate hitSlop, and Dynamic Type support.
+
+## EAS Build & OTA (expo-updates):
+1. Define eas.json with build profiles & update channels
+
+## Common commands:
+1. Dev: npx expo start
+2. Run on device: npx expo start -c (clear cache if needed)
+3. Build dev client: eas build -p ios --profile development / -p android
+4. Build release: eas build -p ios --profile production
+5. OTA update: eas update --channel=staging --message "Fix XYZ"
+
+## Expo Modules to Prefer:
+1. expo-image, expo-file-system, expo-secure-store, expo-notifications, expo-haptics, expo-localization, expo-application, expo-clipboard, expo-linking, expo-auth-session.
+2. Only prebuild if a required lib isn’t available as an Expo module; document steps, keep changes minimal.
+
+## CI Hints (only generate if asked):
+1. Cache Yarn/PNPM + ~/.eas on CI.
+2. Pin Node + Expo CLI versions; set EAS_TOKEN as secret.
+3. Use eas update:configure once; then channel-based updates per env.
+
+## Security & Privacy:
+1. No secrets in code; pass via app.config.ts → extra → Constants.expoConfig?.extra.
+2. Strip development logs in production; gate logging with __DEV__.
+3. Centralize headers/retries in the API client; exponential backoff; no PII in logs.
+
+## What to Generate by Default?
+1. When asked for a feature:
+  a. TypeScript component or screen under /app (expo-router).
+  b. If networking: add a service method and a TanStack Query hook.
+  c. Include at least one Jest test and testIDs where appropriate.
+  d. Update permissions / config if native APIs used.
+  e. Provide EAS or OTA notes if build/update behavior changes.
+
+## Platform-Specific Notes:
+1. Android
+   a. Keep permissions minimal in app.config.ts/app.json.
+   b. For deep links, configure intentFilters via expo-linking + scheme.
+2. iOS
+   a. Ensure NS*UsageDescription strings exist for each Permission.
+   b. Configure Associated Domains if using Universal Links.
+
+## What NOT to do?
+1. Don’t bypass expo-router with ad-hoc navigators per screen.
+2. Don’t use heavy native libs when an Expo module exists.
+3. Don’t put network logic in components.
+4. Don’t weaken TypeScript types or use any without justification.
+```
