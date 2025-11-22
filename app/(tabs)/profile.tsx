@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useDispatch } from 'react-redux';
 import { ProfileHeader } from '@/components/ProfileHeader';
 import { DownloadsCard } from '@/components/DownloadsCard';
 import { StoryCardWithShare } from '@/components/StoryCardWithShare';
@@ -10,7 +9,7 @@ import { ContentRow, ContentItem } from '@/components/ContentRow';
 import { DrawerMenu } from '@/components/DrawerMenu';
 import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
 import { colors, spacing, typography } from '@/theme';
-import { clearAuth } from '@/store/auth';
+import { logout } from '@/utils/logout';
 
 // Memoized section components to prevent re-renders when other sections update
 const MemoizedProfileHeader = React.memo<{
@@ -87,7 +86,6 @@ interface LikedStory extends ContentItem {
  * Features user profile, downloads, liked stories, my list, and listened previews
  */
 function ProfileScreenContent() {
-   const dispatch = useDispatch();
    // Drawer menu state
    const [drawerVisible, setDrawerVisible] = useState(false);
 
@@ -150,12 +148,15 @@ function ProfileScreenContent() {
       // TODO: Navigate to help/FAQ screen or open external link
    }, []);
 
-   const handleSignOutPress = useCallback(() => {
-      // Clear authentication state (Redux and SecureStore)
-      dispatch(clearAuth());
-      // Navigate to sign in page
-      router.replace('/signin');
-   }, [dispatch]);
+   const handleSignOutPress = useCallback(async () => {
+      // Clear all reducers and redirect to signin
+      try {
+         await logout();
+      } catch (error) {
+         // Log error but don't show to user - logout API failure means state wasn't cleared
+         console.error('[Profile] Logout failed:', error);
+      }
+   }, []);
 
    const handleSearchPress = useCallback(() => {
       router.push('/search');

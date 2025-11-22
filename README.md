@@ -87,9 +87,26 @@ Before you begin, ensure you have the following installed:
 
 3. **Configure environment variables** (if needed)
    Create a `.env` file in the root directory:
+
    ```env
-   EXPO_PUBLIC_API_URL=http://localhost:8080
+   # Main API (for audiobooks and other endpoints) - Port 8081
+   EXPO_PUBLIC_API_URL=http://localhost:8081
+   EXPO_PUBLIC_API_PORT=8081
+
+   # Auth API (for login/signup) - Port 8080
+   EXPO_PUBLIC_AUTH_API_URL=http://localhost:8080
+   EXPO_PUBLIC_AUTH_API_PORT=8080
    ```
+
+   **Note**:
+   - **Auth API (Login/Signup)**: Uses port **8080** by default
+     - `EXPO_PUBLIC_AUTH_API_URL`: Full auth API URL (overrides default)
+     - `EXPO_PUBLIC_AUTH_API_PORT`: Auth API port number (default: 8080)
+   - **Main API (Audiobooks and others)**: Uses port **8081** by default
+     - `EXPO_PUBLIC_API_URL`: Full main API URL (overrides default)
+     - `EXPO_PUBLIC_API_PORT`: Main API port number (default: 8081)
+   - For Android emulator, the app automatically uses `10.0.2.2` instead of `localhost`
+   - For physical devices, set the full URLs to your computer's IP address (e.g., `http://192.168.1.100:8080` for auth, `http://192.168.1.100:8081` for main API)
 
 ### Running the App
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View } from 'react-native';
 import { Stack, router, useSegments } from 'expo-router';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
@@ -15,15 +15,60 @@ import '../global.css';
 
 // Create a client for TanStack Query outside component to prevent recreation on every render
 // This ensures the QueryClient instance is stable across re-renders
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
    defaultOptions: {
       queries: {
-         retry: 2,
+         retry: (failureCount, error) => {
+            // Don't retry on 401 (unauthorized) errors - they're handled globally by API service
+            if (error && typeof error === 'object' && 'status' in error && error.status === 401) {
+               // Handle 401 error (API service already handles it, but ensure we don't retry)
+               return false;
+            }
+            // Retry up to 2 times for other errors
+            return failureCount < 2;
+         },
          refetchOnWindowFocus: false,
          staleTime: 5 * 60 * 1000, // 5 minutes - cache data for better performance
          gcTime: 10 * 60 * 1000, // 10 minutes - garbage collection time (formerly cacheTime)
       },
+      mutations: {
+         retry: (failureCount, error) => {
+            // Don't retry on 401 (unauthorized) errors
+            if (error && typeof error === 'object' && 'status' in error && error.status === 401) {
+               return false;
+            }
+            // Retry up to 2 times for other errors
+            return failureCount < 2;
+         },
+      },
    },
+   // Global error handlers using queryCache and mutationCache
+   queryCache: new QueryCache({
+      onError: async (error: unknown) => {
+         // Handle 401 errors globally - logout and redirect to signin
+         if (error && typeof error === 'object' && 'status' in error && (error as { status: unknown }).status === 401) {
+            const { checkAndHandle401Error } = require('@/utils/apiErrorHandler');
+            const { ApiError } = require('@/services/api');
+            const apiError = error instanceof ApiError
+               ? error
+               : new ApiError(401, 'Unauthorized', error);
+            await checkAndHandle401Error(apiError, false);
+         }
+      },
+   }),
+   mutationCache: new MutationCache({
+      onError: async (error: unknown) => {
+         // Handle 401 errors globally - logout and redirect to signin
+         if (error && typeof error === 'object' && 'status' in error && (error as { status: unknown }).status === 401) {
+            const { checkAndHandle401Error } = require('@/utils/apiErrorHandler');
+            const { ApiError } = require('@/services/api');
+            const apiError = error instanceof ApiError
+               ? error
+               : new ApiError(401, 'Unauthorized', error);
+            await checkAndHandle401Error(apiError, false);
+         }
+      },
+   }),
 });
 
 /**

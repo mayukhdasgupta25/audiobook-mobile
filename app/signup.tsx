@@ -8,25 +8,103 @@ import {
    Platform,
    KeyboardAvoidingView,
    Keyboard,
+   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
+import { useDispatch } from 'react-redux';
 import { TextInput } from '@/components/TextInput';
 import { colors, spacing, typography, borderRadius } from '@/theme';
+import { signup } from '@/services/auth';
+import { setAuth } from '@/store/auth';
+import { ApiError } from '@/services/api';
 
 /**
  * Sign up screen with email, password, and confirm password inputs
  */
 export default function SignUpScreen() {
+   const dispatch = useDispatch();
    const [email, setEmail] = useState('');
    const [password, setPassword] = useState('');
    const [confirmPassword, setConfirmPassword] = useState('');
+   const [isLoading, setIsLoading] = useState(false);
+   const [error, setError] = useState<string | null>(null);
 
-   const handleSignUp = useCallback(() => {
+   const handleSignUp = useCallback(async () => {
       Keyboard.dismiss();
-      console.log('Sign up with:', { email, password, confirmPassword });
-      // TODO: Implement sign up logic
-   }, [email, password, confirmPassword]);
+      setError(null);
+
+      // Basic validation
+      if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
+         setError('Please fill in all fields');
+         return;
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+         setError('Please enter a valid email address');
+         return;
+      }
+
+      // Validate password match
+      if (password !== confirmPassword) {
+         setError('Passwords do not match');
+         return;
+      }
+
+      // Validate password length
+      if (password.length < 6) {
+         setError('Password must be at least 6 characters long');
+         return;
+      }
+
+      setIsLoading(true);
+
+      try {
+         // Call signup API
+         const response = await signup({ email: email.trim(), password });
+
+         // Store auth state in Redux
+         dispatch(
+            setAuth({
+               accessToken: response.accessToken,
+               refreshToken: response.refreshToken,
+               user: response.user,
+            })
+         );
+
+         // Redirect to home screen
+         router.replace('/(tabs)');
+      } catch (err) {
+         // Handle API errors
+         if (err instanceof ApiError) {
+            if (err.status === 400) {
+               const errorData = err.data as { message?: string } | undefined;
+               setError(errorData?.message || 'Invalid signup data. Please check your information.');
+            } else if (err.status === 409) {
+               setError('An account with this email already exists');
+            } else {
+               const errorData = err.data as { message?: string } | undefined;
+               setError(errorData?.message || 'Signup failed. Please try again.');
+            }
+         } else {
+            const errorMessage =
+               err instanceof Error ? err.message : 'Unknown error';
+            console.error('[SignUp] Non-API error:', errorMessage);
+
+            // Provide helpful error message for network issues
+            let userMessage = 'Network error. Please check your connection and try again.';
+            if (errorMessage.includes('Network request failed')) {
+               userMessage = 'Cannot connect to server. If testing on a physical device, set EXPO_PUBLIC_AUTH_API_URL to your computer\'s IP address (e.g., http://192.168.1.100:8080)';
+            }
+
+            setError(userMessage);
+         }
+      } finally {
+         setIsLoading(false);
+      }
+   }, [email, password, confirmPassword, dispatch]);
 
    const handleNavigateToSignIn = useCallback(() => {
       Keyboard.dismiss();
@@ -98,14 +176,26 @@ export default function SignUpScreen() {
                         testID="signup-confirm-password-input"
                      />
 
+                     {/* Error Message */}
+                     {error && (
+                        <View style={styles.errorContainer}>
+                           <Text style={styles.errorText}>{error}</Text>
+                        </View>
+                     )}
+
                      {/* Sign Up Button */}
                      <TouchableOpacity
-                        style={styles.signUpButton}
+                        style={[styles.signUpButton, isLoading && styles.signUpButtonDisabled]}
                         onPress={handleSignUp}
                         activeOpacity={0.8}
+                        disabled={isLoading}
                         testID="signup-button"
                      >
-                        <Text style={styles.signUpButtonText}>Sign Up</Text>
+                        {isLoading ? (
+                           <ActivityIndicator color={colors.text.dark} />
+                        ) : (
+                           <Text style={styles.signUpButtonText}>Sign Up</Text>
+                        )}
                      </TouchableOpacity>
 
                      {/* Sign In Link */}
@@ -182,6 +272,27 @@ const styles = StyleSheet.create({
    form: {
       flex: 1,
       justifyContent: 'center',
+   },
+   errorContainer: {
+      marginBottom: spacing.md,
+      marginTop: -spacing.sm,
+   },
+   errorText: {
+      fontSize: typography.fontSize.sm,
+      color: colors.error,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   signUpButtonDisabled: {
+      opacity: 0.6,
    },
    signUpButton: {
       backgroundColor: colors.app.red,

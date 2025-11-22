@@ -12,6 +12,7 @@ import { User } from '@/services/auth';
  */
 export interface AuthState {
    accessToken: string | null;
+   refreshToken: string | null;
    user: User | null;
    isAuthenticated: boolean;
    isInitialized: boolean;
@@ -22,6 +23,7 @@ export interface AuthState {
  */
 const initialState: AuthState = {
    accessToken: null,
+   refreshToken: null,
    user: null,
    isAuthenticated: false,
    isInitialized: false,
@@ -31,18 +33,22 @@ const initialState: AuthState = {
  * Secure storage keys
  */
 const ACCESS_TOKEN_KEY = 'auth_access_token';
+const REFRESH_TOKEN_KEY = 'auth_refresh_token';
 const USER_KEY = 'auth_user';
 
 /**
  * Async thunk to initialize auth state from secure storage
- * Loads persisted accessToken and user data on app startup
+ * Loads persisted accessToken, refreshToken, and user data on app startup
  */
 export const initializeAuth = createAsyncThunk(
    'auth/initialize',
-   async (): Promise<{ accessToken: string | null; user: User | null }> => {
+   async (): Promise<{ accessToken: string | null; refreshToken: string | null; user: User | null }> => {
       try {
          // Load accessToken from secure store
          const accessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+
+         // Load refreshToken from secure store
+         const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
 
          // Load user data from secure store (non-sensitive, but still stored securely)
          const userJson = await SecureStore.getItemAsync(USER_KEY);
@@ -50,12 +56,14 @@ export const initializeAuth = createAsyncThunk(
 
          return {
             accessToken,
+            refreshToken,
             user,
          };
       } catch (error) {
          console.error('Error initializing auth:', error);
          return {
             accessToken: null,
+            refreshToken: null,
             user: null,
          };
       }
@@ -70,19 +78,23 @@ const authSlice = createSlice({
    initialState,
    reducers: {
       /**
-       * Set authentication state after successful login
+       * Set authentication state after successful login or signup
        */
       setAuth: (
          state,
-         action: PayloadAction<{ accessToken: string; user: User }>
+         action: PayloadAction<{ accessToken: string; refreshToken: string; user: User }>
       ) => {
          state.accessToken = action.payload.accessToken;
+         state.refreshToken = action.payload.refreshToken;
          state.user = action.payload.user;
          state.isAuthenticated = true;
 
          // Persist to secure store
          SecureStore.setItemAsync(ACCESS_TOKEN_KEY, action.payload.accessToken).catch(
             (error) => console.error('Error saving access token:', error)
+         );
+         SecureStore.setItemAsync(REFRESH_TOKEN_KEY, action.payload.refreshToken).catch(
+            (error) => console.error('Error saving refresh token:', error)
          );
          SecureStore.setItemAsync(USER_KEY, JSON.stringify(action.payload.user)).catch(
             (error) => console.error('Error saving user data:', error)
@@ -93,12 +105,16 @@ const authSlice = createSlice({
        */
       clearAuth: (state) => {
          state.accessToken = null;
+         state.refreshToken = null;
          state.user = null;
          state.isAuthenticated = false;
 
          // Clear secure store
          SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY).catch((error) =>
             console.error('Error deleting access token:', error)
+         );
+         SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY).catch((error) =>
+            console.error('Error deleting refresh token:', error)
          );
          SecureStore.deleteItemAsync(USER_KEY).catch((error) =>
             console.error('Error deleting user data:', error)
@@ -112,12 +128,14 @@ const authSlice = createSlice({
          })
          .addCase(initializeAuth.fulfilled, (state, action) => {
             state.accessToken = action.payload.accessToken;
+            state.refreshToken = action.payload.refreshToken;
             state.user = action.payload.user;
             state.isAuthenticated = !!action.payload.accessToken;
             state.isInitialized = true;
          })
          .addCase(initializeAuth.rejected, (state) => {
             state.accessToken = null;
+            state.refreshToken = null;
             state.user = null;
             state.isAuthenticated = false;
             state.isInitialized = true;

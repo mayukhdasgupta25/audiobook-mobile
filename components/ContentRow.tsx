@@ -24,6 +24,8 @@ interface ContentRowProps {
    onItemPress?: (item: ContentItem) => void;
    onMyListPress?: () => void;
    cardWidth?: number;
+   onEndReached?: () => void;
+   onEndReachedThreshold?: number;
 }
 
 /**
@@ -71,9 +73,27 @@ const ContentRowComponent: React.FC<ContentRowProps> = ({
    onItemPress,
    onMyListPress,
    cardWidth = 140,
+   onEndReached,
+   onEndReachedThreshold = 0.5,
 }) => {
    // Memoize items to prevent recreation on every render
    const memoizedItems = useMemo(() => items, [items]);
+
+   // Handle scroll to detect when user reaches end
+   const handleScroll = useCallback(
+      (event: { nativeEvent: { contentOffset: { x: number }; layoutMeasurement: { width: number }; contentSize: { width: number } } }) => {
+         if (!onEndReached) return;
+
+         const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+         const distanceFromEnd = contentSize.width - layoutMeasurement.width - contentOffset.x;
+         const threshold = layoutMeasurement.width * onEndReachedThreshold;
+
+         if (distanceFromEnd < threshold) {
+            onEndReached();
+         }
+      },
+      [onEndReached, onEndReachedThreshold]
+   );
 
    return (
       <View style={styles.container}>
@@ -93,9 +113,8 @@ const ContentRowComponent: React.FC<ContentRowProps> = ({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
             removeClippedSubviews={true} // Optimize scrolling performance
-            initialNumToRender={5} // Render only first 5 items initially
-            maxToRenderPerBatch={3} // Render 3 items per batch
-            windowSize={5} // Keep 5 screens worth of items in memory
+            onScroll={handleScroll}
+            scrollEventThrottle={16} // Optimize scroll event handling
          >
             {memoizedItems.map((item) => (
                <MemoizedContentCard

@@ -50,6 +50,7 @@ export default function SignInScreen() {
          dispatch(
             setAuth({
                accessToken: response.accessToken,
+               refreshToken: response.refreshToken,
                user: response.user,
             })
          );
@@ -75,7 +76,7 @@ export default function SignInScreen() {
             // Provide helpful error message for network issues
             let userMessage = 'Network error. Please check your connection and try again.';
             if (errorMessage.includes('Network request failed')) {
-               userMessage = 'Cannot connect to server. If testing on a physical device, set EXPO_PUBLIC_API_URL to your computer\'s IP address (e.g., http://192.168.1.100:8080)';
+               userMessage = 'Cannot connect to server. If testing on a physical device, set EXPO_PUBLIC_API_AUTH_URL to your computer\'s IP address (e.g., http://192.168.1.100:8080)';
             }
 
             setError(userMessage);
