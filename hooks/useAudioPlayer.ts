@@ -5,7 +5,8 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import Video from 'react-native-video';
+import { OnProgressData } from 'react-native-video';
+import type { VideoRef } from 'react-native-video';
 import { RootState } from '@/store';
 import {
    stop,
@@ -24,7 +25,7 @@ import { fetchSegmentAsFile, preFetchSegment } from '@/utils/segmentManager';
  */
 export function useAudioPlayer() {
    const dispatch = useDispatch();
-   const videoRef = useRef<Video>(null);
+   const videoRef = useRef<VideoRef>(null);
    const preFetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
    // Get player state from Redux
@@ -258,8 +259,10 @@ export function useAudioPlayer() {
             dispatch(setSegmentIndex(newSegmentIndex));
          }
 
-         // Seek to position
-         dispatch(seek(seconds));
+         // Update position in Redux and clear errors
+         dispatch(setPosition(newPosition));
+         dispatch(seek());
+         // Actually seek the video player
          videoRef.current?.seek(newPosition);
       },
       [playlistData, currentSegmentIndex, playbackPosition, dispatch]
