@@ -108,6 +108,60 @@ export interface GenresResponse {
 }
 
 /**
+ * Chapter interface matching API response structure
+ */
+export interface Chapter {
+   id: string;
+   audiobookId: string;
+   title: string;
+   description: string;
+   chapterNumber: number;
+   duration: number;
+   filePath: string;
+   fileSize: number;
+   coverImage: string;
+   startPosition: number;
+   endPosition: number;
+   isActive: boolean;
+   scheduledAt: string | null;
+   createdAt: string;
+   updatedAt: string;
+   audiobook: {
+      id: string;
+      title: string;
+      author: string;
+   };
+   bookmarks: unknown[];
+   notes: unknown[];
+   chapterProgress: unknown[];
+}
+
+/**
+ * Chapters API response interface
+ */
+export interface ChaptersResponse {
+   success: boolean;
+   data: Chapter[];
+   message: string;
+   statusCode: number;
+   timestamp: string;
+   path: string;
+   pagination: PaginationInfo;
+}
+
+/**
+ * Single audiobook API response interface
+ */
+export interface AudiobookResponse {
+   success: boolean;
+   data: Audiobook;
+   message: string;
+   statusCode: number;
+   timestamp: string;
+   path: string;
+}
+
+/**
  * Get tags
  * Calls GET /api/v1/tags with Bearer token
  * @returns Promise with tags response
@@ -255,6 +309,73 @@ export async function getAudiobooks(page = 1): Promise<AudiobooksResponse> {
       }
       throw new Error(
          `Failed to fetch audiobooks: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Get chapters for an audiobook with pagination
+ * Calls GET /api/v1/audiobooks/:audiobookId/chapters?page={page} with Bearer token
+ * @param audiobookId - Audiobook ID
+ * @param page - Page number (default: 1)
+ * @returns Promise with chapters response containing data and pagination info
+ * @throws ApiError if request fails
+ */
+export async function getChapters(
+   audiobookId: string,
+   page = 1
+): Promise<ChaptersResponse> {
+   try {
+      const response = await get<ChaptersResponse>(
+         `/api/v1/audiobooks/${audiobookId}/chapters?page=${page}`,
+         true // Use authentication
+      );
+      return response.data;
+   } catch (error) {
+      console.warn('[Audiobooks Service] Get chapters error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+         audiobookId,
+         page,
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Failed to fetch chapters: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Get single audiobook by ID
+ * Calls GET /api/v1/audiobooks/:audiobookId with Bearer token
+ * @param audiobookId - Audiobook ID
+ * @returns Promise with audiobook response
+ * @throws ApiError if request fails
+ */
+export async function getAudiobookById(
+   audiobookId: string
+): Promise<AudiobookResponse> {
+   try {
+      const response = await get<AudiobookResponse>(
+         `/api/v1/audiobooks/${audiobookId}`,
+         true // Use authentication
+      );
+      return response.data;
+   } catch (error) {
+      console.warn('[Audiobooks Service] Get audiobook by ID error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+         audiobookId,
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Failed to fetch audiobook: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
    }
 }

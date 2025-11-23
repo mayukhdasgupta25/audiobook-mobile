@@ -117,8 +117,8 @@ function HomeScreenContent() {
 
    // Memoize handlers to prevent unnecessary re-renders of child components
    const handleItemPress = useCallback((item: ContentItem) => {
-      // Navigate to details screen
-      console.log('Pressed item:', item.title);
+      // Navigate to details screen with audiobook ID
+      router.push(`/details/${item.id}`);
    }, []);
 
    const handleSearchPress = useCallback(() => {
@@ -208,7 +208,9 @@ function HomeScreenContent() {
                   </View>
                ) : error ? (
                   <View style={styles.errorContainer}>
-                     <Text style={styles.errorText}>{error}</Text>
+                     <Text style={styles.errorText}>
+                        {typeof error === 'string' ? error : 'An error occurred'}
+                     </Text>
                   </View>
                ) : contentRows.length === 0 ? (
                   <View style={styles.emptyContainer}>

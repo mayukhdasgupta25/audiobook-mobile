@@ -11,6 +11,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '@/store';
 import { colors } from '@/theme';
 import SplashScreen from '@/components/SplashScreen';
+import { AudioPlayer } from '@/components/AudioPlayer';
 import '../global.css';
 
 // Create a client for TanStack Query outside component to prevent recreation on every render
@@ -165,55 +166,60 @@ function InnerLayout() {
    }
 
    return (
-      <Stack
-         screenOptions={{
-            headerShown: false,
-            contentStyle: {
-               backgroundColor: colors.background.dark,
-            },
-         }}
-      >
-         <Stack.Screen
-            name="(tabs)"
-            options={{
+      <>
+         <Stack
+            screenOptions={{
+               headerShown: false,
                contentStyle: {
                   backgroundColor: colors.background.dark,
                },
             }}
-         />
-         <Stack.Screen
-            name="details/[id]"
-            options={{
-               contentStyle: {
-                  backgroundColor: colors.background.dark,
-               },
-            }}
-         />
-         <Stack.Screen
-            name="search"
-            options={{
-               contentStyle: {
-                  backgroundColor: colors.background.dark,
-               },
-            }}
-         />
-         <Stack.Screen
-            name="signin"
-            options={{
-               contentStyle: {
-                  backgroundColor: colors.background.dark,
-               },
-            }}
-         />
-         <Stack.Screen
-            name="signup"
-            options={{
-               contentStyle: {
-                  backgroundColor: colors.background.dark,
-               },
-            }}
-         />
-      </Stack>
+         >
+            <Stack.Screen
+               name="(tabs)"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="details/[id]"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="search"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="signin"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="signup"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+         </Stack>
+
+         {/* Audio Player - Global component available on all screens */}
+         <AudioPlayer />
+      </>
    );
 }
 

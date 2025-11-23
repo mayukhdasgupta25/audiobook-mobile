@@ -8,6 +8,8 @@ import { persistStore, persistReducer } from 'redux-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import authReducer, { initializeAuth } from './auth';
 import audiobooksReducer from './audiobooks';
+import streamingReducer from './streaming';
+import playerReducer from './player';
 
 /**
  * Root reducer combining all feature reducers
@@ -15,6 +17,8 @@ import audiobooksReducer from './audiobooks';
 const rootReducer = combineReducers({
    auth: authReducer,
    audiobooks: audiobooksReducer,
+   streaming: streamingReducer,
+   player: playerReducer,
 });
 
 /**

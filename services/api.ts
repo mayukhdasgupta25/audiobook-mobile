@@ -37,15 +37,15 @@ function getAuthApiPort(): string {
 }
 
 /**
- * Get the main API port (8081 for all other APIs)
+ * Get the main API port (8082 for all other APIs)
  */
 function getMainApiPort(): string {
    // If environment variable is set, use it
    if (process.env.EXPO_PUBLIC_API_PORT) {
       return process.env.EXPO_PUBLIC_API_PORT;
    }
-   // Default to 8081 for development
-   return '8081';
+   // Default to 8082 for development
+   return '8082';
 }
 
 /**
@@ -98,13 +98,13 @@ function buildApiUrl(port: string): string {
       return normalizeUrl(process.env.EXPO_PUBLIC_AUTH_API_URL, port);
    }
 
-   // For main API (port 8081), check EXPO_PUBLIC_API_URL
+   // For main API (port 8082), check EXPO_PUBLIC_API_URL
    if (port === getMainApiPort() && process.env.EXPO_PUBLIC_API_URL) {
       const mainApiUrl = normalizeUrl(process.env.EXPO_PUBLIC_API_URL, port);
-      // Warn if the URL is using the wrong port (8080 instead of 8081)
-      if (mainApiUrl.includes(':8080') && !mainApiUrl.includes(':8081')) {
+      // Warn if the URL is using the wrong port (8080 or 8081 instead of 8082)
+      if ((mainApiUrl.includes(':8080') || mainApiUrl.includes(':8081')) && !mainApiUrl.includes(':8082')) {
          console.warn(
-            '[API Config Warning] EXPO_PUBLIC_API_URL is using port 8080, but main API should use port 8081. Consider updating to port 8081.'
+            '[API Config Warning] EXPO_PUBLIC_API_URL is using port 8080 or 8081, but main API should use port 8082. Consider updating to port 8082.'
          );
       }
       return mainApiUrl;
@@ -141,7 +141,7 @@ export function getAuthApiUrl(): string {
 }
 
 /**
- * Get main API base URL (port 8081 for all other APIs)
+ * Get main API base URL (port 8082 for all other APIs)
  */
 export function getMainApiUrl(): string {
    return buildApiUrl(getMainApiPort());
@@ -169,8 +169,8 @@ console.log('[API Config]', {
       : Platform.OS === 'ios'
          ? 'Using localhost for iOS simulator'
          : 'Using localhost for web',
-   warning: API_BASE_URL.includes(':8080')
-      ? 'WARNING: Main API URL is using port 8080! Should be 8081.'
+   warning: API_BASE_URL.includes(':8080') || API_BASE_URL.includes(':8081')
+      ? 'WARNING: Main API URL is using port 8080 or 8081! Should be 8082.'
       : undefined,
 });
 
@@ -251,7 +251,7 @@ export interface ApiResponse<T> {
  * @param useAuth - Whether to include Bearer token in headers (default: false)
  *                  When true, automatically adds: Authorization: Bearer <token>
  *                  Token is retrieved from Redux store (set via login API)
- * @param useAuthApi - Whether to use auth API URL (port 8080) instead of main API URL (default: false)
+ * @param useAuthApi - Whether to use auth API URL (port 8080) instead of main API URL (port 8082) (default: false)
  *                     Set to true for login/signup endpoints only
  * 
  * @example
@@ -320,8 +320,13 @@ export async function apiRequest<T>(
 
    // Merge headers: base config first, then auth headers, then custom headers
    // Note: options.headers can override auth headers, but this should be avoided
+   // For M3U8 endpoints, use text/plain Accept header instead of application/json
+   const defaultHeaders = endpoint.includes('.m3u8')
+      ? { ...apiConfig.headers, Accept: 'text/plain' }
+      : apiConfig.headers;
+
    const headers: Record<string, string> = {
-      ...apiConfig.headers,
+      ...defaultHeaders,
       ...authHeaders,
       ...(options.headers as Record<string, string> | undefined),
    };
@@ -359,6 +364,8 @@ export async function apiRequest<T>(
          ...options,
          headers,
       });
+
+      console.log('[Response]', response);
 
       console.log('[API Response]', {
          status: response.status,
@@ -398,7 +405,40 @@ export async function apiRequest<T>(
          throw apiError;
       }
 
-      const data = (await response.json()) as T;
+      // Check content type to determine if response is JSON or text
+      const contentType = response.headers.get('content-type') || '';
+      let data: T;
+
+      // Check if endpoint is M3U8 or content-type indicates text/plain
+      const isM3U8Endpoint = endpoint.includes('.m3u8');
+      const isTextContent =
+         contentType.includes('text/plain') ||
+         contentType.includes('application/vnd.apple.mpegurl') ||
+         contentType.includes('text/');
+
+      if (isM3U8Endpoint || isTextContent) {
+         // Handle text/plain responses (e.g., M3U8 playlists)
+         const textData = await response.text();
+         data = textData as unknown as T;
+      } else {
+         // Handle JSON responses (default)
+         // Get text first to check if it's actually JSON or M3U8
+         const textData = await response.text();
+
+         // Check if response starts with # (M3U8 format) - fallback detection
+         if (textData.trim().startsWith('#')) {
+            // It's M3U8 content, return as text
+            data = textData as unknown as T;
+         } else {
+            // Try to parse as JSON
+            try {
+               data = JSON.parse(textData) as T;
+            } catch (parseError) {
+               // If JSON parsing fails, return as text
+               data = textData as unknown as T;
+            }
+         }
+      }
 
       return {
          data,
