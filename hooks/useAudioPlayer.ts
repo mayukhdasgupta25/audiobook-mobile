@@ -3,13 +3,11 @@
  * Manages audio playback using react-native-video with segment-based streaming
  */
 
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import Video, { OnProgressData, OnLoadData } from 'react-native-video';
+import Video from 'react-native-video';
 import { RootState } from '@/store';
 import {
-   play,
-   pause,
    stop,
    setSegmentIndex,
    setPosition,
@@ -19,7 +17,6 @@ import {
    seek,
 } from '@/store/player';
 import { fetchSegmentAsFile, preFetchSegment } from '@/utils/segmentManager';
-import { StreamingPlaylistData } from './useStreamingPlaylist';
 
 /**
  * Hook to manage audio playback for chapters
@@ -165,7 +162,7 @@ export function useAudioPlayer() {
    /**
     * Handle load data
     */
-   const handleLoad = useCallback((data: OnLoadData) => {
+   const handleLoad = useCallback(() => {
       // Segment loaded successfully
       dispatch(setLoading(false));
    }, [dispatch]);

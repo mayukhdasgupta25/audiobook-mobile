@@ -3,14 +3,13 @@
  * Orchestrates fetching tags, genres, and audiobooks for each
  */
 
-import { useMemo, useCallback, useRef, useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useMemo, useCallback, useRef, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { useQueries } from '@tanstack/react-query';
 import { useTags } from './useTags';
 import { useGenres } from './useGenres';
 import { getAudiobooksByTag, getAudiobooksByGenre } from '@/services/audiobooks';
-import { ApiError } from '@/services/api';
-import { Tag, Genre, Audiobook, PaginationInfo } from '@/services/audiobooks';
+import { Audiobook, PaginationInfo } from '@/services/audiobooks';
 import { ContentItem } from '@/components/ContentRow';
 import { apiConfig } from '@/services/api';
 import { RootState } from '@/store';
@@ -106,12 +105,12 @@ export function useHomeContent() {
 
    // Build query options for tags - fetch all pages up to current page
    const tagQueryOptions = useMemo(() => {
-      const options: Array<{
+      const options: {
          queryKey: unknown[];
          queryFn: () => Promise<unknown>;
          enabled: boolean;
          staleTime: number;
-      }> = [];
+      }[] = [];
       tags.forEach((tag) => {
          const currentPage = rowPages[`tag-${tag.name}`] || 1;
          // Fetch all pages from 1 to currentPage
@@ -129,12 +128,12 @@ export function useHomeContent() {
 
    // Build query options for genres - fetch all pages up to current page
    const genreQueryOptions = useMemo(() => {
-      const options: Array<{
+      const options: {
          queryKey: unknown[];
          queryFn: () => Promise<unknown>;
          enabled: boolean;
          staleTime: number;
-      }> = [];
+      }[] = [];
       genres.forEach((genre) => {
          const currentPage = rowPages[`genre-${genre.id}`] || 1;
          // Fetch all pages from 1 to currentPage

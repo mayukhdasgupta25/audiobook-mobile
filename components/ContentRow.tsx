@@ -61,6 +61,7 @@ const MemoizedContentCard = React.memo<{
       prevProps.onPress === nextProps.onPress
    );
 });
+MemoizedContentCard.displayName = 'MemoizedContentCard';
 
 /**
  * Horizontal scrollable content row component

@@ -27,10 +27,12 @@ const MemoizedProfileHeader = React.memo<{
       onMenuPress={onMenuPress}
    />
 ));
+MemoizedProfileHeader.displayName = 'MemoizedProfileHeader';
 
 const MemoizedDownloadsCard = React.memo<{
    onPress: () => void;
 }>(({ onPress }) => <DownloadsCard onPress={onPress} />);
+MemoizedDownloadsCard.displayName = 'MemoizedDownloadsCard';
 
 const MemoizedContentRow = React.memo<{
    title: string;
@@ -47,6 +49,7 @@ const MemoizedContentRow = React.memo<{
       onMyListPress={onMyListPress}
    />
 ));
+MemoizedContentRow.displayName = 'MemoizedContentRow';
 
 // Memoized story card component to prevent re-renders
 const MemoizedStoryCard = React.memo<{
@@ -75,6 +78,7 @@ const MemoizedStoryCard = React.memo<{
       prevProps.onPress === nextProps.onPress
    );
 });
+MemoizedStoryCard.displayName = 'MemoizedStoryCard';
 
 // Sample data interfaces
 interface LikedStory extends ContentItem {

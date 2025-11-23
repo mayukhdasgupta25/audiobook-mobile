@@ -33,6 +33,7 @@ const MemoizedHeader = React.memo<{
       onNotificationPress={onNotificationPress}
    />
 ));
+MemoizedHeader.displayName = 'MemoizedHeader';
 
 const MemoizedNavigationPills = React.memo<{
    selectedTab: 'shows' | 'movies' | 'categories';
@@ -40,6 +41,7 @@ const MemoizedNavigationPills = React.memo<{
 }>(({ selectedTab, onTabChange }) => (
    <NavigationPills selectedTab={selectedTab} onTabChange={onTabChange} />
 ));
+MemoizedNavigationPills.displayName = 'MemoizedNavigationPills';
 
 const MemoizedHeroSection = React.memo<{
    title: string;
@@ -56,6 +58,7 @@ const MemoizedHeroSection = React.memo<{
       onMyListPress={onMyListPress}
    />
 ));
+MemoizedHeroSection.displayName = 'MemoizedHeroSection';
 
 const MemoizedContentRow = React.memo<{
    title: string;
@@ -70,6 +73,7 @@ const MemoizedContentRow = React.memo<{
       onEndReached={onEndReached}
    />
 ));
+MemoizedContentRow.displayName = 'MemoizedContentRow';
 
 
 /**

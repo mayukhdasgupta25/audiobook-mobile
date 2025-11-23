@@ -63,7 +63,7 @@ export async function fetchSegmentAsFile(
       // Create the file first (with overwrite option to replace if exists)
       try {
          file.create({ overwrite: true, intermediates: true });
-      } catch (createError) {
+      } catch {
          // File might already exist, try to write anyway
          console.log('[Segment Manager] File might already exist, continuing...');
       }

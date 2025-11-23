@@ -48,7 +48,9 @@ export const queryClient = new QueryClient({
       onError: async (error: unknown) => {
          // Handle 401 errors globally - logout and redirect to signin
          if (error && typeof error === 'object' && 'status' in error && (error as { status: unknown }).status === 401) {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
             const { checkAndHandle401Error } = require('@/utils/apiErrorHandler');
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
             const { ApiError } = require('@/services/api');
             const apiError = error instanceof ApiError
                ? error
@@ -61,7 +63,9 @@ export const queryClient = new QueryClient({
       onError: async (error: unknown) => {
          // Handle 401 errors globally - logout and redirect to signin
          if (error && typeof error === 'object' && 'status' in error && (error as { status: unknown }).status === 401) {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
             const { checkAndHandle401Error } = require('@/utils/apiErrorHandler');
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
             const { ApiError } = require('@/services/api');
             const apiError = error instanceof ApiError
                ? error

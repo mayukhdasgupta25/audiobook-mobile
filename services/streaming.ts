@@ -96,6 +96,7 @@ export async function getSegment(
 ): Promise<ArrayBuffer> {
    try {
       // For binary data (audio segments), fetch as ArrayBuffer for better React Native compatibility
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { store } = require('@/store');
       const state = store.getState();
       const accessToken = state.auth?.accessToken;
@@ -104,6 +105,7 @@ export async function getSegment(
          throw new ApiError(401, 'Unauthorized', { message: 'Access token is missing' });
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const baseURL = require('./api').apiConfig.baseURL;
       const url = `${baseURL}/api/v1/stream/chapters/${chapterId}/${bitrate}/segments/${segmentId}?user=${userId}`;
 

@@ -222,6 +222,7 @@ export const AnimatedTabScreen: React.FC<AnimatedTabScreenProps> = ({
             }, 300);
          }
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [pathname, currentRoute, previousRoute, direction, contextPreviousPathname, isActive, getRouteFromPathname, getAnimationDirection]);
 
    // Safety check: ensure screen is visible when active
@@ -269,6 +270,7 @@ export const AnimatedTabScreen: React.FC<AnimatedTabScreenProps> = ({
             wasActiveRef.current = true;
          }
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [pathname, currentRoute, previousRoute, contextPreviousPathname, isActive, getAnimationDirection]);
 
    const animatedStyle = useAnimatedStyle(() => {

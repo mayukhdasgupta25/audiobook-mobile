@@ -105,7 +105,7 @@ const playerSlice = createSlice({
       /**
        * Seek forward or backward by specified seconds
        */
-      seek: (state, action: PayloadAction<number>) => {
+      seek: (state) => {
          // Seek is handled in the hook, this just clears any errors
          state.error = null;
       },

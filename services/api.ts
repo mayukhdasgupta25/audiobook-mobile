@@ -70,7 +70,7 @@ function extractHostFromUrl(url: string): string | null {
  */
 function normalizeUrl(url: string, defaultPort: string): string {
    // Fix double equals if present
-   let normalized = url.replace(/^=+/, '');
+   const normalized = url.replace(/^=+/, '');
 
    // If URL already includes protocol and port, return as is
    if (normalized.match(/^https?:\/\/[^:]+:\d+/)) {
@@ -198,6 +198,7 @@ export const apiConfig = {
  */
 export function getAuthHeaders(): Record<string, string> {
    // Import store dynamically to avoid circular dependencies
+   // eslint-disable-next-line @typescript-eslint/no-require-imports
    const { store } = require('@/store');
    const state = store.getState();
    const accessToken = state.auth?.accessToken;
@@ -290,7 +291,9 @@ export async function apiRequest<T>(
    if (useAuth && !authHeaders.Authorization) {
       console.warn('[API Request] useAuth=true but no access token found in store. Logging out user.');
       // Import store and error handler dynamically to avoid circular dependencies
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { store } = require('@/store');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { checkAndHandle401Error } = require('@/utils/apiErrorHandler');
       const state = store.getState();
 
@@ -392,8 +395,10 @@ export async function apiRequest<T>(
          // This ensures any 401 response triggers logout, regardless of useAuth flag
          if (response.status === 401 && !useAuthApi) {
             // Import dynamically to avoid circular dependencies
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
             const { checkAndHandle401Error } = require('@/utils/apiErrorHandler');
             // Check if user is authenticated before logging out (to avoid logout loops)
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
             const { store } = require('@/store');
             const state = store.getState();
             // Only logout if user was previously authenticated
@@ -433,7 +438,7 @@ export async function apiRequest<T>(
             // Try to parse as JSON
             try {
                data = JSON.parse(textData) as T;
-            } catch (parseError) {
+            } catch {
                // If JSON parsing fails, return as text
                data = textData as unknown as T;
             }
