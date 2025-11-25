@@ -45,6 +45,24 @@ export default function DetailsScreen() {
       (state: RootState) => state.auth.isInitialized
    );
 
+   // Get player visibility state to calculate proper padding
+   const isPlayerVisible = useSelector(
+      (state: RootState) => state.player.isVisible
+   );
+
+   // Calculate scroll content padding based on player visibility
+   const scrollContentStyle = useMemo(() => {
+      // Account for: bottom nav bar (90/70) + minimized player (~70) + extra spacing
+      // When player is visible, add extra padding for minimized player height
+      const paddingBottom = isPlayerVisible
+         ? Platform.OS === 'ios' ? 170 : 150 // Tab bar + minimized player + spacing
+         : Platform.OS === 'ios' ? 100 : 80; // Just tab bar when player not visible
+
+      return {
+         paddingBottom,
+      };
+   }, [isPlayerVisible]);
+
    // Fetch audiobook data
    const { data: audiobookData, isLoading: audiobookLoading } = useAudiobook(id || '');
 
@@ -238,7 +256,7 @@ export default function DetailsScreen() {
          // Track that user clicked this chapter (for auto-play)
          clickedChapterIdRef.current = chapter.id;
 
-         // Set current chapter with metadata
+         // Set current chapter with metadata and audiobookId
          dispatch(
             setChapter({
                chapterId: chapter.id,
@@ -247,6 +265,7 @@ export default function DetailsScreen() {
                   title: chapter.title,
                   coverImage: chapter.coverImage,
                },
+               audiobookId: chapter.audiobookId,
             })
          );
 
@@ -405,9 +424,20 @@ export default function DetailsScreen() {
       formattedDuration,
    ]);
 
+   // Handle navigation to tabs
+   const handleTabNavigation = useCallback((route: string) => {
+      if (route === 'home') {
+         router.push('/(tabs)');
+      } else if (route === 'new-hot') {
+         router.push('/(tabs)/new-hot');
+      } else if (route === 'profile') {
+         router.push('/(tabs)/profile');
+      }
+   }, []);
+
    return (
       <>
-         <SafeAreaView style={styles.container} edges={['top']}>
+         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             {/* Back Button - Fixed at top, overlaying content */}
             <View style={styles.backButtonContainer}>
                <TouchableOpacity
@@ -436,8 +466,56 @@ export default function DetailsScreen() {
                onEndReachedThreshold={0.5}
                removeClippedSubviews={true}
                showsVerticalScrollIndicator={false}
-               contentContainerStyle={styles.scrollContent}
+               contentContainerStyle={[styles.scrollContent, scrollContentStyle]}
             />
+
+            {/* Bottom Navigation Bar */}
+            <View style={styles.bottomNavBar}>
+               <TouchableOpacity
+                  style={styles.navItem}
+                  onPress={() => handleTabNavigation('home')}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Home"
+                  accessibilityRole="button"
+               >
+                  <Ionicons
+                     name="home"
+                     size={24}
+                     color={colors.text.secondaryDark}
+                  />
+                  <Text style={styles.navLabel}>Home</Text>
+               </TouchableOpacity>
+
+               <TouchableOpacity
+                  style={styles.navItem}
+                  onPress={() => handleTabNavigation('new-hot')}
+                  activeOpacity={0.7}
+                  accessibilityLabel="New & Hot"
+                  accessibilityRole="button"
+               >
+                  <Ionicons
+                     name="flash"
+                     size={24}
+                     color={colors.text.secondaryDark}
+                  />
+                  <Text style={styles.navLabel}>New & Hot</Text>
+               </TouchableOpacity>
+
+               <TouchableOpacity
+                  style={styles.navItem}
+                  onPress={() => handleTabNavigation('profile')}
+                  activeOpacity={0.7}
+                  accessibilityLabel="My AudioBook"
+                  accessibilityRole="button"
+               >
+                  <Ionicons
+                     name="person-circle-outline"
+                     size={24}
+                     color={colors.text.secondaryDark}
+                  />
+                  <Text style={styles.navLabel}>My AudioBook</Text>
+               </TouchableOpacity>
+            </View>
          </SafeAreaView>
       </>
    );
@@ -449,7 +527,7 @@ const styles = StyleSheet.create({
       backgroundColor: colors.background.dark,
    },
    scrollContent: {
-      paddingBottom: spacing.xl,
+      // Base padding - will be overridden by dynamic padding based on player visibility
    },
    backButtonContainer: {
       position: 'absolute',
@@ -633,5 +711,53 @@ const styles = StyleSheet.create({
       padding: spacing.md,
       alignItems: 'center',
       justifyContent: 'center',
+   },
+   bottomNavBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: colors.background.darkGray,
+      borderTopWidth: 0,
+      height: Platform.OS === 'ios' ? 90 : 70,
+      paddingTop: Platform.OS === 'ios' ? 10 : 5,
+      paddingBottom: Platform.OS === 'ios' ? 30 : 10,
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      zIndex: 100, // Below AudioPlayer (zIndex 1000) but above content
+      elevation: 100, // Android elevation (below AudioPlayer elevation 1000)
+      ...Platform.select({
+         ios: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 3,
+         },
+         android: {
+            elevation: 3,
+         },
+      }),
+   },
+   navItem: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.xs,
+   },
+   navLabel: {
+      fontSize: typography.fontSize.xs,
+      fontWeight: '500',
+      marginTop: 4,
+      color: colors.text.secondaryDark,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '500',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
    },
 });

@@ -109,6 +109,8 @@ export async function getSegment(
       const baseURL = require('./api').apiConfig.baseURL;
       const url = `${baseURL}/api/v1/stream/chapters/${chapterId}/${bitrate}/segments/${segmentId}?user=${userId}`;
 
+      const now = new Date()
+      console.log(`[Streaming Service] Get segment URL ${now.toLocaleTimeString()}`, url);
       const response = await fetch(url, {
          method: 'GET',
          headers: {
@@ -116,6 +118,8 @@ export async function getSegment(
             Accept: 'audio/*, application/octet-stream, */*',
          },
       });
+
+      console.log('[Streaming Service] Get segment response', response);
 
       if (!response.ok) {
          const errorData = await response.json().catch(() => ({}));
@@ -144,6 +148,47 @@ export async function getSegment(
       }
       throw new Error(
          `Failed to fetch segment: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Get initialization segment for fragmented MP4
+ * Calls GET /api/v1/stream/chapters/:chapterId/:bitrate/segments/:segmentId?user=userId with Bearer token
+ * @param chapterId - Chapter ID
+ * @param bitrate - Bitrate (e.g., "128" for 128k, "64" for 64k)
+ * @param initSegmentPath - Init segment path from playlist (e.g., "bit_transcode/chapterId/128k/init.mp4")
+ * @param userId - User ID
+ * @returns Promise with init segment data as ArrayBuffer
+ * @throws ApiError if request fails
+ */
+export async function getInitSegment(
+   chapterId: string,
+   bitrate: string,
+   initSegmentPath: string,
+   userId: string
+): Promise<ArrayBuffer> {
+   try {
+      // Extract segmentId from path (e.g., "init.mp4" from "bit_transcode/chapterId/128k/init.mp4")
+      const segmentId = initSegmentPath.split('/').pop() || 'init.mp4';
+
+      // Use the same getSegment function since init segment is fetched the same way
+      return await getSegment(chapterId, bitrate, segmentId, userId);
+   } catch (error) {
+      console.warn('[Streaming Service] Get init segment error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+         chapterId,
+         bitrate,
+         initSegmentPath,
+         userId,
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Failed to fetch init segment: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
    }
 }

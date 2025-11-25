@@ -28,6 +28,7 @@ export interface PlayerState {
    isVisible: boolean; // Whether player UI is visible
    isMinimized: boolean; // Whether player is in minimized state
    chapterMetadata: ChapterMetadata | null; // Chapter title and cover for UI
+   audiobookId: string | null; // Audiobook ID for fetching next chapter
 }
 
 /**
@@ -44,6 +45,7 @@ const initialState: PlayerState = {
    isVisible: false,
    isMinimized: false,
    chapterMetadata: null,
+   audiobookId: null,
 };
 
 /**
@@ -58,7 +60,7 @@ const playerSlice = createSlice({
        */
       setChapter: (
          state,
-         action: PayloadAction<{ chapterId: string; metadata: ChapterMetadata }>
+         action: PayloadAction<{ chapterId: string; metadata: ChapterMetadata; audiobookId?: string }>
       ) => {
          state.currentChapterId = action.payload.chapterId;
          state.currentSegmentIndex = 0;
@@ -66,6 +68,9 @@ const playerSlice = createSlice({
          state.isVisible = true;
          state.error = null;
          state.chapterMetadata = action.payload.metadata;
+         if (action.payload.audiobookId) {
+            state.audiobookId = action.payload.audiobookId;
+         }
       },
       /**
        * Start or resume playback

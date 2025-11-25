@@ -38,6 +38,7 @@ export interface PlaylistData {
    targetDuration?: number;
    segments: SegmentInfo[];
    isEndList: boolean;
+   initSegmentUri?: string; // URI for init segment (for fragmented MP4)
 }
 
 /**
@@ -88,12 +89,15 @@ export function parseMasterPlaylist(m3u8Content: string): MasterPlaylistData {
             : '';
 
          if (playlistPath && attributes.BANDWIDTH) {
+            // Normalize path: convert backslashes to forward slashes
+            const normalizedPath = playlistPath.replace(/\\/g, '/');
+
             const bandwidth = parseInt(attributes.BANDWIDTH, 10);
             streams.push({
                bandwidth,
                codecs: attributes.CODECS,
                resolution: attributes.RESOLUTION,
-               playlistPath,
+               playlistPath: normalizedPath,
             });
          }
       }
@@ -145,6 +149,22 @@ export function parsePlaylist(m3u8Content: string): PlaylistData {
       }
    }
 
+   // Parse init segment (EXT-X-MAP) for fragmented MP4
+   // Format: #EXT-X-MAP:URI="init.mp4" or #EXT-X-MAP:URI="bit_transcode\path\init.mp4"
+   let initSegmentUri: string | undefined;
+   const mapLine = lines.find((line) => line.startsWith('#EXT-X-MAP:'));
+   if (mapLine) {
+      // Match URI="..." where ... can contain backslashes
+      const uriMatch = mapLine.match(/URI="([^"]+)"/);
+      if (uriMatch) {
+         // Normalize path: convert backslashes to forward slashes (fix server-side path issues)
+         // Example: "bit_transcode\chapterId\128k\init.mp4" -> "bit_transcode/chapterId/128k/init.mp4"
+         initSegmentUri = uriMatch[1].replace(/\\/g, '/');
+      }
+   }
+
+   console.log('[M3U8 Parser] Init segment URI', initSegmentUri);
+
    // Check for end list
    isEndList = lines.some((line) => line === '#EXT-X-ENDLIST');
 
@@ -164,11 +184,14 @@ export function parsePlaylist(m3u8Content: string): PlaylistData {
             : '';
 
          if (segmentPath) {
+            // Normalize path: convert backslashes to forward slashes (fix server-side path issues)
+            const normalizedPath = segmentPath.replace(/\\/g, '/');
+
             // Extract segmentId from path (e.g., "segment_000" from "bit_transcode/chapterId/128k/segment_000.ts")
-            const segmentId = extractSegmentId(segmentPath);
+            const segmentId = extractSegmentId(normalizedPath);
             segments.push({
                duration,
-               path: segmentPath,
+               path: normalizedPath,
                segmentId,
             });
          }
@@ -180,6 +203,7 @@ export function parsePlaylist(m3u8Content: string): PlaylistData {
       targetDuration,
       segments,
       isEndList,
+      initSegmentUri,
    };
 }
 

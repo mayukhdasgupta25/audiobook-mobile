@@ -3,7 +3,7 @@
  * Displays audio player UI with playback controls and progress
  */
 
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import {
    View,
    Text,
@@ -12,6 +12,7 @@ import {
    Platform,
    ActivityIndicator,
    Dimensions,
+   PanResponder,
 } from 'react-native';
 import Animated, {
    useAnimatedStyle,
@@ -63,6 +64,13 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const isMountedRef = useRef(false);
    const previousVisibleRef = useRef(false);
    const previousMinimizedRef = useRef(false);
+   const progressBarWidthRef = useRef(0);
+   const progressBarWrapperRef = useRef<View | null>(null);
+
+   // State for dragging animation
+   const [isDragging, setIsDragging] = useState(false);
+   const [dragProgress, setDragProgress] = useState(0);
+   const dragProgressValue = useSharedValue(0);
 
    // Get playlist data for current chapter
    const playlistData = useSelector((state: RootState) =>
@@ -80,6 +88,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
       handleLoad,
       handleError,
       handleSeek,
+      seekToTime,
    } = useAudioPlayer();
 
    // Calculate total progress
@@ -96,6 +105,168 @@ export const AudioPlayer: React.FC = React.memo(() => {
       totalElapsed += playbackPosition;
       return totalElapsed / totalDuration;
    }, [playlistData, currentSegmentIndex, playbackPosition, totalDuration]);
+
+   // Handle progress bar press to seek (for tap, not drag)
+   const handleProgressBarPress = (event: { nativeEvent: { locationX: number } }) => {
+      if (totalDuration === 0 || progressBarWidthRef.current === 0 || isDragging) return;
+
+      const { locationX } = event.nativeEvent;
+      const percentage = Math.max(0, Math.min(1, locationX / progressBarWidthRef.current));
+      const targetTime = percentage * totalDuration;
+
+      // Call seekToTime without blocking
+      seekToTime(targetTime).catch((error) => {
+         console.error('[Audio Player] Error seeking:', error);
+      });
+   };
+
+   // Handle progress bar layout to get width and position
+   const handleProgressBarLayout = (event: { nativeEvent: { layout: { width: number } } }) => {
+      // The wrapper includes padding, so we need to subtract it to get the actual progress bar width
+      const wrapperWidth = event.nativeEvent.layout.width;
+      // Subtract horizontal padding (8px on each side = 16px total)
+      progressBarWidthRef.current = wrapperWidth - 16;
+   };
+
+   // Track if user is actually dragging vs just tapping
+   const isDraggingRef = useRef(false);
+   const dragStartXRef = useRef(0);
+
+   // PanResponder for drag gestures
+   const panResponder = useRef(
+      PanResponder.create({
+         onStartShouldSetPanResponder: () => true,
+         onMoveShouldSetPanResponder: () => true,
+         onPanResponderTerminationRequest: () => false, // Don't allow termination
+         onPanResponderGrant: (evt) => {
+            // Store initial touch position
+            dragStartXRef.current = evt.nativeEvent.pageX;
+            isDraggingRef.current = false;
+         },
+         onPanResponderMove: (evt) => {
+            if (progressBarWidthRef.current === 0 || totalDuration === 0) return;
+
+            // Check if this is actually a drag (movement > threshold)
+            const moveDistance = Math.abs(evt.nativeEvent.pageX - dragStartXRef.current);
+            if (moveDistance > 5 && !isDraggingRef.current) {
+               // Start dragging
+               isDraggingRef.current = true;
+               setIsDragging(true);
+               setDragProgress(totalProgress);
+               dragProgressValue.value = totalProgress;
+            }
+
+            if (isDraggingRef.current) {
+               // Use locationX which is relative to the view that handles the gesture
+               // We need to measure the wrapper to get the correct position
+               if (progressBarWrapperRef.current) {
+                  progressBarWrapperRef.current.measureInWindow((x, _y, width) => {
+                     // Calculate relative position from pageX, accounting for padding
+                     const padding = 8; // Horizontal padding on wrapper
+                     const relativeX = evt.nativeEvent.pageX - x - padding;
+                     const progressWidth = width - (padding * 2);
+                     const percentage = Math.max(0, Math.min(1, relativeX / progressWidth));
+
+                     setDragProgress(percentage);
+                     dragProgressValue.value = percentage;
+                  });
+               } else {
+                  // Fallback: use locationX if available (relative to touch target)
+                  const locationX = evt.nativeEvent.locationX || 0;
+                  const percentage = Math.max(0, Math.min(1, locationX / progressBarWidthRef.current));
+
+                  setDragProgress(percentage);
+                  dragProgressValue.value = percentage;
+               }
+            }
+         },
+         onPanResponderRelease: (evt) => {
+            if (progressBarWidthRef.current === 0 || totalDuration === 0) {
+               setIsDragging(false);
+               isDraggingRef.current = false;
+               return;
+            }
+
+            // Calculate final position (works for both tap and drag)
+            const calculateAndSeek = async () => {
+               let percentage = 0;
+               if (progressBarWrapperRef.current) {
+                  progressBarWrapperRef.current.measureInWindow((x, _y, width) => {
+                     // Account for padding when calculating position
+                     const padding = 8; // Horizontal padding on wrapper
+                     const relativeX = evt.nativeEvent.pageX - x - padding;
+                     const progressWidth = width - (padding * 2);
+                     percentage = Math.max(0, Math.min(1, relativeX / progressWidth));
+                     const targetTime = percentage * totalDuration;
+
+                     // Call seekToTime without blocking
+                     seekToTime(targetTime).catch((error) => {
+                        console.error('[Audio Player] Error seeking:', error);
+                     });
+
+                     setTimeout(() => {
+                        setIsDragging(false);
+                        setDragProgress(0);
+                        isDraggingRef.current = false;
+                     }, 100);
+                  });
+               } else {
+                  const locationX = evt.nativeEvent.locationX || 0;
+                  percentage = Math.max(0, Math.min(1, locationX / progressBarWidthRef.current));
+                  const targetTime = percentage * totalDuration;
+
+                  // Call seekToTime without blocking
+                  seekToTime(targetTime).catch((error) => {
+                     console.error('[Audio Player] Error seeking:', error);
+                  });
+
+                  setTimeout(() => {
+                     setIsDragging(false);
+                     setDragProgress(0);
+                     isDraggingRef.current = false;
+                  }, 100);
+               }
+            };
+
+            // If it was a tap (no drag), seek immediately
+            // If it was a drag, we already updated the position, just seek to final position
+            calculateAndSeek();
+         },
+         onPanResponderTerminate: () => {
+            setIsDragging(false);
+            setDragProgress(0);
+            isDraggingRef.current = false;
+         },
+      })
+   ).current;
+
+   // Animated style for progress fill during drag
+   const dragProgressAnimatedStyle = useAnimatedStyle(() => {
+      return {
+         width: `${dragProgressValue.value * 100}%`,
+      };
+   });
+
+   // Animated style for progress handle position during drag
+   const dragHandleAnimatedStyle = useAnimatedStyle(() => {
+      // Clamp the progress value to ensure handle stays within bounds (0 to 1)
+      const clampedProgress = Math.max(0, Math.min(1, dragProgressValue.value));
+      // Position at percentage, then translate by -8px (half handle width) to center it
+      return {
+         left: `${clampedProgress * 100}%`,
+         transform: [{ translateX: -8 }], // Center the handle (half of 16px width)
+      };
+   });
+
+   // Animated style for progress handle position when not dragging
+   const progressHandleAnimatedStyle = useAnimatedStyle(() => {
+      // Clamp the progress value to ensure handle stays within bounds (0 to 1)
+      const clampedProgress = Math.max(0, Math.min(1, totalProgress));
+      return {
+         left: `${clampedProgress * 100}%`,
+         transform: [{ translateX: -8 }], // Center the handle (half of 16px width)
+      };
+   });
 
    // Get chapter cover image URI
    const chapterCoverUri = useMemo(() => {
@@ -371,6 +542,22 @@ export const AudioPlayer: React.FC = React.memo(() => {
                               color={colors.text.dark}
                            />
                         </TouchableOpacity>
+
+                        {/* Close Button */}
+                        <TouchableOpacity
+                           onPress={(e) => {
+                              e.stopPropagation();
+                              handleClose();
+                           }}
+                           style={styles.minimizedCloseButton}
+                           activeOpacity={0.7}
+                        >
+                           <Ionicons
+                              name="close"
+                              size={20}
+                              color={colors.text.dark}
+                           />
+                        </TouchableOpacity>
                      </View>
                   </TouchableOpacity>
                </Animated.View>
@@ -417,17 +604,64 @@ export const AudioPlayer: React.FC = React.memo(() => {
 
                   {/* Progress Bar */}
                   <View style={styles.progressContainer}>
-                     <View style={styles.progressBar}>
+                     <View
+                        ref={progressBarWrapperRef}
+                        style={styles.progressBarWrapper}
+                        onLayout={handleProgressBarLayout}
+                        collapsable={false}
+                     >
                         <View
-                           style={[
-                              styles.progressFill,
-                              { width: `${totalProgress * 100}%` },
-                           ]}
-                        />
+                           style={styles.progressBarTouchable}
+                           {...panResponder.panHandlers}
+                        >
+                           <TouchableOpacity
+                              style={styles.progressBarTouchableInner}
+                              onPress={handleProgressBarPress}
+                              activeOpacity={1}
+                              disabled={isDragging}
+                           >
+                              <View style={styles.progressBarContainer}>
+                                 <View style={styles.progressBar}>
+                                    {isDragging ? (
+                                       <Animated.View
+                                          style={[
+                                             styles.progressFill,
+                                             dragProgressAnimatedStyle,
+                                          ]}
+                                       />
+                                    ) : (
+                                       <View
+                                          style={[
+                                             styles.progressFill,
+                                             { width: `${totalProgress * 100}%` },
+                                          ]}
+                                       />
+                                    )}
+                                 </View>
+                                 {isDragging ? (
+                                    <Animated.View
+                                       style={[
+                                          styles.progressHandle,
+                                          dragHandleAnimatedStyle,
+                                       ]}
+                                    />
+                                 ) : (
+                                    <Animated.View
+                                       style={[
+                                          styles.progressHandle,
+                                          progressHandleAnimatedStyle,
+                                       ]}
+                                    />
+                                 )}
+                              </View>
+                           </TouchableOpacity>
+                        </View>
                      </View>
                      <View style={styles.timeContainer}>
                         <Text style={styles.timeText}>
-                           {formatDuration(elapsedTime)}
+                           {isDragging
+                              ? formatDuration(dragProgress * totalDuration)
+                              : formatDuration(elapsedTime)}
                         </Text>
                         <Text style={styles.timeText}>
                            {formatDuration(totalTime)}
@@ -514,13 +748,18 @@ export const AudioPlayer: React.FC = React.memo(() => {
 
 AudioPlayer.displayName = 'AudioPlayer';
 
+// Tab bar height constants - must match tab bar height in app/(tabs)/_layout.tsx
+const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 90 : 70;
+
 const styles = StyleSheet.create({
    container: {
       position: 'absolute',
-      bottom: 0,
+      bottom: TAB_BAR_HEIGHT, // Position above tab bar instead of covering it
       left: 0,
       right: 0,
       backgroundColor: colors.background.darkGray,
+      zIndex: 1000, // Ensure AudioPlayer sits on top of bottom navigation bar
+      elevation: 1000, // Android elevation to ensure it's above tab bar
    },
    safeArea: {
       flex: 1,
@@ -593,16 +832,69 @@ const styles = StyleSheet.create({
    progressContainer: {
       marginBottom: spacing.lg,
    },
+   progressBarWrapper: {
+      marginBottom: spacing.xs,
+      paddingVertical: spacing.sm, // Increase touch area
+      paddingHorizontal: 8, // Add horizontal padding to accommodate handle overflow
+   },
+   progressBarTouchable: {
+      width: '100%',
+   },
+   progressBarTouchableInner: {
+      width: '100%',
+   },
+   progressBarContainer: {
+      position: 'relative',
+      width: '100%',
+      height: 4, // Match progress bar height for proper alignment
+      justifyContent: 'center',
+      ...Platform.select({
+         ios: {
+            shadowColor: '#ffffff',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.4,
+            shadowRadius: 5,
+         },
+         android: {
+            elevation: 3,
+         },
+      }),
+   },
    progressBar: {
       height: 4,
       backgroundColor: colors.background.dark,
       borderRadius: borderRadius.sm,
-      overflow: 'hidden',
-      marginBottom: spacing.xs,
+      overflow: 'hidden', // Constrain progress fill within bounds
+      width: '100%',
    },
    progressFill: {
       height: '100%',
       backgroundColor: colors.app.red,
+      // Add a subtle inner glow effect using border
+      borderWidth: 0.5,
+      borderColor: 'rgba(255, 255, 255, 0.3)',
+   },
+   progressHandle: {
+      position: 'absolute',
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: colors.app.red,
+      borderWidth: 2,
+      borderColor: colors.text.dark,
+      top: -6, // Center vertically on the progress bar (4px bar height / 2 - 8px handle radius)
+      // left will be set via animated style, positioned at progress percentage minus 8px to center
+      ...Platform.select({
+         ios: {
+            shadowColor: '#ffffff',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.6,
+            shadowRadius: 8,
+         },
+         android: {
+            elevation: 5,
+         },
+      }),
    },
    timeContainer: {
       flexDirection: 'row',
@@ -768,6 +1060,11 @@ const styles = StyleSheet.create({
    },
    playIconOffset: {
       marginLeft: 1, // Slight offset to visually center the play triangle
+   },
+   minimizedCloseButton: {
+      padding: spacing.xs,
+      justifyContent: 'center',
+      alignItems: 'center',
    },
    minimizedExpandButton: {
       padding: spacing.xs,

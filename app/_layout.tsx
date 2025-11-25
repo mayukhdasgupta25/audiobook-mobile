@@ -29,8 +29,8 @@ export const queryClient = new QueryClient({
             return failureCount < 2;
          },
          refetchOnWindowFocus: false,
-         staleTime: 5 * 60 * 1000, // 5 minutes - cache data for better performance
-         gcTime: 10 * 60 * 1000, // 10 minutes - garbage collection time (formerly cacheTime)
+         staleTime: 10 * 1000, // 10 seconds - data is considered fresh for 10 seconds
+         gcTime: 1 * 60 * 1000, // 1 minute - garbage collection time (formerly cacheTime)
       },
       mutations: {
          retry: (failureCount, error) => {
