@@ -272,18 +272,6 @@ export async function apiRequest<T>(
    const baseURL = useAuthApi ? AUTH_API_BASE_URL : apiConfig.baseURL;
    const url = `${baseURL}${endpoint}`;
 
-   // Debug log to verify correct URL is being used
-   if (endpoint.includes('/audiobooks')) {
-      console.log('[API Request Debug]', {
-         endpoint,
-         useAuthApi,
-         baseURL,
-         fullUrl: url,
-         AUTH_API_BASE_URL,
-         MAIN_API_BASE_URL: apiConfig.baseURL,
-      });
-   }
-
    // Get auth headers if needed
    const authHeaders = useAuth ? getAuthHeaders() : {};
 
@@ -352,29 +340,10 @@ export async function apiRequest<T>(
       logHeaders.Authorization = tokenPreview;
    }
 
-   console.log('[API Request]', {
-      method: options.method || 'GET',
-      url,
-      body: options.body,
-      headers: logHeaders,
-      useAuth,
-      hasAuthHeader: !!headers.Authorization,
-      authHeaderFormat: headers.Authorization?.startsWith('Bearer ') ? 'correct' : 'incorrect',
-   });
-
    try {
       const response = await fetch(url, {
          ...options,
          headers,
-      });
-
-      console.log('[Response]', response);
-
-      console.log('[API Response]', {
-         status: response.status,
-         statusText: response.statusText,
-         ok: response.ok,
-         url: response.url,
       });
 
       if (!response.ok) {

@@ -163,8 +163,6 @@ export function parsePlaylist(m3u8Content: string): PlaylistData {
       }
    }
 
-   console.log('[M3U8 Parser] Init segment URI', initSegmentUri);
-
    // Check for end list
    isEndList = lines.some((line) => line === '#EXT-X-ENDLIST');
 

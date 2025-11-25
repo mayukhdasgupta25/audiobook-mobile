@@ -119,8 +119,6 @@ export async function getSegment(
          },
       });
 
-      console.log('[Streaming Service] Get segment response', response);
-
       if (!response.ok) {
          const errorData = await response.json().catch(() => ({}));
          throw new ApiError(

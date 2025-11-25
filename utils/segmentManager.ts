@@ -43,14 +43,6 @@ export async function fetchSegmentAsFile(
 ): Promise<string> {
    const cacheKey = `${chapterId}-${segmentId}-${bitrate}`;
 
-   console.log('[Segment Manager] fetchSegmentAsFile called', {
-      chapterId,
-      segmentId,
-      bitrate,
-      cacheKey,
-      isCached: segmentCache.has(cacheKey),
-   });
-
    // Check cache first
    if (segmentCache.has(cacheKey)) {
       const cachedUri = segmentCache.get(cacheKey);

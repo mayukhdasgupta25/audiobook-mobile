@@ -83,15 +83,6 @@ export function useAudioPlayer() {
 
          const segment = segments[segmentIndex];
 
-         // Debug logging to track segment selection
-         console.log('[Audio Player] Loading segment', {
-            chapterId: freshChapterId,
-            segmentIndex,
-            segmentId: segment.segmentId,
-            totalSegments: segments.length,
-            segmentPath: segment.path,
-         });
-
          dispatch(setLoading(true));
          dispatch(setError(null));
 
