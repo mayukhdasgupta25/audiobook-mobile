@@ -54,7 +54,7 @@ export function useStreamingPlaylist(
          }
 
          // Step 1: Fetch master playlist
-         const masterPlaylistContent = await getMasterPlaylist(chapterId, userId);
+         const masterPlaylistContent = await getMasterPlaylist(chapterId);
          const masterPlaylist = parseMasterPlaylist(masterPlaylistContent);
 
          if (masterPlaylist.streams.length === 0) {

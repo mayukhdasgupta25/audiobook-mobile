@@ -44,7 +44,6 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const {
       isPlaying,
       currentChapterId,
-      currentSegmentIndex,
       playbackPosition,
       totalDuration,
       isLoading,
@@ -72,17 +71,11 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const [dragProgress, setDragProgress] = useState(0);
    const dragProgressValue = useSharedValue(0);
 
-   // Get playlist data for current chapter
-   const playlistData = useSelector((state: RootState) =>
-      currentChapterId
-         ? state.streaming.playlistsByChapterId[currentChapterId]
-         : null
-   );
-
    // Use audio player hook
    const {
       videoRef,
-      currentSegmentUri,
+      masterPlaylistUri,
+      headers,
       handleProgress,
       handleEnd,
       handleLoad,
@@ -91,20 +84,11 @@ export const AudioPlayer: React.FC = React.memo(() => {
       seekToTime,
    } = useAudioPlayer();
 
-   // Calculate total progress
+   // Calculate total progress (absolute position / total duration)
    const totalProgress = useMemo(() => {
       if (totalDuration === 0) return 0;
-      // Calculate total progress across all segments
-      let totalElapsed = 0;
-      for (let i = 0; i < currentSegmentIndex; i++) {
-         const segment = playlistData?.playlist.segments[i];
-         if (segment) {
-            totalElapsed += segment.duration;
-         }
-      }
-      totalElapsed += playbackPosition;
-      return totalElapsed / totalDuration;
-   }, [playlistData, currentSegmentIndex, playbackPosition, totalDuration]);
+      return playbackPosition / totalDuration;
+   }, [playbackPosition, totalDuration]);
 
    // Handle progress bar press to seek (for tap, not drag)
    const handleProgressBarPress = (event: { nativeEvent: { locationX: number } }) => {
@@ -114,10 +98,8 @@ export const AudioPlayer: React.FC = React.memo(() => {
       const percentage = Math.max(0, Math.min(1, locationX / progressBarWidthRef.current));
       const targetTime = percentage * totalDuration;
 
-      // Call seekToTime without blocking
-      seekToTime(targetTime).catch((error) => {
-         console.error('[Audio Player] Error seeking:', error);
-      });
+      // Call seekToTime
+      seekToTime(targetTime);
    };
 
    // Handle progress bar layout to get width and position
@@ -199,10 +181,8 @@ export const AudioPlayer: React.FC = React.memo(() => {
                      percentage = Math.max(0, Math.min(1, relativeX / progressWidth));
                      const targetTime = percentage * totalDuration;
 
-                     // Call seekToTime without blocking
-                     seekToTime(targetTime).catch((error) => {
-                        console.error('[Audio Player] Error seeking:', error);
-                     });
+                     // Call seekToTime
+                     seekToTime(targetTime);
 
                      setTimeout(() => {
                         setIsDragging(false);
@@ -215,10 +195,8 @@ export const AudioPlayer: React.FC = React.memo(() => {
                   percentage = Math.max(0, Math.min(1, locationX / progressBarWidthRef.current));
                   const targetTime = percentage * totalDuration;
 
-                  // Call seekToTime without blocking
-                  seekToTime(targetTime).catch((error) => {
-                     console.error('[Audio Player] Error seeking:', error);
-                  });
+                  // Call seekToTime
+                  seekToTime(targetTime);
 
                   setTimeout(() => {
                      setIsDragging(false);
@@ -308,21 +286,15 @@ export const AudioPlayer: React.FC = React.memo(() => {
       handleSeek(10);
    };
 
-   // Calculate elapsed time for display
+   // Calculate elapsed time for display (absolute position)
    const elapsedTime = useMemo(() => {
-      if (!playlistData) return 0;
-      return Math.floor(
-         playlistData.playlist.segments
-            .slice(0, currentSegmentIndex)
-            .reduce((sum, s) => sum + s.duration, 0) + playbackPosition
-      );
-   }, [playlistData, currentSegmentIndex, playbackPosition]);
+      return Math.floor(playbackPosition);
+   }, [playbackPosition]);
 
    // Calculate total time for display
    const totalTime = useMemo(() => {
-      if (!playlistData) return 0;
-      return playlistData.playlist.segments.reduce((sum, s) => sum + s.duration, 0);
-   }, [playlistData]);
+      return Math.floor(totalDuration);
+   }, [totalDuration]);
 
    // Handle open/close animations
    useEffect(() => {
@@ -442,8 +414,8 @@ export const AudioPlayer: React.FC = React.memo(() => {
       };
    });
 
-   // Don't render if not visible or no chapter
-   if (!isVisible || !currentChapterId || !currentSegmentUri) {
+   // Don't render if not visible or no chapter or no playlist URI
+   if (!isVisible || !currentChapterId || !masterPlaylistUri) {
       return null;
    }
 
@@ -451,10 +423,19 @@ export const AudioPlayer: React.FC = React.memo(() => {
       <Animated.View style={[styles.container, containerAnimatedStyle]}>
          <SafeAreaView edges={['bottom']} style={styles.safeArea}>
             {/* Hidden Video component for audio playback */}
-            {currentSegmentUri && (
+            {masterPlaylistUri && (
                <Video
                   ref={videoRef}
-                  source={{ uri: currentSegmentUri }}
+                  source={{
+                     uri: masterPlaylistUri,
+                     bufferConfig: {
+                        minBufferMs: 30000,
+                        maxBufferMs: 120000,
+                        bufferForPlaybackMs: 1000,
+                        bufferForPlaybackAfterRebufferMs: 2000,
+                     },
+                     headers,
+                  }}
                   paused={!isPlaying}
                   onProgress={handleProgress}
                   onEnd={handleEnd}

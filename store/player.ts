@@ -1,6 +1,6 @@
 /**
  * Audio Player Redux slice
- * Manages audio playback state including current chapter, segment, and playback position
+ * Manages audio playback state including current chapter and playback position
  */
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
@@ -20,9 +20,8 @@ export interface ChapterMetadata {
 export interface PlayerState {
    isPlaying: boolean;
    currentChapterId: string | null;
-   currentSegmentIndex: number;
-   playbackPosition: number; // Current position in seconds within current segment
-   totalDuration: number; // Total duration of all segments combined in seconds
+   playbackPosition: number; // Current position in seconds from start of chapter
+   totalDuration: number; // Total duration of chapter in seconds
    isLoading: boolean;
    error: string | null;
    isVisible: boolean; // Whether player UI is visible
@@ -37,7 +36,6 @@ export interface PlayerState {
 const initialState: PlayerState = {
    isPlaying: false,
    currentChapterId: null,
-   currentSegmentIndex: 0,
    playbackPosition: 0,
    totalDuration: 0,
    isLoading: false,
@@ -63,7 +61,6 @@ const playerSlice = createSlice({
          action: PayloadAction<{ chapterId: string; metadata: ChapterMetadata; audiobookId?: string }>
       ) => {
          state.currentChapterId = action.payload.chapterId;
-         state.currentSegmentIndex = 0;
          state.playbackPosition = 0;
          state.isVisible = true;
          state.error = null;
@@ -90,16 +87,8 @@ const playerSlice = createSlice({
        */
       stop: (state) => {
          state.isPlaying = false;
-         state.currentSegmentIndex = 0;
          state.playbackPosition = 0;
          state.error = null;
-      },
-      /**
-       * Set current segment index
-       */
-      setSegmentIndex: (state, action: PayloadAction<number>) => {
-         state.currentSegmentIndex = action.payload;
-         state.playbackPosition = 0; // Reset position when segment changes
       },
       /**
        * Update playback position
@@ -159,7 +148,6 @@ export const {
    play,
    pause,
    stop,
-   setSegmentIndex,
    setPosition,
    seek,
    setTotalDuration,

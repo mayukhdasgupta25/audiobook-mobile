@@ -3,7 +3,7 @@
  * Handles audiobook API calls
  */
 
-import { get, ApiError } from './api';
+import { get, ApiError, API_V1_PATH } from './api';
 
 /**
  * Tag interface matching API response
@@ -163,13 +163,13 @@ export interface AudiobookResponse {
 
 /**
  * Get tags
- * Calls GET /api/v1/tags with Bearer token
+ * Calls GET {API_V1_PATH}/tags with Bearer token
  * @returns Promise with tags response
  * @throws ApiError if request fails
  */
 export async function getTags(): Promise<TagsResponse> {
    try {
-      const response = await get<TagsResponse>('/api/v1/tags', true); // Use authentication
+      const response = await get<TagsResponse>(`${API_V1_PATH}/tags`, true); // Use authentication
       return response.data;
    } catch (error) {
       console.warn('[Audiobooks Service] Get tags error', {
@@ -188,13 +188,13 @@ export async function getTags(): Promise<TagsResponse> {
 
 /**
  * Get genres
- * Calls GET /api/v1/genres with Bearer token
+ * Calls GET {API_V1_PATH}/genres with Bearer token
  * @returns Promise with genres response
  * @throws ApiError if request fails
  */
 export async function getGenres(): Promise<GenresResponse> {
    try {
-      const response = await get<GenresResponse>('/api/v1/genres', true); // Use authentication
+      const response = await get<GenresResponse>(`${API_V1_PATH}/genres`, true); // Use authentication
       return response.data;
    } catch (error) {
       console.warn('[Audiobooks Service] Get genres error', {
@@ -213,7 +213,7 @@ export async function getGenres(): Promise<GenresResponse> {
 
 /**
  * Get audiobooks by tag with pagination
- * Calls GET /api/v1/audiobooks/tags/{tagName}?page={page} with Bearer token
+ * Calls GET {API_V1_PATH}/audiobooks/tags/{tagName}?page={page} with Bearer token
  * @param tagName - Tag name (e.g., "New Releases", "Trending")
  * @param page - Page number (default: 1)
  * @returns Promise with audiobooks response containing data and pagination info
@@ -226,7 +226,7 @@ export async function getAudiobooksByTag(
    try {
       const encodedTagName = encodeURIComponent(tagName);
       const response = await get<AudiobooksResponse>(
-         `/api/v1/audiobooks/tags/${encodedTagName}?page=${page}`,
+         `${API_V1_PATH}/audiobooks/tags/${encodedTagName}?page=${page}`,
          true // Use authentication
       );
       return response.data;
@@ -249,7 +249,7 @@ export async function getAudiobooksByTag(
 
 /**
  * Get audiobooks by genre with pagination
- * Calls GET /api/v1/audiobooks/genre/{genreId}?page={page} with Bearer token
+ * Calls GET {API_V1_PATH}/audiobooks/genre/{genreId}?page={page} with Bearer token
  * @param genreId - Genre ID
  * @param page - Page number (default: 1)
  * @returns Promise with audiobooks response containing data and pagination info
@@ -261,7 +261,7 @@ export async function getAudiobooksByGenre(
 ): Promise<AudiobooksResponse> {
    try {
       const response = await get<AudiobooksResponse>(
-         `/api/v1/audiobooks/genre/${genreId}?page=${page}`,
+         `${API_V1_PATH}/audiobooks/genre/${genreId}?page=${page}`,
          true // Use authentication
       );
       return response.data;
@@ -284,7 +284,7 @@ export async function getAudiobooksByGenre(
 
 /**
  * Get audiobooks with pagination (DEPRECATED - use getAudiobooksByTag or getAudiobooksByGenre)
- * Calls GET /api/v1/audiobooks?page={page} with Bearer token
+ * Calls GET {API_V1_PATH}/audiobooks?page={page} with Bearer token
  * @param page - Page number (default: 1)
  * @returns Promise with audiobooks response containing data and pagination info
  * @throws ApiError if request fails
@@ -293,7 +293,7 @@ export async function getAudiobooksByGenre(
 export async function getAudiobooks(page = 1): Promise<AudiobooksResponse> {
    try {
       const response = await get<AudiobooksResponse>(
-         `/api/v1/audiobooks?page=${page}`,
+         `${API_V1_PATH}/audiobooks?page=${page}`,
          true // Use authentication
       );
       return response.data;
@@ -315,7 +315,7 @@ export async function getAudiobooks(page = 1): Promise<AudiobooksResponse> {
 
 /**
  * Get chapters for an audiobook with pagination
- * Calls GET /api/v1/audiobooks/:audiobookId/chapters?page={page} with Bearer token
+ * Calls GET {API_V1_PATH}/audiobooks/:audiobookId/chapters?page={page} with Bearer token
  * @param audiobookId - Audiobook ID
  * @param page - Page number (default: 1)
  * @returns Promise with chapters response containing data and pagination info
@@ -327,7 +327,7 @@ export async function getChapters(
 ): Promise<ChaptersResponse> {
    try {
       const response = await get<ChaptersResponse>(
-         `/api/v1/audiobooks/${audiobookId}/chapters?page=${page}`,
+         `${API_V1_PATH}/audiobooks/${audiobookId}/chapters?page=${page}`,
          true // Use authentication
       );
       return response.data;
@@ -350,7 +350,7 @@ export async function getChapters(
 
 /**
  * Get single audiobook by ID
- * Calls GET /api/v1/audiobooks/:audiobookId with Bearer token
+ * Calls GET {API_V1_PATH}/audiobooks/:audiobookId with Bearer token
  * @param audiobookId - Audiobook ID
  * @returns Promise with audiobook response
  * @throws ApiError if request fails
@@ -360,7 +360,7 @@ export async function getAudiobookById(
 ): Promise<AudiobookResponse> {
    try {
       const response = await get<AudiobookResponse>(
-         `/api/v1/audiobooks/${audiobookId}`,
+         `${API_V1_PATH}/audiobooks/${audiobookId}`,
          true // Use authentication
       );
       return response.data;

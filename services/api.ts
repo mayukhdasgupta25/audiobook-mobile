@@ -13,10 +13,10 @@
  * USAGE:
  * ======
  * // Authenticated request (automatically adds Bearer token):
- * await get('/api/v1/audiobooks', true); // useAuth=true
+ * await get(`${API_V1_PATH}/audiobooks`, true); // useAuth=true
  * 
  * // Unauthenticated request (no token):
- * await get('/api/v1/tags', false); // useAuth=false
+ * await get(`${API_V1_PATH}/tags`, false); // useAuth=false
  * 
  * All API helper functions (get, post, put, del) support useAuth parameter.
  * When useAuth=true, the Bearer token from Redux store is automatically included.
@@ -46,6 +46,42 @@ function getMainApiPort(): string {
    }
    // Default to 8082 for development
    return '8082';
+}
+
+/**
+ * Get the streaming API port (for master playlist and audio-related APIs)
+ */
+function getStreamingApiPort(): string {
+   // If environment variable is set, use it
+   if (process.env.EXPO_PUBLIC_STREAMING_URL_PORT) {
+      return process.env.EXPO_PUBLIC_STREAMING_URL_PORT;
+   }
+   // Default to main API port if streaming port is not specified
+   return getMainApiPort();
+}
+
+/**
+ * Get the API v1 base path
+ */
+function getApiV1Path(): string {
+   // If environment variable is set, use it
+   if (process.env.EXPO_PUBLIC_API_V1_PATH) {
+      return process.env.EXPO_PUBLIC_API_V1_PATH;
+   }
+   // Default to /api/v1
+   return '/api/v1';
+}
+
+/**
+ * Get the API v1 stream base path
+ */
+function getApiV1StreamPath(): string {
+   // If environment variable is set, use it
+   if (process.env.EXPO_PUBLIC_API_V1_STREAM_PATH) {
+      return process.env.EXPO_PUBLIC_API_V1_STREAM_PATH;
+   }
+   // Default to /api/v1/stream
+   return '/api/v1/stream';
 }
 
 /**
@@ -98,6 +134,11 @@ function buildApiUrl(port: string): string {
       return normalizeUrl(process.env.EXPO_PUBLIC_AUTH_API_URL, port);
    }
 
+   // For streaming API, check EXPO_PUBLIC_STREAMING_URL
+   if (port === getStreamingApiPort() && process.env.EXPO_PUBLIC_STREAMING_URL) {
+      return normalizeUrl(process.env.EXPO_PUBLIC_STREAMING_URL, port);
+   }
+
    // For main API (port 8082), check EXPO_PUBLIC_API_URL
    if (port === getMainApiPort() && process.env.EXPO_PUBLIC_API_URL) {
       const mainApiUrl = normalizeUrl(process.env.EXPO_PUBLIC_API_URL, port);
@@ -116,6 +157,19 @@ function buildApiUrl(port: string): string {
       port === getMainApiPort() &&
       process.env.EXPO_PUBLIC_AUTH_API_URL &&
       !process.env.EXPO_PUBLIC_API_URL
+   ) {
+      const host = extractHostFromUrl(process.env.EXPO_PUBLIC_AUTH_API_URL);
+      if (host) {
+         return `http://${host}:${port}`;
+      }
+   }
+
+   // If streaming API URL is not set but auth API URL is set, extract host from auth URL for streaming API
+   // This helps when user only sets EXPO_PUBLIC_AUTH_API_URL on physical devices
+   if (
+      port === getStreamingApiPort() &&
+      process.env.EXPO_PUBLIC_AUTH_API_URL &&
+      !process.env.EXPO_PUBLIC_STREAMING_URL
    ) {
       const host = extractHostFromUrl(process.env.EXPO_PUBLIC_AUTH_API_URL);
       if (host) {
@@ -147,23 +201,47 @@ export function getMainApiUrl(): string {
    return buildApiUrl(getMainApiPort());
 }
 
+/**
+ * Get streaming API base URL (for master playlist and audio-related APIs)
+ */
+export function getStreamingApiUrl(): string {
+   return buildApiUrl(getStreamingApiPort());
+}
+
 // Base API URL for main APIs - supports dynamic host via environment variables
 const API_BASE_URL = getMainApiUrl();
 
 // Auth API URL for authentication endpoints
 export const AUTH_API_BASE_URL = getAuthApiUrl();
 
+// Streaming API URL for master playlist and audio-related APIs
+export const STREAMING_API_BASE_URL = getStreamingApiUrl();
+
+// API v1 base path
+export const API_V1_PATH = getApiV1Path();
+
+// API v1 stream base path
+export const API_V1_STREAM_PATH = getApiV1StreamPath();
+
 // Log API configuration on module load
 console.log('[API Config]', {
    AUTH_API_BASE_URL,
    API_BASE_URL,
+   STREAMING_API_BASE_URL,
+   API_V1_PATH,
+   API_V1_STREAM_PATH,
    Platform: Platform.OS,
    EXPO_PUBLIC_AUTH_API_URL: process.env.EXPO_PUBLIC_AUTH_API_URL,
    EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+   EXPO_PUBLIC_STREAMING_URL: process.env.EXPO_PUBLIC_STREAMING_URL,
    EXPO_PUBLIC_AUTH_API_PORT: process.env.EXPO_PUBLIC_AUTH_API_PORT,
    EXPO_PUBLIC_API_PORT: process.env.EXPO_PUBLIC_API_PORT,
+   EXPO_PUBLIC_STREAMING_URL_PORT: process.env.EXPO_PUBLIC_STREAMING_URL_PORT,
+   EXPO_PUBLIC_API_V1_PATH: process.env.EXPO_PUBLIC_API_V1_PATH,
+   EXPO_PUBLIC_API_V1_STREAM_PATH: process.env.EXPO_PUBLIC_API_V1_STREAM_PATH,
    authPort: getAuthApiPort(),
    mainPort: getMainApiPort(),
+   streamingPort: getStreamingApiPort(),
    note: Platform.OS === 'android'
       ? 'Using 10.0.2.2 for Android emulator (maps to host localhost)'
       : Platform.OS === 'ios'
@@ -194,7 +272,7 @@ export const apiConfig = {
  * @returns Headers object with Authorization header if token exists
  * @example
  * // Token is automatically added when useAuth=true:
- * await get('/api/v1/audiobooks', true); // Adds: Authorization: Bearer <token>
+ * await get(`${API_V1_PATH}/audiobooks`, true); // Adds: Authorization: Bearer <token>
  */
 export function getAuthHeaders(): Record<string, string> {
    // Import store dynamically to avoid circular dependencies
@@ -254,22 +332,29 @@ export interface ApiResponse<T> {
  *                  Token is retrieved from Redux store (set via login API)
  * @param useAuthApi - Whether to use auth API URL (port 8080) instead of main API URL (port 8082) (default: false)
  *                     Set to true for login/signup endpoints only
+ * @param useStreamingApi - Whether to use streaming API URL instead of main API URL (default: false)
+ *                          Set to true for master playlist and audio-related endpoints
  * 
  * @example
  * // Authenticated request (automatically adds Bearer token):
- * await apiRequest('/api/v1/audiobooks', { method: 'GET' }, true);
+ * await apiRequest(`${API_V1_PATH}/audiobooks`, { method: 'GET' }, true);
  * 
  * // Unauthenticated request (no token):
- * await apiRequest('/api/v1/tags', { method: 'GET' }, false);
+ * await apiRequest(`${API_V1_PATH}/tags`, { method: 'GET' }, false);
  */
 export async function apiRequest<T>(
    endpoint: string,
    options: RequestInit = {},
    useAuth = false,
-   useAuthApi = false
+   useAuthApi = false,
+   useStreamingApi = false
 ): Promise<ApiResponse<T>> {
-   // Use auth API URL for authentication endpoints, main API URL for others
-   const baseURL = useAuthApi ? AUTH_API_BASE_URL : apiConfig.baseURL;
+   // Use streaming API URL for audio/streaming endpoints, auth API URL for authentication endpoints, main API URL for others
+   const baseURL = useStreamingApi
+      ? STREAMING_API_BASE_URL
+      : useAuthApi
+         ? AUTH_API_BASE_URL
+         : apiConfig.baseURL;
    const url = `${baseURL}${endpoint}`;
 
    // Get auth headers if needed
@@ -442,11 +527,13 @@ export async function apiRequest<T>(
  * @param endpoint - API endpoint path
  * @param useAuth - Whether to include Bearer token in headers (default: false)
  * @param useAuthApi - Whether to use auth API URL (port 8080) instead of main API URL (default: false)
+ * @param useStreamingApi - Whether to use streaming API URL instead of main API URL (default: false)
  */
 export async function get<T>(
    endpoint: string,
    useAuth = false,
-   useAuthApi = false
+   useAuthApi = false,
+   useStreamingApi = false
 ): Promise<ApiResponse<T>> {
    return apiRequest<T>(
       endpoint,
@@ -454,7 +541,8 @@ export async function get<T>(
          method: 'GET',
       },
       useAuth,
-      useAuthApi
+      useAuthApi,
+      useStreamingApi
    );
 }
 
@@ -464,12 +552,14 @@ export async function get<T>(
  * @param body - Request body
  * @param useAuth - Whether to include Bearer token in headers (default: false)
  * @param useAuthApi - Whether to use auth API URL (port 8080) instead of main API URL (default: false)
+ * @param useStreamingApi - Whether to use streaming API URL instead of main API URL (default: false)
  */
 export async function post<T>(
    endpoint: string,
    body?: unknown,
    useAuth = false,
-   useAuthApi = false
+   useAuthApi = false,
+   useStreamingApi = false
 ): Promise<ApiResponse<T>> {
    return apiRequest<T>(
       endpoint,
@@ -478,7 +568,8 @@ export async function post<T>(
          body: body ? JSON.stringify(body) : undefined,
       },
       useAuth,
-      useAuthApi
+      useAuthApi,
+      useStreamingApi
    );
 }
 
@@ -488,12 +579,14 @@ export async function post<T>(
  * @param body - Request body
  * @param useAuth - Whether to include Bearer token in headers (default: false)
  * @param useAuthApi - Whether to use auth API URL (port 8080) instead of main API URL (default: false)
+ * @param useStreamingApi - Whether to use streaming API URL instead of main API URL (default: false)
  */
 export async function put<T>(
    endpoint: string,
    body?: unknown,
    useAuth = false,
-   useAuthApi = false
+   useAuthApi = false,
+   useStreamingApi = false
 ): Promise<ApiResponse<T>> {
    return apiRequest<T>(
       endpoint,
@@ -502,7 +595,8 @@ export async function put<T>(
          body: body ? JSON.stringify(body) : undefined,
       },
       useAuth,
-      useAuthApi
+      useAuthApi,
+      useStreamingApi
    );
 }
 
@@ -511,11 +605,13 @@ export async function put<T>(
  * @param endpoint - API endpoint path
  * @param useAuth - Whether to include Bearer token in headers (default: false)
  * @param useAuthApi - Whether to use auth API URL (port 8080) instead of main API URL (default: false)
+ * @param useStreamingApi - Whether to use streaming API URL instead of main API URL (default: false)
  */
 export async function del<T>(
    endpoint: string,
    useAuth = false,
-   useAuthApi = false
+   useAuthApi = false,
+   useStreamingApi = false
 ): Promise<ApiResponse<T>> {
    return apiRequest<T>(
       endpoint,
@@ -523,7 +619,8 @@ export async function del<T>(
          method: 'DELETE',
       },
       useAuth,
-      useAuthApi
+      useAuthApi,
+      useStreamingApi
    );
 }
 
