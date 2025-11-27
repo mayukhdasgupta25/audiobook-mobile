@@ -20,6 +20,7 @@ import { apiConfig } from '@/services/api';
 interface ChapterListItemProps {
    chapter: Chapter;
    onPress: (chapter: Chapter) => void;
+   isCurrentlyPlaying?: boolean;
 }
 
 /**
@@ -27,7 +28,7 @@ interface ChapterListItemProps {
  * Displays a horizontal card with chapter cover, title, description, and duration
  */
 export const ChapterListItem: React.FC<ChapterListItemProps> = React.memo(
-   ({ chapter, onPress }) => {
+   ({ chapter, onPress, isCurrentlyPlaying = false }) => {
       // Build full image URL by prepending API base URL
       const imageUri = chapter.coverImage
          ? `${apiConfig.baseURL}${chapter.coverImage}`
@@ -43,6 +44,13 @@ export const ChapterListItem: React.FC<ChapterListItemProps> = React.memo(
             accessibilityRole="button"
             accessibilityLabel={`${chapter.title} - ${formattedDuration}`}
          >
+            {/* Now Playing Badge - Top Right of Card */}
+            {isCurrentlyPlaying && (
+               <View style={styles.nowPlayingBadge}>
+                  <Text style={styles.nowPlayingText}>Now Playing</Text>
+               </View>
+            )}
+
             {/* Chapter Cover */}
             <View style={styles.imageContainer}>
                {imageUri ? (
@@ -92,6 +100,7 @@ const styles = StyleSheet.create({
       borderBottomWidth: 1,
       borderBottomColor: 'rgba(255, 255, 255, 0.1)',
       backgroundColor: colors.background.dark,
+      position: 'relative',
    },
    imageContainer: {
       marginRight: spacing.md,
@@ -100,6 +109,41 @@ const styles = StyleSheet.create({
       width: 80,
       height: 120,
       borderRadius: borderRadius.md,
+   },
+   nowPlayingBadge: {
+      position: 'absolute',
+      top: spacing.sm,
+      right: spacing.sm,
+      backgroundColor: colors.app.red,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs / 2,
+      borderRadius: borderRadius.sm,
+      zIndex: 10,
+      ...Platform.select({
+         ios: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 3,
+         },
+         android: {
+            elevation: 5,
+         },
+      }),
+   },
+   nowPlayingText: {
+      fontSize: typography.fontSize.xs,
+      color: colors.text.dark,
+      fontWeight: '600',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
    },
    placeholder: {
       backgroundColor: colors.background.darkGray,

@@ -5,7 +5,6 @@
 
 import { useRef, useCallback, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Platform } from 'react-native';
 import { OnProgressData, OnLoadData } from 'react-native-video';
 import type { VideoRef } from 'react-native-video';
 import { RootState } from '@/store';
@@ -38,15 +37,13 @@ export function useAudioPlayer() {
    // Get access token from Redux
    const accessToken = useSelector((state: RootState) => state.auth.accessToken);
 
-   // Construct playlist URL for current chapter (platform-specific)
-   // iOS uses master.m3u8, other platforms use manifest.mpd
+   // Construct playlist URL for current chapter
+   // Both Android and iOS use master.m3u8
    const masterPlaylistUri = useMemo(() => {
       if (!currentChapterId) {
          return null;
       }
-      const endpoint = Platform.OS === 'ios'
-         ? `${API_V1_STREAM_PATH}/chapters/${currentChapterId}/master.m3u8`
-         : `${API_V1_STREAM_PATH}/chapters/${currentChapterId}/manifest.mpd`;
+      const endpoint = `${API_V1_STREAM_PATH}/chapters/${currentChapterId}/master.m3u8`;
       return `${STREAMING_API_BASE_URL}${endpoint}`;
    }, [currentChapterId]);
 

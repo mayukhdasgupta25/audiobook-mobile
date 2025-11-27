@@ -4,13 +4,11 @@
  * Note: Segment fetching is now handled automatically by react-native-video via native HLS support
  */
 
-import { Platform } from 'react-native';
 import { get, ApiError, API_V1_STREAM_PATH } from './api';
 
 /**
- * Get master playlist for a chapter (platform-specific)
- * - iOS: Calls GET {API_V1_STREAM_PATH}/chapters/:chapterId/master.m3u8
- * - Other platforms: Calls GET {API_V1_STREAM_PATH}/chapters/:chapterId/manifest.mpd
+ * Get master playlist for a chapter
+ * Calls GET {API_V1_STREAM_PATH}/chapters/:chapterId/master.m3u8
  * @param chapterId - Chapter ID
  * @returns Promise with raw playlist content as string
  * @throws ApiError if request fails
@@ -19,10 +17,7 @@ export async function getMasterPlaylist(
    chapterId: string
 ): Promise<string> {
    try {
-      // iOS uses master.m3u8, other platforms use manifest.mpd
-      const endpoint = Platform.OS === 'ios'
-         ? `${API_V1_STREAM_PATH}/chapters/${chapterId}/master.m3u8`
-         : `${API_V1_STREAM_PATH}/chapters/${chapterId}/manifest.mpd`;
+      const endpoint = `${API_V1_STREAM_PATH}/chapters/${chapterId}/master.m3u8`;
 
       const response = await get<string>(
          endpoint,
@@ -37,7 +32,6 @@ export async function getMasterPlaylist(
          errorType: error instanceof Error ? error.constructor.name : typeof error,
          errorMessage: error instanceof Error ? error.message : String(error),
          chapterId,
-         platform: Platform.OS,
       });
       if (error instanceof ApiError) {
          throw error;

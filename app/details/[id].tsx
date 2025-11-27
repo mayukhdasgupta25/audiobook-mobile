@@ -45,7 +45,7 @@ export default function DetailsScreen() {
       (state: RootState) => state.auth.isInitialized
    );
 
-   // Get player visibility state to calculate proper padding
+   // Get player visibility state to calculate proper padding and for "Now Playing" badge
    const isPlayerVisible = useSelector(
       (state: RootState) => state.player.isVisible
    );
@@ -183,9 +183,12 @@ export default function DetailsScreen() {
       (state: RootState) => state.streaming.playlistsByChapterId
    );
 
-   // Get current playing chapter ID to fetch its playlist if needed
+   // Get current playing chapter ID and playing state
    const currentPlayingChapterId = useSelector(
       (state: RootState) => state.player.currentChapterId
+   );
+   const isPlaying = useSelector(
+      (state: RootState) => state.player.isPlaying
    );
 
    // Fetch playlist for currently playing chapter if not already loaded
@@ -308,9 +311,17 @@ export default function DetailsScreen() {
    // Render chapter item
    const renderChapterItem = useCallback(
       ({ item }: { item: Chapter }) => (
-         <ChapterListItem chapter={item} onPress={handleChapterPress} />
+         <ChapterListItem
+            chapter={item}
+            onPress={handleChapterPress}
+            isCurrentlyPlaying={
+               isPlayerVisible &&
+               item.id === currentPlayingChapterId &&
+               isPlaying
+            }
+         />
       ),
-      [handleChapterPress]
+      [handleChapterPress, currentPlayingChapterId, isPlaying, isPlayerVisible]
    );
 
    // Render footer with loading indicator
@@ -380,26 +391,28 @@ export default function DetailsScreen() {
 
             {/* Audiobook Info Section */}
             <View style={styles.infoSection}>
-               {/* Genre Banner - Top Right Corner */}
-               {audiobook?.genre?.name && (
-                  <View style={styles.genreBanner}>
-                     <Text style={styles.genreText}>{audiobook.genre.name}</Text>
-                  </View>
-               )}
+               {/* Title and Genre Banner - Top Row */}
+               <View style={styles.titleRow}>
+                  {audiobook?.title && (
+                     <Text style={styles.audiobookTitle} numberOfLines={2}>
+                        {audiobook.title}
+                     </Text>
+                  )}
+                  {audiobook?.genre?.name && (
+                     <View style={styles.genreBanner}>
+                        <Text style={styles.genreText}>{audiobook.genre.name}</Text>
+                     </View>
+                  )}
+               </View>
 
-               {/* Description */}
-               {audiobook?.description && (
-                  <Text style={styles.description}>{audiobook.description}</Text>
-               )}
-
-               {/* Duration and Author */}
+               {/* Duration and Author - Second Row */}
                <View style={styles.metaContainer}>
-                  {formattedDuration ? (
+                  {formattedDuration && (
                      <View style={styles.metaItem}>
                         <Text style={styles.metaLabel}>Duration:</Text>
                         <Text style={styles.metaValue}>{formattedDuration}</Text>
                      </View>
-                  ) : null}
+                  )}
                   {audiobook?.author && (
                      <View style={styles.metaItem}>
                         <Text style={styles.metaLabel}>Author:</Text>
@@ -407,6 +420,11 @@ export default function DetailsScreen() {
                      </View>
                   )}
                </View>
+
+               {/* Description */}
+               {audiobook?.description && (
+                  <Text style={styles.description}>{audiobook.description}</Text>
+               )}
             </View>
 
             {/* Chapters Title */}
@@ -419,6 +437,7 @@ export default function DetailsScreen() {
       audiobookCoverUri,
       audiobookLoading,
       audiobook?.genre?.name,
+      audiobook?.title,
       audiobook?.description,
       audiobook?.author,
       formattedDuration,
@@ -574,16 +593,36 @@ const styles = StyleSheet.create({
    infoSection: {
       padding: spacing.lg,
       backgroundColor: colors.background.dark,
-      position: 'relative',
+   },
+   titleRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginBottom: spacing.md,
+      gap: spacing.md,
+   },
+   audiobookTitle: {
+      flex: 1,
+      fontSize: typography.fontSize.xl,
+      color: colors.text.dark,
+      fontWeight: '600',
+      marginRight: spacing.sm,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
    },
    genreBanner: {
-      position: 'absolute',
-      top: spacing.md,
-      right: spacing.md,
       backgroundColor: colors.app.red,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
       borderRadius: borderRadius.md,
+      flexShrink: 0,
    },
    genreText: {
       fontSize: typography.fontSize.sm,
@@ -603,7 +642,7 @@ const styles = StyleSheet.create({
       fontSize: typography.fontSize.base,
       color: colors.text.dark,
       lineHeight: typography.lineHeight.relaxed * typography.fontSize.base,
-      marginBottom: spacing.md,
+      marginTop: spacing.md,
       ...Platform.select({
          ios: {
             fontFamily: 'System',

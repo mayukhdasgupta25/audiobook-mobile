@@ -12,7 +12,6 @@ import {
    Platform,
    ActivityIndicator,
    Dimensions,
-   PanResponder,
 } from 'react-native';
 import Animated, {
    useAnimatedStyle,
@@ -65,6 +64,8 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const previousMinimizedRef = useRef(false);
    const progressBarWidthRef = useRef(0);
    const progressBarWrapperRef = useRef<View | null>(null);
+   const wrapperXRef = useRef(0);
+   const wrapperWidthRef = useRef(0);
 
    // State for dragging animation
    const [isDragging, setIsDragging] = useState(false);
@@ -90,133 +91,94 @@ export const AudioPlayer: React.FC = React.memo(() => {
       return playbackPosition / totalDuration;
    }, [playbackPosition, totalDuration]);
 
-   // Handle progress bar press to seek (for tap, not drag)
-   const handleProgressBarPress = (event: { nativeEvent: { locationX: number } }) => {
-      if (totalDuration === 0 || progressBarWidthRef.current === 0 || isDragging) return;
-
-      const { locationX } = event.nativeEvent;
-      const percentage = Math.max(0, Math.min(1, locationX / progressBarWidthRef.current));
-      const targetTime = percentage * totalDuration;
-
-      // Call seekToTime
-      seekToTime(targetTime);
-   };
-
    // Handle progress bar layout to get width and position
    const handleProgressBarLayout = (event: { nativeEvent: { layout: { width: number } } }) => {
       // The wrapper includes padding, so we need to subtract it to get the actual progress bar width
       const wrapperWidth = event.nativeEvent.layout.width;
+      wrapperWidthRef.current = wrapperWidth;
       // Subtract horizontal padding (8px on each side = 16px total)
       progressBarWidthRef.current = wrapperWidth - 16;
+
+      // Measure position in window for drag calculations (use setTimeout to ensure layout is complete)
+      setTimeout(() => {
+         if (progressBarWrapperRef.current) {
+            progressBarWrapperRef.current.measureInWindow((x, _y, width) => {
+               wrapperXRef.current = x;
+               wrapperWidthRef.current = width;
+            });
+         }
+      }, 0);
    };
 
    // Track if user is actually dragging vs just tapping
    const isDraggingRef = useRef(false);
    const dragStartXRef = useRef(0);
 
-   // PanResponder for drag gestures
-   const panResponder = useRef(
-      PanResponder.create({
-         onStartShouldSetPanResponder: () => true,
-         onMoveShouldSetPanResponder: () => true,
-         onPanResponderTerminationRequest: () => false, // Don't allow termination
-         onPanResponderGrant: (evt) => {
-            // Store initial touch position
-            dragStartXRef.current = evt.nativeEvent.pageX;
-            isDraggingRef.current = false;
-         },
-         onPanResponderMove: (evt) => {
-            if (progressBarWidthRef.current === 0 || totalDuration === 0) return;
+   // Handle touch start - works reliably on both emulator and real devices
+   const handleTouchStart = (evt: any) => {
+      if (progressBarWidthRef.current === 0 || totalDuration === 0) return;
 
-            // Check if this is actually a drag (movement > threshold)
-            const moveDistance = Math.abs(evt.nativeEvent.pageX - dragStartXRef.current);
-            if (moveDistance > 5 && !isDraggingRef.current) {
-               // Start dragging
-               isDraggingRef.current = true;
-               setIsDragging(true);
-               setDragProgress(totalProgress);
-               dragProgressValue.value = totalProgress;
-            }
+      const nativeEvent = evt.nativeEvent;
+      // locationX is relative to the touch target and works reliably on real devices
+      const locationX = nativeEvent.locationX ?? nativeEvent.touches?.[0]?.locationX ?? 0;
+      dragStartXRef.current = locationX;
+      isDraggingRef.current = false;
+   };
 
-            if (isDraggingRef.current) {
-               // Use locationX which is relative to the view that handles the gesture
-               // We need to measure the wrapper to get the correct position
-               if (progressBarWrapperRef.current) {
-                  progressBarWrapperRef.current.measureInWindow((x, _y, width) => {
-                     // Calculate relative position from pageX, accounting for padding
-                     const padding = 8; // Horizontal padding on wrapper
-                     const relativeX = evt.nativeEvent.pageX - x - padding;
-                     const progressWidth = width - (padding * 2);
-                     const percentage = Math.max(0, Math.min(1, relativeX / progressWidth));
+   // Handle touch move - for dragging
+   const handleTouchMove = (evt: any) => {
+      if (progressBarWidthRef.current === 0 || totalDuration === 0) return;
 
-                     setDragProgress(percentage);
-                     dragProgressValue.value = percentage;
-                  });
-               } else {
-                  // Fallback: use locationX if available (relative to touch target)
-                  const locationX = evt.nativeEvent.locationX || 0;
-                  const percentage = Math.max(0, Math.min(1, locationX / progressBarWidthRef.current));
+      const nativeEvent = evt.nativeEvent;
+      const locationX = nativeEvent.locationX ?? nativeEvent.touches?.[0]?.locationX ?? 0;
 
-                  setDragProgress(percentage);
-                  dragProgressValue.value = percentage;
-               }
-            }
-         },
-         onPanResponderRelease: (evt) => {
-            if (progressBarWidthRef.current === 0 || totalDuration === 0) {
-               setIsDragging(false);
-               isDraggingRef.current = false;
-               return;
-            }
+      // Check if this is actually a drag (movement > threshold)
+      const moveDistance = Math.abs(locationX - dragStartXRef.current);
+      if (moveDistance > 3 && !isDraggingRef.current) {
+         // Start dragging
+         isDraggingRef.current = true;
+         setIsDragging(true);
+         setDragProgress(totalProgress);
+         dragProgressValue.value = totalProgress;
+      }
 
-            // Calculate final position (works for both tap and drag)
-            const calculateAndSeek = async () => {
-               let percentage = 0;
-               if (progressBarWrapperRef.current) {
-                  progressBarWrapperRef.current.measureInWindow((x, _y, width) => {
-                     // Account for padding when calculating position
-                     const padding = 8; // Horizontal padding on wrapper
-                     const relativeX = evt.nativeEvent.pageX - x - padding;
-                     const progressWidth = width - (padding * 2);
-                     percentage = Math.max(0, Math.min(1, relativeX / progressWidth));
-                     const targetTime = percentage * totalDuration;
+      if (isDraggingRef.current) {
+         // Calculate percentage directly from locationX (relative to progress bar width)
+         const percentage = Math.max(0, Math.min(1, locationX / progressBarWidthRef.current));
+         setDragProgress(percentage);
+         dragProgressValue.value = percentage;
+      }
+   };
 
-                     // Call seekToTime
-                     seekToTime(targetTime);
+   // Handle touch end - seek to final position
+   const handleTouchEnd = (evt: any) => {
+      if (progressBarWidthRef.current === 0 || totalDuration === 0) {
+         setIsDragging(false);
+         isDraggingRef.current = false;
+         return;
+      }
 
-                     setTimeout(() => {
-                        setIsDragging(false);
-                        setDragProgress(0);
-                        isDraggingRef.current = false;
-                     }, 100);
-                  });
-               } else {
-                  const locationX = evt.nativeEvent.locationX || 0;
-                  percentage = Math.max(0, Math.min(1, locationX / progressBarWidthRef.current));
-                  const targetTime = percentage * totalDuration;
+      const nativeEvent = evt.nativeEvent;
+      const locationX = nativeEvent.locationX ?? nativeEvent.changedTouches?.[0]?.locationX ?? 0;
 
-                  // Call seekToTime
-                  seekToTime(targetTime);
+      // Calculate final position and seek
+      const percentage = Math.max(0, Math.min(1, locationX / progressBarWidthRef.current));
+      const targetTime = percentage * totalDuration;
+      seekToTime(targetTime);
 
-                  setTimeout(() => {
-                     setIsDragging(false);
-                     setDragProgress(0);
-                     isDraggingRef.current = false;
-                  }, 100);
-               }
-            };
+      setTimeout(() => {
+         setIsDragging(false);
+         setDragProgress(0);
+         isDraggingRef.current = false;
+      }, 100);
+   };
 
-            // If it was a tap (no drag), seek immediately
-            // If it was a drag, we already updated the position, just seek to final position
-            calculateAndSeek();
-         },
-         onPanResponderTerminate: () => {
-            setIsDragging(false);
-            setDragProgress(0);
-            isDraggingRef.current = false;
-         },
-      })
-   ).current;
+   // Handle touch cancel
+   const handleTouchCancel = () => {
+      setIsDragging(false);
+      setDragProgress(0);
+      isDraggingRef.current = false;
+   };
 
    // Animated style for progress fill during drag
    const dragProgressAnimatedStyle = useAnimatedStyle(() => {
@@ -295,6 +257,23 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const totalTime = useMemo(() => {
       return Math.floor(totalDuration);
    }, [totalDuration]);
+
+   // Re-measure wrapper position when player becomes visible
+   useEffect(() => {
+      if (isVisible && progressBarWrapperRef.current) {
+         // Small delay to ensure layout is complete
+         const timer = setTimeout(() => {
+            if (progressBarWrapperRef.current) {
+               progressBarWrapperRef.current.measureInWindow((x, _y, width) => {
+                  wrapperXRef.current = x;
+                  wrapperWidthRef.current = width;
+               });
+            }
+         }, 100);
+         return () => clearTimeout(timer);
+      }
+      return undefined;
+   }, [isVisible]);
 
    // Handle open/close animations
    useEffect(() => {
@@ -593,49 +572,47 @@ export const AudioPlayer: React.FC = React.memo(() => {
                      >
                         <View
                            style={styles.progressBarTouchable}
-                           {...panResponder.panHandlers}
+                           onTouchStart={handleTouchStart}
+                           onTouchMove={handleTouchMove}
+                           onTouchEnd={handleTouchEnd}
+                           onTouchCancel={handleTouchCancel}
+                           collapsable={false}
+                           pointerEvents="box-only"
                         >
-                           <TouchableOpacity
-                              style={styles.progressBarTouchableInner}
-                              onPress={handleProgressBarPress}
-                              activeOpacity={1}
-                              disabled={isDragging}
-                           >
-                              <View style={styles.progressBarContainer}>
-                                 <View style={styles.progressBar}>
-                                    {isDragging ? (
-                                       <Animated.View
-                                          style={[
-                                             styles.progressFill,
-                                             dragProgressAnimatedStyle,
-                                          ]}
-                                       />
-                                    ) : (
-                                       <View
-                                          style={[
-                                             styles.progressFill,
-                                             { width: `${totalProgress * 100}%` },
-                                          ]}
-                                       />
-                                    )}
-                                 </View>
+                           <View style={styles.progressBarContainer}>
+                              <View style={styles.progressBar}>
                                  {isDragging ? (
                                     <Animated.View
                                        style={[
-                                          styles.progressHandle,
-                                          dragHandleAnimatedStyle,
+                                          styles.progressFill,
+                                          dragProgressAnimatedStyle,
                                        ]}
                                     />
                                  ) : (
-                                    <Animated.View
+                                    <View
                                        style={[
-                                          styles.progressHandle,
-                                          progressHandleAnimatedStyle,
+                                          styles.progressFill,
+                                          { width: `${totalProgress * 100}%` },
                                        ]}
                                     />
                                  )}
                               </View>
-                           </TouchableOpacity>
+                              {isDragging ? (
+                                 <Animated.View
+                                    style={[
+                                       styles.progressHandle,
+                                       dragHandleAnimatedStyle,
+                                    ]}
+                                 />
+                              ) : (
+                                 <Animated.View
+                                    style={[
+                                       styles.progressHandle,
+                                       progressHandleAnimatedStyle,
+                                    ]}
+                                 />
+                              )}
+                           </View>
                         </View>
                      </View>
                      <View style={styles.timeContainer}>
@@ -820,9 +797,8 @@ const styles = StyleSheet.create({
    },
    progressBarTouchable: {
       width: '100%',
-   },
-   progressBarTouchableInner: {
-      width: '100%',
+      minHeight: 44, // Minimum touch target size for better interaction
+      justifyContent: 'center',
    },
    progressBarContainer: {
       position: 'relative',
