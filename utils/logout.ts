@@ -8,6 +8,7 @@
 import { store } from '@/store';
 import { clearAuth } from '@/store/auth';
 import { clearAudiobooks } from '@/store/audiobooks';
+import { stop, setVisible } from '@/store/player';
 import { logout as logoutApi } from '@/services/auth';
 import { router } from 'expo-router';
 import { queryClient } from '@/app/_layout';
@@ -22,9 +23,12 @@ export async function logout(skipRedirect = false): Promise<void> {
    const state = store.getState();
    const refreshToken = state.auth?.refreshToken;
 
-   // If no refreshToken, cannot call logout API - skip cleanup
+   // If no refreshToken, cannot call logout API - but still stop player if playing
    if (!refreshToken) {
       console.warn('[Logout] No refresh token found, skipping logout API call');
+      // Still stop audio player if playing (edge case: user logs out while audio is playing)
+      store.dispatch(stop());
+      store.dispatch(setVisible(false));
       return;
    }
 
@@ -34,6 +38,10 @@ export async function logout(skipRedirect = false): Promise<void> {
       await logoutApi(refreshToken);
 
       // Only proceed with cleanup if API call was successful
+      // Stop audio player if playing (edge case: user logs out while audio is playing)
+      store.dispatch(stop());
+      store.dispatch(setVisible(false));
+
       // Clear all TanStack Query caches
       queryClient.clear();
 
