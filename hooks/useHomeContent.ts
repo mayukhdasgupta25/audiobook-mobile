@@ -9,7 +9,7 @@ import { useQueries } from '@tanstack/react-query';
 import { useTags } from './useTags';
 import { useGenres } from './useGenres';
 import { getAudiobooksByTag, getAudiobooksByGenre } from '@/services/audiobooks';
-import { Audiobook, PaginationInfo } from '@/services/audiobooks';
+import { Audiobook, PaginationInfo, AudiobooksResponse } from '@/services/audiobooks';
 import { ContentItem } from '@/components/ContentRow';
 import { apiConfig } from '@/services/api';
 import { RootState } from '@/store';
@@ -107,7 +107,7 @@ export function useHomeContent() {
    const tagQueryOptions = useMemo(() => {
       const options: {
          queryKey: unknown[];
-         queryFn: () => Promise<unknown>;
+         queryFn: () => Promise<AudiobooksResponse>;
          enabled: boolean;
          staleTime: number;
       }[] = [];
@@ -130,7 +130,7 @@ export function useHomeContent() {
    const genreQueryOptions = useMemo(() => {
       const options: {
          queryKey: unknown[];
-         queryFn: () => Promise<unknown>;
+         queryFn: () => Promise<AudiobooksResponse>;
          enabled: boolean;
          staleTime: number;
       }[] = [];

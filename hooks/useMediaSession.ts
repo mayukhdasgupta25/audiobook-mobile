@@ -11,7 +11,7 @@ import { RootState } from '@/store';
 import { play, pause } from '@/store/player';
 import { apiConfig } from '@/services/api';
 
-const { MediaSession } = NativeModules;
+const { MediaSessionBridge } = NativeModules;
 
 /**
  * Hook to manage media session for lock screen controls
@@ -50,10 +50,14 @@ export function useMediaSession() {
       };
 
       // Update native now playing info
-      if (Platform.OS === 'ios' && MediaSession) {
-         MediaSession.updateNowPlaying(info).catch((error: Error) => {
-            console.warn('[MediaSession] Failed to update now playing info:', error);
-         });
+      if (Platform.OS === 'ios' && MediaSessionBridge) {
+         MediaSessionBridge.updateNowPlaying(info)
+            .then(() => {
+               // Success
+            })
+            .catch((error: Error) => {
+               console.warn('[MediaSession] Failed to update now playing info:', error);
+            });
       }
       // Android: react-native-video handles this automatically
 
