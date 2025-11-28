@@ -27,6 +27,8 @@ import { STREAMING_API_BASE_URL, API_V1_STREAM_PATH } from '@/services/api';
 export function useAudioPlayer() {
    const dispatch = useDispatch();
    const videoRef = useRef<VideoRef>(null);
+   // Track if user is dragging to prevent progress updates from interfering
+   const isDraggingRef = useRef(false);
 
    // Get player state from Redux
    const {
@@ -59,9 +61,14 @@ export function useAudioPlayer() {
 
    /**
     * Handle playback progress
+    * Skip updates while user is dragging to prevent conflicts
     */
    const handleProgress = useCallback(
       (data: OnProgressData) => {
+         // Don't update position while user is dragging - prevents tug-of-war
+         if (isDraggingRef.current) {
+            return;
+         }
          // currentTime is absolute position from start of chapter
          dispatch(setPosition(data.currentTime));
       },
@@ -266,6 +273,13 @@ export function useAudioPlayer() {
       [dispatch]
    );
 
+   /**
+    * Set dragging state to prevent progress updates during drag
+    */
+   const setDragging = useCallback((dragging: boolean) => {
+      isDraggingRef.current = dragging;
+   }, []);
+
    return {
       videoRef,
       masterPlaylistUri,
@@ -277,6 +291,7 @@ export function useAudioPlayer() {
       handleError,
       handleSeek,
       seekToTime,
+      setDragging,
    };
 }
 

@@ -44,6 +44,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-localization',
       'expo-secure-store',
       'react-native-video',
+      './app.plugin.js',
    ],
    scheme: 'audiobook',
    experiments: {

@@ -28,6 +28,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store';
 import { play, pause, setVisible, setMinimized } from '@/store/player';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { useMediaSession } from '@/hooks/useMediaSession';
 import { colors, spacing, typography, borderRadius } from '@/theme';
 import { formatDuration } from '@/utils/duration';
 import { apiConfig } from '@/services/api';
@@ -65,7 +66,9 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const progressBarWidthRef = useRef(0);
    const progressBarWrapperRef = useRef<View | null>(null);
    const wrapperXRef = useRef(0);
+   const wrapperYRef = useRef(0);
    const wrapperWidthRef = useRef(0);
+   const wrapperHeightRef = useRef(0);
 
    // State for dragging animation
    const [isDragging, setIsDragging] = useState(false);
@@ -83,7 +86,12 @@ export const AudioPlayer: React.FC = React.memo(() => {
       handleError,
       handleSeek,
       seekToTime,
+      setDragging,
    } = useAudioPlayer();
+
+   // Use media session hook for lock screen controls
+   // react-native-video handles media session automatically when playInBackground is true
+   useMediaSession();
 
    // Calculate total progress (absolute position / total duration)
    const totalProgress = useMemo(() => {
@@ -102,9 +110,11 @@ export const AudioPlayer: React.FC = React.memo(() => {
       // Measure position in window for drag calculations (use setTimeout to ensure layout is complete)
       setTimeout(() => {
          if (progressBarWrapperRef.current) {
-            progressBarWrapperRef.current.measureInWindow((x, _y, width) => {
+            progressBarWrapperRef.current.measureInWindow((x, y, width, height) => {
                wrapperXRef.current = x;
+               wrapperYRef.current = y;
                wrapperWidthRef.current = width;
+               wrapperHeightRef.current = height;
             });
          }
       }, 0);
@@ -114,15 +124,46 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const isDraggingRef = useRef(false);
    const dragStartXRef = useRef(0);
 
+   // Helper function to check if touch is within progress bar bounds
+   const isTouchWithinBounds = (pageX: number, pageY: number): boolean => {
+      const x = wrapperXRef.current;
+      const y = wrapperYRef.current;
+      const width = wrapperWidthRef.current;
+      const height = wrapperHeightRef.current;
+
+      // Check if touch is within the progress bar area (with some vertical tolerance)
+      return pageX >= x && pageX <= x + width && pageY >= y - 20 && pageY <= y + height + 20;
+   };
+
+   // Helper function to convert pageX to relative position within progress bar
+   const pageXToRelativeX = (pageX: number): number => {
+      const x = wrapperXRef.current;
+      // Account for horizontal padding (8px on each side)
+      const relativeX = pageX - x - 8;
+      return Math.max(0, Math.min(progressBarWidthRef.current, relativeX));
+   };
+
    // Handle touch start - works reliably on both emulator and real devices
    const handleTouchStart = (evt: any) => {
       if (progressBarWidthRef.current === 0 || totalDuration === 0) return;
 
       const nativeEvent = evt.nativeEvent;
+      // Get absolute screen coordinates to check bounds
+      const pageX = nativeEvent.pageX ?? nativeEvent.touches?.[0]?.pageX ?? 0;
+      const pageY = nativeEvent.pageY ?? nativeEvent.touches?.[0]?.pageY ?? 0;
+
+      // Only allow touch start if within progress bar bounds
+      if (!isTouchWithinBounds(pageX, pageY)) {
+         return;
+      }
+
       // locationX is relative to the touch target and works reliably on real devices
       const locationX = nativeEvent.locationX ?? nativeEvent.touches?.[0]?.locationX ?? 0;
       dragStartXRef.current = locationX;
       isDraggingRef.current = false;
+      // Initialize drag progress with current progress to prevent jump
+      setDragProgress(totalProgress);
+      dragProgressValue.value = totalProgress;
    };
 
    // Handle touch move - for dragging
@@ -130,21 +171,40 @@ export const AudioPlayer: React.FC = React.memo(() => {
       if (progressBarWidthRef.current === 0 || totalDuration === 0) return;
 
       const nativeEvent = evt.nativeEvent;
+      // Get absolute screen coordinates
+      const pageX = nativeEvent.pageX ?? nativeEvent.touches?.[0]?.pageX ?? 0;
+      const pageY = nativeEvent.pageY ?? nativeEvent.touches?.[0]?.pageY ?? 0;
+
+      // Get relative position for initial drag detection
       const locationX = nativeEvent.locationX ?? nativeEvent.touches?.[0]?.locationX ?? 0;
 
-      // Check if this is actually a drag (movement > threshold)
+      // Check if touch is within progress bar bounds
+      const withinBounds = isTouchWithinBounds(pageX, pageY);
+
+      // If we're already dragging but touch moved outside bounds, cancel drag
+      if (isDraggingRef.current && !withinBounds) {
+         setIsDragging(false);
+         setDragging(false);
+         isDraggingRef.current = false;
+         return;
+      }
+
+      // Check if this is actually a drag (movement > threshold) and within bounds
       const moveDistance = Math.abs(locationX - dragStartXRef.current);
-      if (moveDistance > 3 && !isDraggingRef.current) {
-         // Start dragging
+      if (moveDistance > 3 && !isDraggingRef.current && withinBounds) {
+         // Start dragging - prevent progress updates from interfering
          isDraggingRef.current = true;
          setIsDragging(true);
+         setDragging(true); // Tell hook to skip progress updates
          setDragProgress(totalProgress);
          dragProgressValue.value = totalProgress;
       }
 
-      if (isDraggingRef.current) {
-         // Calculate percentage directly from locationX (relative to progress bar width)
-         const percentage = Math.max(0, Math.min(1, locationX / progressBarWidthRef.current));
+      if (isDraggingRef.current && withinBounds) {
+         // Convert pageX to relative position within progress bar
+         const relativeX = pageXToRelativeX(pageX);
+         // Calculate percentage directly from relativeX
+         const percentage = Math.max(0, Math.min(1, relativeX / progressBarWidthRef.current));
          setDragProgress(percentage);
          dragProgressValue.value = percentage;
       }
@@ -154,28 +214,49 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const handleTouchEnd = (evt: any) => {
       if (progressBarWidthRef.current === 0 || totalDuration === 0) {
          setIsDragging(false);
+         setDragging(false); // Re-enable progress updates
          isDraggingRef.current = false;
          return;
       }
 
       const nativeEvent = evt.nativeEvent;
-      const locationX = nativeEvent.locationX ?? nativeEvent.changedTouches?.[0]?.locationX ?? 0;
+      // Get absolute screen coordinates
+      const pageX = nativeEvent.pageX ?? nativeEvent.changedTouches?.[0]?.pageX ?? 0;
+      const pageY = nativeEvent.pageY ?? nativeEvent.changedTouches?.[0]?.pageY ?? 0;
 
-      // Calculate final position and seek
-      const percentage = Math.max(0, Math.min(1, locationX / progressBarWidthRef.current));
-      const targetTime = percentage * totalDuration;
-      seekToTime(targetTime);
+      // Only seek if touch ended within bounds and we were dragging
+      const withinBounds = isTouchWithinBounds(pageX, pageY);
 
+      if (isDraggingRef.current && withinBounds) {
+         // Convert pageX to relative position within progress bar
+         const relativeX = pageXToRelativeX(pageX);
+         // Calculate final position and seek
+         const percentage = Math.max(0, Math.min(1, relativeX / progressBarWidthRef.current));
+         const targetTime = percentage * totalDuration;
+
+         // Re-enable progress updates before seeking
+         setDragging(false);
+         isDraggingRef.current = false;
+
+         // Seek to the target time
+         seekToTime(targetTime);
+      } else {
+         // Touch ended outside bounds or wasn't dragging - just cancel
+         setDragging(false);
+         isDraggingRef.current = false;
+      }
+
+      // Clear drag state after a brief delay to allow smooth transition
       setTimeout(() => {
          setIsDragging(false);
          setDragProgress(0);
-         isDraggingRef.current = false;
-      }, 100);
+      }, 50);
    };
 
    // Handle touch cancel
    const handleTouchCancel = () => {
       setIsDragging(false);
+      setDragging(false); // Re-enable progress updates
       setDragProgress(0);
       isDraggingRef.current = false;
    };
@@ -264,9 +345,11 @@ export const AudioPlayer: React.FC = React.memo(() => {
          // Small delay to ensure layout is complete
          const timer = setTimeout(() => {
             if (progressBarWrapperRef.current) {
-               progressBarWrapperRef.current.measureInWindow((x, _y, width) => {
+               progressBarWrapperRef.current.measureInWindow((x, y, width, height) => {
                   wrapperXRef.current = x;
+                  wrapperYRef.current = y;
                   wrapperWidthRef.current = width;
+                  wrapperHeightRef.current = height;
                });
             }
          }, 100);
@@ -424,6 +507,10 @@ export const AudioPlayer: React.FC = React.memo(() => {
                   ignoreSilentSwitch="ignore"
                   playInBackground={true}
                   playWhenInactive={true}
+                  // Enable external playback (lock screen, AirPlay, etc.)
+                  allowsExternalPlayback={true}
+               // react-native-video automatically handles media session
+               // when playInBackground is true
                />
             )}
 
