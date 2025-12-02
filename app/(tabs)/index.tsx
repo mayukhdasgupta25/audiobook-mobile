@@ -7,8 +7,8 @@ import {
    Text,
    ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router, usePathname } from 'expo-router';
 import { Header } from '@/components/Header';
 import { NavigationPills } from '@/components/NavigationPills';
 import { HeroSection } from '@/components/HeroSection';
@@ -16,6 +16,7 @@ import { ContentRow, ContentItem } from '@/components/ContentRow';
 import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
 import { colors, spacing, typography } from '@/theme';
 import { useHomeContent } from '@/hooks/useHomeContent';
+import { apiConfig } from '@/services/api';
 
 // Memoized section components to prevent re-renders when other sections update
 const MemoizedHeader = React.memo<{
@@ -44,18 +45,20 @@ const MemoizedNavigationPills = React.memo<{
 MemoizedNavigationPills.displayName = 'MemoizedNavigationPills';
 
 const MemoizedHeroSection = React.memo<{
-   title: string;
-   languages: string[];
-   posterUri?: string;
+   carouselItems?: Array<{ id: string; title: string; author: string; posterUri?: string }>;
+   autoRotateInterval?: number;
+   paused?: boolean;
    onPlayPress: () => void;
    onMyListPress: () => void;
-}>(({ title, languages, posterUri, onPlayPress, onMyListPress }) => (
+   onIndexChange?: (index: number) => void;
+}>(({ carouselItems, autoRotateInterval, paused, onPlayPress, onMyListPress, onIndexChange }) => (
    <HeroSection
-      title={title}
-      languages={languages}
-      posterUri={posterUri}
+      carouselItems={carouselItems}
+      autoRotateInterval={autoRotateInterval}
+      paused={paused}
       onPlayPress={onPlayPress}
       onMyListPress={onMyListPress}
+      onIndexChange={onIndexChange}
    />
 ));
 MemoizedHeroSection.displayName = 'MemoizedHeroSection';
@@ -83,20 +86,16 @@ MemoizedContentRow.displayName = 'MemoizedContentRow';
 function HomeScreenContent() {
    const [selectedTab, setSelectedTab] = useState<'shows' | 'movies' | 'categories'>('shows');
    const paginationTriggeredRef = useRef<Record<string, boolean>>({});
+   const insets = useSafeAreaInsets();
+   const pathname = usePathname();
+
+   // Check if home screen is focused (pathname matches home route)
+   const isHomeFocused = useMemo(() => {
+      return pathname === '/(tabs)' || pathname === '/(tabs)/index' || pathname === '/(tabs)/';
+   }, [pathname]);
 
    // Fetch content using new hook
-   const { contentRows, isLoading, error, loadNextPage } = useHomeContent();
-
-   // Get first audiobook from first tag row for hero section
-   const heroAudiobook = useMemo(() => {
-      const firstTagRow = contentRows.find((row) => row.type === 'tag');
-      if (firstTagRow && firstTagRow.items.length > 0) {
-         // We need the full audiobook data, but we only have ContentItem
-         // For now, we'll use the first item's data
-         return firstTagRow.items[0];
-      }
-      return null;
-   }, [contentRows]);
+   const { contentRows, isLoading, error, loadNextPage, heroCarouselItems } = useHomeContent();
 
    // Handle pagination when user scrolls near end of a specific row
    const handleEndReached = useCallback(
@@ -146,34 +145,50 @@ function HomeScreenContent() {
       console.log('Notification pressed');
    }, []);
 
-   const handlePlayPress = useCallback(() => {
-      console.log('Play pressed');
-   }, []);
+   // Track current hero carousel index for Play button
+   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
 
    const handleMyListPress = useCallback(() => {
       console.log('My List pressed');
    }, []);
 
-   // Memoize languages array - default languages for now
-   const heroLanguages = useMemo(() => {
-      return ['Hindi', 'English', 'Tamil', 'Telugu'];
-   }, []);
+   // Memoize hero carousel items - convert audiobooks to carousel format
+   const heroCarouselData = useMemo(() => {
+      return heroCarouselItems.map((audiobook) => {
+         // Use API images - prioritize homeHeroCoverImage, fallback to coverImage
+         const imagePath = audiobook.homeHeroCoverImage || audiobook.coverImage;
+         const posterUri = imagePath ? `${apiConfig.baseURL}${imagePath}` : undefined;
 
-   // Memoize hero title
-   const heroTitle = useMemo(() => {
-      return heroAudiobook?.title || 'BARAMULLA';
-   }, [heroAudiobook]);
+         return {
+            id: audiobook.id,
+            title: audiobook.title,
+            author: audiobook.author,
+            posterUri,
+         };
+      });
+   }, [heroCarouselItems]);
 
-   // Memoize hero image
-   const heroImageUri = useMemo(() => {
-      return heroAudiobook?.imageUri || undefined;
-   }, [heroAudiobook]);
+   // Handle Play button press - navigate to details and auto-play first chapter
+   const handlePlayPress = useCallback(() => {
+      // Get current carousel item based on index
+      const currentItem = heroCarouselData[currentHeroIndex];
+      if (currentItem?.id) {
+         // Navigate to details screen with autoPlay query parameter
+         router.push(`/details/${currentItem.id}?autoPlay=true`);
+      }
+   }, [currentHeroIndex, heroCarouselData]);
+
+   // Calculate dynamic padding for scroll content
+   const scrollContentPadding = useMemo(() => {
+      const tabBarBaseHeight = Platform.OS === 'ios' ? 90 : 70;
+      return tabBarBaseHeight + (insets?.bottom || 0) + 20; // Extra 20px for spacing
+   }, [insets]);
 
    return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
          <ScrollView
             style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollContentPadding }]}
             showsVerticalScrollIndicator={false}
             bounces={true}
             removeClippedSubviews={true} // Optimize scrolling performance
@@ -195,13 +210,16 @@ function HomeScreenContent() {
             />
 
             {/* Hero section - Memoized to prevent re-renders */}
-            <MemoizedHeroSection
-               title={heroTitle}
-               languages={heroLanguages}
-               posterUri={heroImageUri}
-               onPlayPress={handlePlayPress}
-               onMyListPress={handleMyListPress}
-            />
+            {heroCarouselData.length > 0 && (
+               <MemoizedHeroSection
+                  carouselItems={heroCarouselData}
+                  autoRotateInterval={5000}
+                  paused={!isHomeFocused}
+                  onPlayPress={handlePlayPress}
+                  onMyListPress={handleMyListPress}
+                  onIndexChange={setCurrentHeroIndex}
+               />
+            )}
 
             {/* Content rows - Tags first, then Genres */}
             <View style={styles.contentSection}>
@@ -221,15 +239,17 @@ function HomeScreenContent() {
                      <Text style={styles.emptyText}>No audiobooks available</Text>
                   </View>
                ) : (
-                  contentRows.map((row) => (
-                     <MemoizedContentRow
-                        key={row.id}
-                        title={row.title}
-                        items={row.items}
-                        onItemPress={handleItemPress}
-                        onEndReached={() => handleEndReached(row.id)}
-                     />
-                  ))
+                  contentRows
+                     .filter((row) => row.items && row.items.length > 0)
+                     .map((row) => (
+                        <MemoizedContentRow
+                           key={row.id}
+                           title={row.title}
+                           items={row.items}
+                           onItemPress={handleItemPress}
+                           onEndReached={() => handleEndReached(row.id)}
+                        />
+                     ))
                )}
             </View>
          </ScrollView>
@@ -246,7 +266,7 @@ const styles = StyleSheet.create({
       flex: 1,
    },
    scrollContent: {
-      paddingBottom: Platform.OS === 'ios' ? 100 : 80, // Space for bottom tab bar
+      // Base style - paddingBottom will be set dynamically
    },
    contentSection: {
       backgroundColor: colors.background.dark,

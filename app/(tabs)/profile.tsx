@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ProfileHeader } from '@/components/ProfileHeader';
 import { DownloadsCard } from '@/components/DownloadsCard';
@@ -92,6 +92,7 @@ interface LikedStory extends ContentItem {
 function ProfileScreenContent() {
    // Drawer menu state
    const [drawerVisible, setDrawerVisible] = useState(false);
+   const insets = useSafeAreaInsets();
 
    // Memoize sample data to prevent recreation on every render
    const likedStories: LikedStory[] = useMemo(() => [
@@ -174,11 +175,17 @@ function ProfileScreenContent() {
       console.log('Cast pressed');
    }, []);
 
+   // Calculate dynamic padding for scroll content
+   const scrollContentPadding = useMemo(() => {
+      const tabBarBaseHeight = Platform.OS === 'ios' ? 90 : 70;
+      return tabBarBaseHeight + (insets?.bottom || 0) + 20; // Extra 20px for spacing
+   }, [insets]);
+
    return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
          <ScrollView
             style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollContentPadding }]}
             showsVerticalScrollIndicator={false}
             bounces={true}
             removeClippedSubviews={true} // Optimize scrolling performance
@@ -270,7 +277,7 @@ const styles = StyleSheet.create({
       flex: 1,
    },
    scrollContent: {
-      paddingBottom: Platform.OS === 'ios' ? 100 : 80, // Space for bottom tab bar
+      // Base style - paddingBottom will be set dynamically
    },
    section: {
       marginBottom: spacing.lg,

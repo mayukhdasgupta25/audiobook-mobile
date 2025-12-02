@@ -3,7 +3,7 @@
  * Handles audiobook API calls
  */
 
-import { get, ApiError, API_V1_PATH } from './api';
+import { get, post, ApiError, API_V1_PATH } from './api';
 
 /**
  * Tag interface matching API response
@@ -41,21 +41,27 @@ export interface Audiobook {
    id: string;
    title: string;
    author: string;
-   narrator: string;
+   narrator?: string; // Deprecated - use narrators array instead
+   narrators: string[];
    description: string;
    duration: number;
-   fileSize: number;
+   fileSize?: number;
    coverImage: string;
+   homeHeroCoverImage: string | null;
+   contentCardCoverImage: string | null;
+   chaptersHeroCoverImage: string | null;
    language: string;
-   publisher: string;
-   publishDate: string;
-   isbn: string;
+   publisher?: string;
+   publishDate?: string;
+   isbn?: string;
    isActive: boolean;
    isPublic: boolean;
    createdAt: string;
    updatedAt: string;
    audiobookTags: AudiobookTag[];
-   genre: Genre;
+   genre?: Genre; // Deprecated - use genres array instead
+   genres: Array<{ name: string }>;
+   meta: Record<string, string> | null;
 }
 
 /**
@@ -120,6 +126,9 @@ export interface Chapter {
    filePath: string;
    fileSize: number;
    coverImage: string;
+   chapterCardCoverImage: string | null;
+   maximizedChapterCoverImage: string | null;
+   minimizedChapterCoverImage: string | null;
    startPosition: number;
    endPosition: number;
    isActive: boolean;
@@ -377,6 +386,134 @@ export async function getAudiobookById(
       throw new Error(
          `Failed to fetch audiobook: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
+   }
+}
+
+/**
+ * Playback session initialization request payload
+ */
+export interface InitializePlaybackSessionRequest {
+   userId: string;
+   audiobookId: string;
+   chapterId: string;
+}
+
+/**
+ * Initialize playback session with retry logic
+ * Calls POST /api/v1/playback/session to track when a user starts playing a chapter
+ * Retries up to 3 more times (total 4 attempts) if the API returns 404 on the first attempt
+ * @param request - User ID, audiobook ID, and chapter ID
+ * @returns Promise that resolves when session is initialized
+ * @throws ApiError if initialization fails after all retries (but errors are caught and logged, not thrown)
+ */
+export async function initializePlaybackSession(
+   request: InitializePlaybackSessionRequest
+): Promise<void> {
+   const maxRetries = 3; // Retry 3 more times after initial attempt (total 4 attempts)
+
+   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+         // Use authenticated request (useAuth=true) to include Bearer token
+         await post<void>(
+            `${API_V1_PATH}/playback/session`,
+            {
+               userId: request.userId,
+               audiobookId: request.audiobookId,
+               chapterId: request.chapterId,
+            },
+            true, // useAuth=true - includes Bearer token
+            false // useAuthApi=false - uses main API (port 8082)
+         );
+
+         // Success - no need to retry
+         if (attempt > 0) {
+            console.log(`[Audiobooks Service] Playback session initialized successfully on attempt ${attempt + 1}`);
+         }
+         return;
+      } catch (error) {
+         // Check if error is 404 and we haven't exhausted retries
+         const is404 = error instanceof ApiError && error.status === 404;
+         const shouldRetry = is404 && attempt < maxRetries;
+
+         if (shouldRetry) {
+            // Wait a bit before retrying (exponential backoff: 500ms, 1000ms, 2000ms)
+            const delayMs = 500 * Math.pow(2, attempt);
+            console.log(
+               `[Audiobooks Service] Playback session initialization returned 404, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`
+            );
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+            continue; // Retry
+         } else {
+            // Either not a 404, or we've exhausted retries
+            if (is404 && attempt === maxRetries) {
+               console.error(
+                  `[Audiobooks Service] Playback session initialization failed after ${maxRetries + 1} attempts (all returned 404)`,
+                  {
+                     error,
+                     errorType: error instanceof Error ? error.constructor.name : typeof error,
+                     errorMessage: error instanceof Error ? error.message : String(error),
+                     request,
+                  }
+               );
+            } else {
+               // Non-404 error or other issue
+               console.error('[Audiobooks Service] Playback session initialization error', {
+                  error,
+                  errorType: error instanceof Error ? error.constructor.name : typeof error,
+                  errorMessage: error instanceof Error ? error.message : String(error),
+                  request,
+                  attempt: attempt + 1,
+               });
+            }
+            // Don't throw - allow playback to continue even if tracking fails
+            return;
+         }
+      }
+   }
+}
+
+/**
+ * Playback sync request payload
+ */
+export interface SyncPlaybackRequest {
+   audiobookId: string;
+   action: 'play' | 'pause' | 'seek';
+   position: number; // Position in seconds (integer)
+   chapterId: string;
+}
+
+/**
+ * Sync playback state
+ * Calls POST /api/v1/playback/sync to track playback position and state
+ * @param request - Audiobook ID, action, position, and chapter ID
+ * @returns Promise that resolves when sync is complete
+ * @throws ApiError if sync fails (but errors are caught and logged, not thrown)
+ */
+export async function syncPlayback(
+   request: SyncPlaybackRequest
+): Promise<void> {
+   try {
+      // Use authenticated request (useAuth=true) to include Bearer token
+      await post<void>(
+         `${API_V1_PATH}/playback/sync`,
+         {
+            audiobookId: request.audiobookId,
+            action: request.action,
+            position: Math.floor(request.position), // Ensure position is integer
+            chapterId: request.chapterId,
+         },
+         true, // useAuth=true - includes Bearer token
+         false // useAuthApi=false - uses main API (port 8082)
+      );
+   } catch (error) {
+      // Log error but don't block playback - this is a tracking API
+      console.error('[Audiobooks Service] Playback sync error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+         request,
+      });
+      // Don't throw - allow playback to continue even if tracking fails
    }
 }
 

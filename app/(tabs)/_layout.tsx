@@ -2,6 +2,7 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Platform, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography } from '@/theme';
 import { TabNavigationProvider } from '@/hooks/useTabNavigation';
 
@@ -10,6 +11,17 @@ import { TabNavigationProvider } from '@/hooks/useTabNavigation';
  * Wraps tabs in navigation context provider for tracking previous routes
  */
 export default function TabLayout() {
+   const insets = useSafeAreaInsets();
+
+   // Calculate tab bar height and padding accounting for safe area insets
+   const tabBarBaseHeight = Platform.OS === 'ios' ? 60 : 50; // Base height without safe area
+   const tabBarPaddingTop = Platform.OS === 'ios' ? 10 : 5;
+   const tabBarPaddingBottom = Platform.OS === 'ios' ? 20 : 5;
+
+   // Total height includes base height + top padding + bottom padding + bottom safe area inset
+   const tabBarHeight = tabBarBaseHeight + tabBarPaddingTop + tabBarPaddingBottom + insets.bottom;
+   // Bottom padding includes the safe area inset to push content above system navigation
+   const tabBarBottomPadding = tabBarPaddingBottom + insets.bottom;
 
    return (
       <TabNavigationProvider>
@@ -27,10 +39,12 @@ export default function TabLayout() {
                      display: Platform.OS === 'web' ? 'none' : 'flex',
                      backgroundColor: colors.background.darkGray,
                      borderTopWidth: 0,
-                     height: Platform.OS === 'ios' ? 90 : 70,
-                     paddingTop: Platform.OS === 'ios' ? 10 : 5,
-                     paddingBottom: Platform.OS === 'ios' ? 30 : 10,
-                     elevation: 0,
+                     height: tabBarHeight,
+                     paddingTop: tabBarPaddingTop,
+                     paddingBottom: tabBarBottomPadding,
+                     // Ensure tab bar is above AudioPlayer (which has zIndex 100)
+                     zIndex: 200,
+                     elevation: 200, // Android elevation (above AudioPlayer elevation 100)
                      shadowOpacity: 0,
                   },
                   tabBarLabelStyle: {

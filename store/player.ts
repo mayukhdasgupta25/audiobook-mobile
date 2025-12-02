@@ -12,6 +12,8 @@ export interface ChapterMetadata {
    id: string;
    title: string;
    coverImage: string | null;
+   maximizedChapterCoverImage: string | null;
+   minimizedChapterCoverImage: string | null;
 }
 
 /**

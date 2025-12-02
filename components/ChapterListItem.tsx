@@ -29,9 +29,10 @@ interface ChapterListItemProps {
  */
 export const ChapterListItem: React.FC<ChapterListItemProps> = React.memo(
    ({ chapter, onPress, isCurrentlyPlaying = false }) => {
-      // Build full image URL by prepending API base URL
-      const imageUri = chapter.coverImage
-         ? `${apiConfig.baseURL}${chapter.coverImage}`
+      // Build full image URL using chapterCardCoverImage, fallback to coverImage
+      const imagePath = chapter.chapterCardCoverImage || chapter.coverImage;
+      const imageUri = imagePath
+         ? `${apiConfig.baseURL}${imagePath}`
          : undefined;
 
       const formattedDuration = formatDuration(chapter.duration);

@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, Platform } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
 import { colors, typography } from '@/theme';
@@ -10,9 +10,17 @@ import { colors, typography } from '@/theme';
  * Placeholder for future implementation
  */
 function NewHotScreenContent() {
+   const insets = useSafeAreaInsets();
+
+   // Calculate dynamic padding for content
+   const contentPadding = React.useMemo(() => {
+      const tabBarBaseHeight = Platform.OS === 'ios' ? 90 : 70;
+      return tabBarBaseHeight + (insets?.bottom || 0) + 20; // Extra 20px for spacing
+   }, [insets]);
+
    return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-         <View style={styles.content}>
+         <View style={[styles.content, { paddingBottom: contentPadding }]}>
             <Text style={styles.title}>New & Hot</Text>
             <Text style={styles.subtitle}>Coming soon...</Text>
          </View>

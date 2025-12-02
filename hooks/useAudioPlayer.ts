@@ -16,7 +16,7 @@ import {
    setError,
    seek,
 } from '@/store/player';
-import { getChapters, type Chapter } from '@/services/audiobooks';
+import { getChapters, type Chapter, initializePlaybackSession, syncPlayback } from '@/services/audiobooks';
 import { setChapter, play } from '@/store/player';
 import { STREAMING_API_BASE_URL, API_V1_STREAM_PATH } from '@/services/api';
 
@@ -36,8 +36,12 @@ export function useAudioPlayer() {
       currentChapterId,
    } = useSelector((state: RootState) => state.player);
 
-   // Get access token from Redux
+   // Get access token and user from Redux
    const accessToken = useSelector((state: RootState) => state.auth.accessToken);
+   const user = useSelector((state: RootState) => state.auth.user);
+
+   // Track last initialized chapter to prevent duplicate API calls
+   const lastInitializedChapterRef = useRef<string | null>(null);
 
    // Construct playlist URL for current chapter
    // Both Android and iOS use master.m3u8
@@ -144,6 +148,8 @@ export function useAudioPlayer() {
                            id: nextChapter.id,
                            title: nextChapter.title,
                            coverImage: nextChapter.coverImage,
+                           maximizedChapterCoverImage: nextChapter.maximizedChapterCoverImage || null,
+                           minimizedChapterCoverImage: nextChapter.minimizedChapterCoverImage || null,
                         },
                         audiobookId: nextChapter.audiobookId,
                      })
@@ -151,18 +157,81 @@ export function useAudioPlayer() {
 
                   // Continue playback - duration will be set from onLoad callback
                   dispatch(play());
+
+                  // Note: Initial sync on play is handled by usePlaybackSync hook (1 second delay)
+                  // No need to sync immediately here
+
+                  // Initialize playback session for the new chapter
+                  if (
+                     user?.id &&
+                     nextChapter.audiobookId &&
+                     nextChapter.id &&
+                     lastInitializedChapterRef.current !== nextChapter.id
+                  ) {
+                     lastInitializedChapterRef.current = nextChapter.id;
+                     initializePlaybackSession({
+                        userId: user.id,
+                        audiobookId: nextChapter.audiobookId,
+                        chapterId: nextChapter.id,
+                     }).catch((error: unknown) => {
+                        // Log error but don't block playback
+                        console.error('[Audio Player] Failed to initialize playback session:', error);
+                     });
+                  }
                } else {
                   // No next chapter, stop playback
                   console.log('[Audio Player] Reached end of audiobook');
+
+                  // Sync final position before stopping (only if player is active)
+                  const freshIsVisible = state.player.isVisible;
+                  if (freshIsVisible && freshAudiobookId && freshChapterId) {
+                     syncPlayback({
+                        audiobookId: freshAudiobookId,
+                        chapterId: freshChapterId,
+                        action: 'pause',
+                        position: state.player.totalDuration, // Final position at end
+                     }).catch((error: unknown) => {
+                        console.error('[Audio Player] Failed to sync playback at end:', error);
+                     });
+                  }
+
                   dispatch(stop());
                }
             } else {
                // Could not find current chapter, stop playback
                console.warn('[Audio Player] Could not find current chapter in list');
+
+               // Sync final position before stopping (only if player is active)
+               const freshIsVisible = state.player.isVisible;
+               if (freshIsVisible && freshAudiobookId && freshChapterId) {
+                  syncPlayback({
+                     audiobookId: freshAudiobookId,
+                     chapterId: freshChapterId,
+                     action: 'pause',
+                     position: state.player.totalDuration, // Final position at end
+                  }).catch((error: unknown) => {
+                     console.error('[Audio Player] Failed to sync playback at end:', error);
+                  });
+               }
+
                dispatch(stop());
             }
          } catch (error) {
             console.error('[Audio Player] Error auto-advancing to next chapter:', error);
+
+            // Sync final position before stopping on error (only if player is active)
+            const freshIsVisible = state.player.isVisible;
+            if (freshIsVisible && freshAudiobookId && freshChapterId) {
+               syncPlayback({
+                  audiobookId: freshAudiobookId,
+                  chapterId: freshChapterId,
+                  action: 'pause',
+                  position: state.player.totalDuration, // Final position at end
+               }).catch((syncError: unknown) => {
+                  console.error('[Audio Player] Failed to sync playback at end:', syncError);
+               });
+            }
+
             // On error, stop playback
             dispatch(stop());
          }
@@ -225,6 +294,8 @@ export function useAudioPlayer() {
          const { store } = require('@/store');
          const state = store.getState();
          const freshTotalDuration = state.player.totalDuration;
+         const freshChapterId = state.player.currentChapterId;
+         const freshAudiobookId = state.player.audiobookId;
 
          if (freshTotalDuration === 0) return;
 
@@ -237,6 +308,19 @@ export function useAudioPlayer() {
 
          // Seek the video player - react-native-video handles segment selection automatically
          videoRef.current.seek(clampedTime);
+
+         // Sync playback state after seek (only if player is active)
+         const freshIsVisible = state.player.isVisible;
+         if (freshIsVisible && freshAudiobookId && freshChapterId) {
+            syncPlayback({
+               audiobookId: freshAudiobookId,
+               chapterId: freshChapterId,
+               action: 'seek',
+               position: clampedTime,
+            }).catch((error: unknown) => {
+               console.error('[Audio Player] Failed to sync playback after seek:', error);
+            });
+         }
       },
       [dispatch]
    );
@@ -254,6 +338,8 @@ export function useAudioPlayer() {
          const state = store.getState();
          const freshPlaybackPosition = state.player.playbackPosition;
          const freshTotalDuration = state.player.totalDuration;
+         const freshChapterId = state.player.currentChapterId;
+         const freshAudiobookId = state.player.audiobookId;
 
          if (freshTotalDuration === 0) return;
 
@@ -269,6 +355,19 @@ export function useAudioPlayer() {
 
          // Seek the video player - react-native-video handles segment selection automatically
          videoRef.current.seek(newPosition);
+
+         // Sync playback state after seek (only if player is active)
+         const freshIsVisible = state.player.isVisible;
+         if (freshIsVisible && freshAudiobookId && freshChapterId) {
+            syncPlayback({
+               audiobookId: freshAudiobookId,
+               chapterId: freshChapterId,
+               action: 'seek',
+               position: newPosition,
+            }).catch((error: unknown) => {
+               console.error('[Audio Player] Failed to sync playback after seek:', error);
+            });
+         }
       },
       [dispatch]
    );

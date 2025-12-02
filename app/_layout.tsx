@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { store, persistor, initializeApp } from '@/store';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store';
@@ -229,18 +230,20 @@ function InnerLayout() {
 
 export default function RootLayout() {
    return (
-      <SafeAreaProvider>
-         <View style={{ flex: 1, backgroundColor: colors.background.dark }}>
-            <Provider store={store}>
-               <PersistGate loading={null} persistor={persistor}>
-                  <QueryClientProvider client={queryClient}>
-                     <StatusBar style="light" />
-                     <InnerLayout />
-                  </QueryClientProvider>
-               </PersistGate>
-            </Provider>
-         </View>
-      </SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+         <SafeAreaProvider>
+            <View style={{ flex: 1, backgroundColor: colors.background.dark }}>
+               <Provider store={store}>
+                  <PersistGate loading={null} persistor={persistor}>
+                     <QueryClientProvider client={queryClient}>
+                        <StatusBar style="light" />
+                        <InnerLayout />
+                     </QueryClientProvider>
+                  </PersistGate>
+               </Provider>
+            </View>
+         </SafeAreaProvider>
+      </GestureHandlerRootView>
    );
 }
 

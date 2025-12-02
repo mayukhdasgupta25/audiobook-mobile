@@ -31,9 +31,10 @@ export interface ContentRowData {
  * Convert Audiobook to ContentItem format
  */
 function audiobookToContentItem(audiobook: Audiobook): ContentItem {
-   // Build full image URL by prepending API base URL
-   const imageUri = audiobook.coverImage
-      ? `${apiConfig.baseURL}${audiobook.coverImage}`
+   // Use contentCardCoverImage if available, fallback to coverImage
+   const imagePath = audiobook.contentCardCoverImage || audiobook.coverImage;
+   const imageUri = imagePath
+      ? `${apiConfig.baseURL}${imagePath}`
       : undefined;
 
    // Extract badge from tags (e.g., "TOP 10" from trending tag)
@@ -315,11 +316,64 @@ export function useHomeContent() {
    // Overall error state
    const error = tagsError || genresError || contentRows.find((row) => row.error)?.error || null;
 
+   // Get audiobooks for hero carousel - prioritize Trending, fallback to New Releases
+   // Returns shuffled array of audiobooks for carousel rotation
+   const heroCarouselItems = useMemo(() => {
+      // Find Trending tag row first
+      let targetRow = contentRows.find(
+         (row) => row.type === 'tag' && row.title.toLowerCase().includes('trending')
+      );
+
+      // Fallback to New Releases if Trending not available
+      if (!targetRow || targetRow.items.length === 0) {
+         targetRow = contentRows.find(
+            (row) => row.type === 'tag' && (row.title.toLowerCase().includes('new') || row.title.toLowerCase().includes('release'))
+         );
+      }
+
+      // If still no row found, use first tag row
+      if (!targetRow || targetRow.items.length === 0) {
+         targetRow = contentRows.find((row) => row.type === 'tag' && row.items.length > 0);
+      }
+
+      if (!targetRow || targetRow.items.length === 0) {
+         return [];
+      }
+
+      // Get all audiobooks from the selected row by matching item IDs
+      // Build a map of item IDs from the target row
+      const targetItemIds = new Set(targetRow.items.map((item) => item.id));
+
+      // Find all audiobooks that match the target row's items
+      const audiobooks: Audiobook[] = [];
+      for (const query of tagQueries) {
+         if (query.data?.data) {
+            // Filter audiobooks that are in the target row
+            const matchingAudiobooks = query.data.data.filter((book) =>
+               targetItemIds.has(book.id)
+            );
+            audiobooks.push(...matchingAudiobooks);
+         }
+      }
+
+      // Remove duplicates by id
+      const uniqueAudiobooks = audiobooks.filter(
+         (book, index, self) => index === self.findIndex((b) => b.id === book.id)
+      );
+
+      // Sort by id to ensure stable order (prevents unnecessary re-renders)
+      // This ensures the array reference only changes when items actually change
+      const sorted = [...uniqueAudiobooks].sort((a, b) => a.id.localeCompare(b.id));
+
+      return sorted;
+   }, [contentRows, tagQueries]);
+
    return {
       contentRows,
       isLoading,
       error,
       loadNextPage,
+      heroCarouselItems, // Return array of audiobooks for hero carousel
    };
 }
 

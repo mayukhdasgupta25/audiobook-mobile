@@ -3,7 +3,7 @@
  * Displays audio player UI with playback controls and progress
  */
 
-import React, { useMemo, useEffect, useRef, useState } from 'react';
+import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react';
 import {
    View,
    Text,
@@ -12,6 +12,7 @@ import {
    Platform,
    ActivityIndicator,
    Dimensions,
+   PanResponder,
 } from 'react-native';
 import Animated, {
    useAnimatedStyle,
@@ -19,8 +20,10 @@ import Animated, {
    withTiming,
    withSpring,
    Easing,
+   useAnimatedReaction,
+   runOnJS,
 } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import Video from 'react-native-video';
@@ -29,6 +32,8 @@ import { RootState } from '@/store';
 import { play, pause, setVisible, setMinimized } from '@/store/player';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useMediaSession } from '@/hooks/useMediaSession';
+import { usePlaybackSync } from '@/hooks/usePlaybackSync';
+import { syncPlayback, initializePlaybackSession } from '@/services/audiobooks';
 import { colors, spacing, typography, borderRadius } from '@/theme';
 import { formatDuration } from '@/utils/duration';
 import { apiConfig } from '@/services/api';
@@ -41,6 +46,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export const AudioPlayer: React.FC = React.memo(() => {
    const dispatch = useDispatch();
+   const insets = useSafeAreaInsets();
    const {
       isPlaying,
       currentChapterId,
@@ -51,18 +57,25 @@ export const AudioPlayer: React.FC = React.memo(() => {
       isVisible,
       isMinimized,
       chapterMetadata,
+      audiobookId,
    } = useSelector((state: RootState) => state.player);
+
+   // Get user from Redux for session initialization
+   const user = useSelector((state: RootState) => state.auth.user);
 
    // Animation shared values
    const translateY = useSharedValue(SCREEN_HEIGHT);
    const opacity = useSharedValue(0);
    const fullPlayerOpacity = useSharedValue(0);
    const minimizedOpacity = useSharedValue(0);
-   const fullPlayerScale = useSharedValue(0.95);
-   const minimizedScale = useSharedValue(0.95);
    const isMountedRef = useRef(false);
    const previousVisibleRef = useRef(false);
    const previousMinimizedRef = useRef(false);
+
+   // Drag-to-minimize shared values and refs
+   const dragY = useSharedValue(0);
+   const isDraggingDown = useRef(false);
+   const dragStartY = useRef(0);
    const progressBarWidthRef = useRef(0);
    const progressBarWrapperRef = useRef<View | null>(null);
    const wrapperXRef = useRef(0);
@@ -70,10 +83,11 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const wrapperWidthRef = useRef(0);
    const wrapperHeightRef = useRef(0);
 
-   // State for dragging animation
-   const [isDragging, setIsDragging] = useState(false);
-   const [dragProgress, setDragProgress] = useState(0);
+   // Shared values for dragging animation (no useState to avoid re-renders)
    const dragProgressValue = useSharedValue(0);
+   const isDraggingValue = useSharedValue(false);
+   // State for displayed time during drag (updated via runOnJS)
+   const [displayedTime, setDisplayedTime] = useState(0);
 
    // Use audio player hook
    const {
@@ -93,11 +107,33 @@ export const AudioPlayer: React.FC = React.memo(() => {
    // react-native-video handles media session automatically when playInBackground is true
    useMediaSession();
 
-   // Calculate total progress (absolute position / total duration)
-   const totalProgress = useMemo(() => {
-      if (totalDuration === 0) return 0;
-      return playbackPosition / totalDuration;
-   }, [playbackPosition, totalDuration]);
+   // Use playback sync hook to automatically sync every 5 seconds during playback
+   // Only sync when player is visible (active)
+   usePlaybackSync({
+      audiobookId,
+      chapterId: currentChapterId,
+      playbackPosition,
+      isPlaying,
+      isActive: isVisible, // Only sync when player is visible/active
+   });
+
+   // Shared value for actual playback progress (updated from Redux state)
+   const actualProgressValue = useSharedValue(0);
+
+   // Store totalDuration in ref so PanResponder can access current value
+   const totalDurationRef = useRef(totalDuration);
+   useEffect(() => {
+      totalDurationRef.current = totalDuration;
+   }, [totalDuration]);
+
+   // Update actual progress shared value when playback position or duration changes
+   useEffect(() => {
+      if (totalDuration === 0) {
+         actualProgressValue.value = 0;
+      } else {
+         actualProgressValue.value = playbackPosition / totalDuration;
+      }
+   }, [playbackPosition, totalDuration, actualProgressValue]);
 
    // Handle progress bar layout to get width and position
    const handleProgressBarLayout = (event: { nativeEvent: { layout: { width: number } } }) => {
@@ -120,204 +156,387 @@ export const AudioPlayer: React.FC = React.memo(() => {
       }, 0);
    };
 
-   // Track if user is actually dragging vs just tapping
-   const isDraggingRef = useRef(false);
-   const dragStartXRef = useRef(0);
+   // Helper function to update displayed time (called from worklet)
+   const updateDisplayedTime = useCallback((time: number) => {
+      setDisplayedTime(time);
+   }, []);
 
-   // Helper function to check if touch is within progress bar bounds
-   const isTouchWithinBounds = (pageX: number, pageY: number): boolean => {
-      const x = wrapperXRef.current;
-      const y = wrapperYRef.current;
-      const width = wrapperWidthRef.current;
-      const height = wrapperHeightRef.current;
+   // Helper function to seek to time (called from worklet)
+   const seekToTimeFromWorklet = useCallback((time: number) => {
+      seekToTime(time);
+   }, [seekToTime]);
 
-      // Check if touch is within the progress bar area (with some vertical tolerance)
-      return pageX >= x && pageX <= x + width && pageY >= y - 20 && pageY <= y + height + 20;
-   };
+   // Store initial touch position for PanResponder
+   const initialTouchXRef = useRef(0);
+   const initialTouchYRef = useRef(0);
+   const hasMovedRef = useRef(false);
+   const isDragCancelledRef = useRef(false);
 
-   // Helper function to convert pageX to relative position within progress bar
-   const pageXToRelativeX = (pageX: number): number => {
-      const x = wrapperXRef.current;
-      // Account for horizontal padding (8px on each side)
-      const relativeX = pageX - x - 8;
-      return Math.max(0, Math.min(progressBarWidthRef.current, relativeX));
-   };
+   // Pan responder for progress bar dragging
+   // Use useRef to create once, but access current values from closure/refs
+   const progressBarPanResponder = useRef(
+      PanResponder.create({
+         onStartShouldSetPanResponder: () => {
+            // Access totalDuration from ref to get current value (not stale closure)
+            // Allow activation if totalDuration is valid - width will be measured in Grant if needed
+            // This ensures PanResponder can activate even if layout hasn't been measured yet
+            return totalDurationRef.current > 0;
+         },
+         onStartShouldSetPanResponderCapture: () => {
+            // Same check - capture early to prevent parent from interfering
+            return totalDurationRef.current > 0;
+         },
+         onMoveShouldSetPanResponder: (_evt, gestureState) => {
+            // Fallback: if start didn't activate, catch horizontal movement
+            // Very low threshold (1px) to catch any horizontal movement
+            if (totalDurationRef.current === 0) return false;
+            return Math.abs(gestureState.dx) > 1 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+         },
+         onMoveShouldSetPanResponderCapture: (_evt, gestureState) => {
+            // Capture horizontal movements early
+            if (totalDurationRef.current === 0) return false;
+            return Math.abs(gestureState.dx) > 1 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+         },
+         onPanResponderGrant: (evt) => {
+            // Initialize drag - prevent progress updates from interfering
+            isDraggingValue.value = true;
+            setDragging(true);
+            hasMovedRef.current = false;
+            isDragCancelledRef.current = false;
 
-   // Handle touch start - works reliably on both emulator and real devices
-   const handleTouchStart = (evt: any) => {
-      if (progressBarWidthRef.current === 0 || totalDuration === 0) return;
+            // CRITICAL: Initialize drag progress with current actual progress to prevent jump to 0
+            // This ensures smooth transition when user touches the handle
+            dragProgressValue.value = actualProgressValue.value;
 
-      const nativeEvent = evt.nativeEvent;
-      // Get absolute screen coordinates to check bounds
-      const pageX = nativeEvent.pageX ?? nativeEvent.touches?.[0]?.pageX ?? 0;
-      const pageY = nativeEvent.pageY ?? nativeEvent.touches?.[0]?.pageY ?? 0;
+            // Use locationX which is relative to the touchable view - more reliable
+            // locationX is relative to progressBarTouchable, which is inside the wrapper with padding
+            const locationX = evt.nativeEvent.locationX || 0;
+            const pageY = evt.nativeEvent.pageY;
 
-      // Only allow touch start if within progress bar bounds
-      if (!isTouchWithinBounds(pageX, pageY)) {
-         return;
-      }
+            // Store initial positions
+            initialTouchXRef.current = locationX;
+            initialTouchYRef.current = pageY;
 
-      // locationX is relative to the touch target and works reliably on real devices
-      const locationX = nativeEvent.locationX ?? nativeEvent.touches?.[0]?.locationX ?? 0;
-      dragStartXRef.current = locationX;
-      isDraggingRef.current = false;
-      // Initialize drag progress with current progress to prevent jump
-      setDragProgress(totalProgress);
-      dragProgressValue.value = totalProgress;
-   };
+            // Measure wrapper position for vertical drag cancellation (not for position calculation)
+            if (progressBarWrapperRef.current) {
+               try {
+                  progressBarWrapperRef.current.measureInWindow((x, y, width, height) => {
+                     wrapperXRef.current = x;
+                     wrapperYRef.current = y;
+                     wrapperWidthRef.current = width;
+                     wrapperHeightRef.current = height;
+                  });
+               } catch (e) {
+                  // Measurement failed, continue with locationX-based calculation
+               }
+            }
 
-   // Handle touch move - for dragging
-   const handleTouchMove = (evt: any) => {
-      if (progressBarWidthRef.current === 0 || totalDuration === 0) return;
+            // Ensure width is available - measure if needed
+            let width = progressBarWidthRef.current;
+            if (width === 0) {
+               if (progressBarWrapperRef.current) {
+                  try {
+                     progressBarWrapperRef.current.measure((_x, _y, measuredWidth) => {
+                        const barWidth = Math.max(0, measuredWidth - 16);
+                        progressBarWidthRef.current = barWidth;
+                        width = barWidth;
+                     });
+                  } catch (e) {
+                     // Fallback width
+                     width = 300;
+                     progressBarWidthRef.current = width;
+                  }
+               } else {
+                  width = 300;
+                  progressBarWidthRef.current = width;
+               }
+            }
 
-      const nativeEvent = evt.nativeEvent;
-      // Get absolute screen coordinates
-      const pageX = nativeEvent.pageX ?? nativeEvent.touches?.[0]?.pageX ?? 0;
-      const pageY = nativeEvent.pageY ?? nativeEvent.touches?.[0]?.pageY ?? 0;
+            // Calculate touch position relative to progress bar
+            // Account for 8px padding on left side
+            const touchRelativeX = Math.max(0, Math.min(width, locationX - 8));
+            const touchPercentage = Math.max(0, Math.min(1, touchRelativeX / width));
 
-      // Get relative position for initial drag detection
-      const locationX = nativeEvent.locationX ?? nativeEvent.touches?.[0]?.locationX ?? 0;
+            // Update displayed time based on touch position
+            const targetTime = touchPercentage * totalDurationRef.current;
+            runOnJS(updateDisplayedTime)(Math.floor(targetTime));
+         },
+         onPanResponderMove: (evt, gestureState) => {
+            if (totalDurationRef.current === 0) return;
+            if (isDragCancelledRef.current) return;
 
-      // Check if touch is within progress bar bounds
-      const withinBounds = isTouchWithinBounds(pageX, pageY);
+            // Ensure width is available - use fallback if not measured
+            const width = progressBarWidthRef.current || 300;
+            if (width === 0) return;
 
-      // If we're already dragging but touch moved outside bounds, cancel drag
-      if (isDraggingRef.current && !withinBounds) {
-         setIsDragging(false);
-         setDragging(false);
-         isDraggingRef.current = false;
-         return;
-      }
+            // Check if touch has moved too far vertically from progress bar
+            const currentPageY = evt.nativeEvent.pageY;
+            const y = wrapperYRef.current;
+            const height = wrapperHeightRef.current;
+            const verticalTolerance = 30; // Allow some vertical movement tolerance
 
-      // Check if this is actually a drag (movement > threshold) and within bounds
-      const moveDistance = Math.abs(locationX - dragStartXRef.current);
-      if (moveDistance > 3 && !isDraggingRef.current && withinBounds) {
-         // Start dragging - prevent progress updates from interfering
-         isDraggingRef.current = true;
-         setIsDragging(true);
-         setDragging(true); // Tell hook to skip progress updates
-         setDragProgress(totalProgress);
-         dragProgressValue.value = totalProgress;
-      }
+            // If finger moved too far vertically, cancel the drag
+            if (
+               (y > 0 || height > 0) && // Only check if position is measured
+               (currentPageY < y - verticalTolerance ||
+                  currentPageY > y + height + verticalTolerance)
+            ) {
+               isDragCancelledRef.current = true;
+               // Cancel drag and reset
+               isDraggingValue.value = false;
+               setDragging(false);
+               return;
+            }
 
-      if (isDraggingRef.current && withinBounds) {
-         // Convert pageX to relative position within progress bar
-         const relativeX = pageXToRelativeX(pageX);
-         // Calculate percentage directly from relativeX
-         const percentage = Math.max(0, Math.min(1, relativeX / progressBarWidthRef.current));
-         setDragProgress(percentage);
-         dragProgressValue.value = percentage;
-      }
-   };
+            // Track that user has moved (dragging, not just tapping)
+            if (Math.abs(gestureState.dx) > 2) {
+               hasMovedRef.current = true;
+            }
 
-   // Handle touch end - seek to final position
-   const handleTouchEnd = (evt: any) => {
-      if (progressBarWidthRef.current === 0 || totalDuration === 0) {
-         setIsDragging(false);
-         setDragging(false); // Re-enable progress updates
-         isDraggingRef.current = false;
-         return;
-      }
+            // Calculate position based on initial touch position + horizontal movement
+            // This ensures consistent dragging regardless of where user initially touched
+            // dx is in pixels, convert to percentage by dividing by width
+            const dxPercentage = gestureState.dx / width;
 
-      const nativeEvent = evt.nativeEvent;
-      // Get absolute screen coordinates
-      const pageX = nativeEvent.pageX ?? nativeEvent.changedTouches?.[0]?.pageX ?? 0;
-      const pageY = nativeEvent.pageY ?? nativeEvent.changedTouches?.[0]?.pageY ?? 0;
+            // Use the initial touch position as the starting point
+            const initialTouchX = initialTouchXRef.current;
+            const initialTouchRelativeX = Math.max(0, Math.min(width, initialTouchX - 8));
+            const initialTouchPercentage = Math.max(0, Math.min(1, initialTouchRelativeX / width));
 
-      // Only seek if touch ended within bounds and we were dragging
-      const withinBounds = isTouchWithinBounds(pageX, pageY);
+            // Calculate new position: initial touch position + movement
+            const newPercentage = Math.max(0, Math.min(1, initialTouchPercentage + dxPercentage));
 
-      if (isDraggingRef.current && withinBounds) {
-         // Convert pageX to relative position within progress bar
-         const relativeX = pageXToRelativeX(pageX);
-         // Calculate final position and seek
-         const percentage = Math.max(0, Math.min(1, relativeX / progressBarWidthRef.current));
-         const targetTime = percentage * totalDuration;
+            // Update drag progress directly in shared value (no re-render)
+            dragProgressValue.value = newPercentage;
 
-         // Re-enable progress updates before seeking
-         setDragging(false);
-         isDraggingRef.current = false;
+            // Update displayed time via runOnJS (only updates state when needed)
+            const targetTime = newPercentage * totalDurationRef.current;
+            runOnJS(updateDisplayedTime)(Math.floor(targetTime));
+         },
+         onPanResponderRelease: (_evt, gestureState) => {
+            if (totalDurationRef.current === 0) {
+               isDraggingValue.value = false;
+               setDragging(false);
+               return;
+            }
 
-         // Seek to the target time
-         seekToTime(targetTime);
-      } else {
-         // Touch ended outside bounds or wasn't dragging - just cancel
-         setDragging(false);
-         isDraggingRef.current = false;
-      }
+            // Ensure width is available - use fallback if not measured
+            const width = progressBarWidthRef.current || 300;
+            if (width === 0) {
+               isDraggingValue.value = false;
+               setDragging(false);
+               return;
+            }
 
-      // Clear drag state after a brief delay to allow smooth transition
-      setTimeout(() => {
-         setIsDragging(false);
-         setDragProgress(0);
-      }, 50);
-   };
+            // If drag was cancelled, don't seek
+            if (isDragCancelledRef.current) {
+               isDraggingValue.value = false;
+               setDragging(false);
+               setDisplayedTime(0);
+               return;
+            }
 
-   // Handle touch cancel
-   const handleTouchCancel = () => {
-      setIsDragging(false);
-      setDragging(false); // Re-enable progress updates
-      setDragProgress(0);
-      isDraggingRef.current = false;
-   };
+            // Calculate final position using initial touch + dx (consistent with Move handler)
+            const initialTouchX = initialTouchXRef.current;
+            const initialTouchRelativeX = Math.max(0, Math.min(width, initialTouchX - 8));
+            const initialTouchPercentage = Math.max(0, Math.min(1, initialTouchRelativeX / width));
 
-   // Animated style for progress fill during drag
-   const dragProgressAnimatedStyle = useAnimatedStyle(() => {
+            // Calculate final position: initial touch position + movement
+            const dxPercentage = gestureState.dx / width;
+            const percentage = Math.max(0, Math.min(1, initialTouchPercentage + dxPercentage));
+            const targetTime = percentage * totalDurationRef.current;
+
+            // CRITICAL: Update actualProgressValue to match drag position BEFORE releasing drag state
+            // This prevents flicker by ensuring smooth transition from drag to actual progress
+            actualProgressValue.value = percentage;
+
+            // Now safe to release drag state - visual will stay at same position
+            isDraggingValue.value = false;
+            setDragging(false);
+
+            // Seek to final position (only once, no double-seeking)
+            runOnJS(seekToTimeFromWorklet)(targetTime);
+
+            // Reset displayed time after a brief delay
+            setTimeout(() => {
+               setDisplayedTime(0);
+            }, 100);
+         },
+         onPanResponderTerminate: () => {
+            // Cancel drag on termination
+            isDraggingValue.value = false;
+            setDragging(false);
+            setDisplayedTime(0);
+            hasMovedRef.current = false;
+            isDragCancelledRef.current = false;
+         },
+      })
+   ).current;
+
+   // Unified animated style for progress fill - switches between drag and actual progress
+   const progressFillAnimatedStyle = useAnimatedStyle(() => {
+      // Use drag progress when dragging, otherwise use actual progress
+      const progress = isDraggingValue.value ? dragProgressValue.value : actualProgressValue.value;
+      const clampedProgress = Math.max(0, Math.min(1, progress));
       return {
-         width: `${dragProgressValue.value * 100}%`,
+         width: `${clampedProgress * 100}%`,
       };
    });
 
-   // Animated style for progress handle position during drag
-   const dragHandleAnimatedStyle = useAnimatedStyle(() => {
-      // Clamp the progress value to ensure handle stays within bounds (0 to 1)
-      const clampedProgress = Math.max(0, Math.min(1, dragProgressValue.value));
-      // Position at percentage, then translate by -8px (half handle width) to center it
-      return {
-         left: `${clampedProgress * 100}%`,
-         transform: [{ translateX: -8 }], // Center the handle (half of 16px width)
-      };
-   });
-
-   // Animated style for progress handle position when not dragging
+   // Unified animated style for progress handle position
    const progressHandleAnimatedStyle = useAnimatedStyle(() => {
-      // Clamp the progress value to ensure handle stays within bounds (0 to 1)
-      const clampedProgress = Math.max(0, Math.min(1, totalProgress));
+      // Use drag progress when dragging, otherwise use actual progress
+      const progress = isDraggingValue.value ? dragProgressValue.value : actualProgressValue.value;
+      const clampedProgress = Math.max(0, Math.min(1, progress));
       return {
          left: `${clampedProgress * 100}%`,
          transform: [{ translateX: -8 }], // Center the handle (half of 16px width)
       };
    });
 
-   // Get chapter cover image URI
+   // Update displayed time when dragging (using animated reaction to avoid re-renders)
+   useAnimatedReaction(
+      () => {
+         if (isDraggingValue.value && totalDuration > 0) {
+            return Math.floor(dragProgressValue.value * totalDuration);
+         }
+         return null;
+      },
+      (time) => {
+         if (time !== null) {
+            runOnJS(updateDisplayedTime)(time);
+         }
+      },
+      [totalDuration]
+   );
+
+   // Get chapter cover image URI based on minimized state
    const chapterCoverUri = useMemo(() => {
-      if (!chapterMetadata?.coverImage) return undefined;
-      return `${apiConfig.baseURL}${chapterMetadata.coverImage}`;
-   }, [chapterMetadata?.coverImage]);
+      if (!chapterMetadata) return undefined;
+
+      // Use minimizedChapterCoverImage when minimized, maximizedChapterCoverImage when maximized
+      const imagePath = isMinimized
+         ? chapterMetadata.minimizedChapterCoverImage
+         : chapterMetadata.maximizedChapterCoverImage;
+
+      // Fallback to coverImage if specific image is not available
+      const finalImagePath = imagePath || chapterMetadata.coverImage;
+
+      if (!finalImagePath) return undefined;
+      return `${apiConfig.baseURL}${finalImagePath}`;
+   }, [chapterMetadata, isMinimized]);
 
    // Handle play/pause toggle
-   const handlePlayPause = () => {
+   const handlePlayPause = useCallback(() => {
       if (isPlaying) {
          dispatch(pause());
+         // Sync playback state when pausing (only if player is active)
+         if (isVisible && audiobookId && currentChapterId) {
+            syncPlayback({
+               audiobookId,
+               chapterId: currentChapterId,
+               action: 'pause',
+               position: playbackPosition,
+            }).catch((error: unknown) => {
+               console.error('[Audio Player] Failed to sync playback on pause:', error);
+            });
+         }
       } else {
          dispatch(play());
+         // Sync playback state immediately when user clicks play (only if player is active)
+         // The usePlaybackSync hook will also call play action after 1 second, but we call it immediately here
+         // to ensure the API is called as soon as the user clicks play
+         if (isVisible && audiobookId && currentChapterId) {
+            syncPlayback({
+               audiobookId,
+               chapterId: currentChapterId,
+               action: 'play',
+               position: playbackPosition,
+            }).catch((error: unknown) => {
+               console.error('[Audio Player] Failed to sync playback on play:', error);
+            });
+         }
       }
-   };
+   }, [isPlaying, isVisible, audiobookId, currentChapterId, playbackPosition, dispatch]);
 
    // Handle close
    const handleClose = () => {
       dispatch(setVisible(false));
    };
 
-   // Handle minimize
-   const handleMinimize = () => {
-      dispatch(setMinimized(true));
-   };
-
-   // Handle expand
+   // Handle expand (when clicking on minimized player)
    const handleExpand = () => {
       dispatch(setMinimized(false));
    };
+
+   // Pan responder for drag-to-minimize functionality
+   const panResponder = useRef(
+      PanResponder.create({
+         onStartShouldSetPanResponder: () => false,
+         onStartShouldSetPanResponderCapture: () => false,
+         onMoveShouldSetPanResponder: (_evt, gestureState) => {
+            // Only respond to downward drags when player is maximized
+            // Lower threshold to make it more responsive
+            if (!isMinimized && gestureState.dy > 3 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)) {
+               return true;
+            }
+            return false;
+         },
+         onMoveShouldSetPanResponderCapture: (_evt, gestureState) => {
+            // Only capture vertical downward drags
+            // Explicitly allow horizontal touches (dx > dy) to pass through to child (seek bar)
+            if (!isMinimized &&
+               Math.abs(gestureState.dx) <= Math.abs(gestureState.dy) &&
+               gestureState.dy > 3) {
+               return true;
+            }
+            return false;
+         },
+         onPanResponderGrant: (evt) => {
+            isDraggingDown.current = true;
+            dragStartY.current = evt.nativeEvent.pageY;
+            dragY.value = 0;
+         },
+         onPanResponderMove: (_evt, gestureState) => {
+            if (isDraggingDown.current && gestureState.dy > 0) {
+               // Only allow downward dragging
+               dragY.value = Math.max(0, gestureState.dy);
+            }
+         },
+         onPanResponderRelease: (_evt, gestureState) => {
+            isDraggingDown.current = false;
+            // If dragged down more than 80px, minimize the player
+            if (gestureState.dy > 80) {
+               dispatch(setMinimized(true));
+               // Don't reset immediately - let the minimize animation handle it
+               dragY.value = withSpring(0, {
+                  damping: 20,
+                  stiffness: 200,
+               });
+            } else {
+               // Reset drag position if not enough drag
+               dragY.value = withSpring(0, {
+                  damping: 15,
+                  stiffness: 150,
+               });
+            }
+         },
+         onPanResponderTerminate: () => {
+            isDraggingDown.current = false;
+            dragY.value = withSpring(0, {
+               damping: 15,
+               stiffness: 150,
+            });
+         },
+      })
+   ).current;
+
+   // Animated style for drag-to-minimize
+   const dragAnimatedStyle = useAnimatedStyle(() => {
+      return {
+         transform: [{ translateY: dragY.value }],
+      };
+   });
 
    // Handle 10s backward
    const handleBackward = () => {
@@ -338,6 +557,12 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const totalTime = useMemo(() => {
       return Math.floor(totalDuration);
    }, [totalDuration]);
+
+   // Calculate dynamic tab bar height with safe area insets (needed for animations)
+   const tabBarHeight = getTabBarHeight(insets.bottom);
+
+   // Calculate bottom position for minimized PiP window (accounting for tab bar and safe area)
+   const minimizedBottomPosition = tabBarHeight + spacing.md;
 
    // Re-measure wrapper position when player becomes visible
    useEffect(() => {
@@ -363,14 +588,23 @@ export const AudioPlayer: React.FC = React.memo(() => {
       if (!isMountedRef.current) {
          // Initial mount - set initial values based on visibility
          if (isVisible) {
+            // Always set translateY to 0 when visible (both minimized and maximized)
             translateY.value = 0;
             opacity.value = 1;
-            fullPlayerOpacity.value = isMinimized ? 0 : 1;
-            minimizedOpacity.value = isMinimized ? 1 : 0;
-            fullPlayerScale.value = isMinimized ? 0.95 : 1;
-            minimizedScale.value = isMinimized ? 1 : 0.95;
+            // Set opacity immediately and synchronously - no animation on initial mount
+            if (isMinimized) {
+               minimizedOpacity.value = 1;
+               fullPlayerOpacity.value = 0;
+            } else {
+               fullPlayerOpacity.value = 1;
+               minimizedOpacity.value = 0;
+            }
          } else {
-            translateY.value = SCREEN_HEIGHT;
+            // Calculate translateY based on container height instead of SCREEN_HEIGHT
+            // Since container is positioned with bottom: tabBarHeight, we need to translate
+            // by the container's height to hide it below the screen
+            const containerHeight = SCREEN_HEIGHT - tabBarHeight;
+            translateY.value = containerHeight;
             opacity.value = 0;
          }
          isMountedRef.current = true;
@@ -382,13 +616,36 @@ export const AudioPlayer: React.FC = React.memo(() => {
       // Handle visibility changes (open/close)
       if (isVisible !== previousVisibleRef.current) {
          if (isVisible) {
-            // Opening animation - set initial state for minimize/maximize views
-            fullPlayerOpacity.value = isMinimized ? 0 : 1;
-            minimizedOpacity.value = isMinimized ? 1 : 0;
-            fullPlayerScale.value = isMinimized ? 0.95 : 1;
-            minimizedScale.value = isMinimized ? 1 : 0.95;
+            // Player is opening - initialize playback session every time the player opens
+            // This ensures the session API is called when the player is opened, even if it's the same chapter
+            // We check if this is a new "open" event (was not visible before) to avoid duplicate calls
+            if (
+               currentChapterId &&
+               audiobookId &&
+               user?.id &&
+               !previousVisibleRef.current // Only call if player was previously closed
+            ) {
+               initializePlaybackSession({
+                  userId: user.id,
+                  audiobookId,
+                  chapterId: currentChapterId,
+               }).catch((error: unknown) => {
+                  // Log error but don't block playback
+                  console.error('[Audio Player] Failed to initialize playback session:', error);
+               });
+            }
 
-            // Opening animation
+            // Opening animation - set initial state for minimize/maximize views immediately
+            // Set opacity synchronously before animation to ensure visibility
+            if (isMinimized) {
+               minimizedOpacity.value = 1;
+               fullPlayerOpacity.value = 0;
+            } else {
+               fullPlayerOpacity.value = 1;
+               minimizedOpacity.value = 0;
+            }
+
+            // Opening animation - animate from container height to 0
             translateY.value = withTiming(0, {
                duration: 350,
                easing: Easing.out(Easing.ease),
@@ -398,8 +655,10 @@ export const AudioPlayer: React.FC = React.memo(() => {
                easing: Easing.out(Easing.ease),
             });
          } else {
-            // Closing animation
-            translateY.value = withTiming(SCREEN_HEIGHT, {
+            // Closing animation - animate to container height (not SCREEN_HEIGHT)
+            // Calculate container height: screen height minus tab bar height
+            const containerHeight = SCREEN_HEIGHT - tabBarHeight;
+            translateY.value = withTiming(containerHeight, {
                duration: 300,
                easing: Easing.in(Easing.ease),
             });
@@ -413,46 +672,68 @@ export const AudioPlayer: React.FC = React.memo(() => {
 
       // Handle minimize/maximize animations
       if (isVisible && isMinimized !== previousMinimizedRef.current) {
+         // CRITICAL: Reset dragY before starting minimize/maximize animations
+         // This prevents conflicts between drag animation and minimize/maximize animations
+         dragY.value = 0;
+
+         // Ensure container opacity remains at 1 during minimize/maximize transitions
+         // Container should only fade out when isVisible becomes false, not when minimizing
+         opacity.value = 1;
+
+         // When minimizing, ensure translateY is 0 (PiP window should not be translated)
+         // When maximizing, translateY should already be 0 from open animation
          if (isMinimized) {
-            // Minimizing animation
-            fullPlayerOpacity.value = withSpring(0, {
-               damping: 15,
-               stiffness: 150,
+            translateY.value = 0;
+         }
+
+         if (isMinimized) {
+            // Minimizing animation - fade out full player while fading in minimized player
+            // Fade out full player
+            fullPlayerOpacity.value = withTiming(0, {
+               duration: 300,
+               easing: Easing.out(Easing.ease),
             });
-            fullPlayerScale.value = withSpring(0.95, {
-               damping: 15,
-               stiffness: 150,
-            });
-            minimizedOpacity.value = withSpring(1, {
-               damping: 15,
-               stiffness: 150,
-            });
-            minimizedScale.value = withSpring(1, {
-               damping: 15,
-               stiffness: 150,
+            // Fade in minimized player (Reanimated will use current value as start)
+            minimizedOpacity.value = withTiming(1, {
+               duration: 300,
+               easing: Easing.out(Easing.ease),
             });
          } else {
-            // Maximizing animation
-            minimizedOpacity.value = withSpring(0, {
-               damping: 15,
-               stiffness: 150,
+            // Maximizing animation - fade out minimized player while fading in full player
+            // Fade out minimized player
+            minimizedOpacity.value = withTiming(0, {
+               duration: 300,
+               easing: Easing.out(Easing.ease),
             });
-            minimizedScale.value = withSpring(0.95, {
-               damping: 15,
-               stiffness: 150,
-            });
-            fullPlayerOpacity.value = withSpring(1, {
-               damping: 15,
-               stiffness: 150,
-            });
-            fullPlayerScale.value = withSpring(1, {
-               damping: 15,
-               stiffness: 150,
+            // Fade in full player (Reanimated will use current value as start)
+            fullPlayerOpacity.value = withTiming(1, {
+               duration: 300,
+               easing: Easing.out(Easing.ease),
             });
          }
          previousMinimizedRef.current = isMinimized;
+      } else if (isVisible && isMinimized === previousMinimizedRef.current) {
+         // Ensure opacity values are synchronized when player is visible but state hasn't changed
+         // This is a safety check to ensure correct opacity values (e.g., after remount)
+         // Also ensure container opacity stays at 1
+         opacity.value = 1;
+
+         // Ensure translateY is correct for current state
+         if (isMinimized) {
+            // When minimized, ensure translateY is 0 (PiP window should not be translated)
+            translateY.value = 0;
+            // When minimized, ensure minimized player is visible and full player is hidden
+            minimizedOpacity.value = 1;
+            fullPlayerOpacity.value = 0;
+         } else {
+            // When maximized, ensure translateY is 0 (full player should be visible)
+            translateY.value = 0;
+            // When maximized, ensure full player is visible and minimized player is hidden
+            fullPlayerOpacity.value = 1;
+            minimizedOpacity.value = 0;
+         }
       }
-   }, [isVisible, isMinimized, translateY, opacity, fullPlayerOpacity, minimizedOpacity, fullPlayerScale, minimizedScale]);
+   }, [isVisible, isMinimized, translateY, opacity, fullPlayerOpacity, minimizedOpacity, dragY, tabBarHeight, insets.bottom]);
 
    // Animated styles - must be called before early return (Rules of Hooks)
    const containerAnimatedStyle = useAnimatedStyle(() => {
@@ -465,16 +746,15 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const fullPlayerAnimatedStyle = useAnimatedStyle(() => {
       return {
          opacity: fullPlayerOpacity.value,
-         transform: [{ scale: fullPlayerScale.value }],
       };
    });
 
    const minimizedAnimatedStyle = useAnimatedStyle(() => {
       return {
          opacity: minimizedOpacity.value,
-         transform: [{ scale: minimizedScale.value }],
       };
    });
+
 
    // Don't render if not visible or no chapter or no playlist URI
    if (!isVisible || !currentChapterId || !masterPlaylistUri) {
@@ -482,72 +762,99 @@ export const AudioPlayer: React.FC = React.memo(() => {
    }
 
    return (
-      <Animated.View style={[styles.container, containerAnimatedStyle]}>
-         <SafeAreaView edges={['bottom']} style={styles.safeArea}>
-            {/* Hidden Video component for audio playback */}
-            {masterPlaylistUri && (
-               <Video
-                  ref={videoRef}
-                  source={{
-                     uri: masterPlaylistUri,
-                     bufferConfig: {
-                        minBufferMs: 30000,
-                        maxBufferMs: 120000,
-                        bufferForPlaybackMs: 1000,
-                        bufferForPlaybackAfterRebufferMs: 2000,
-                     },
-                     headers,
-                  }}
-                  paused={!isPlaying}
-                  onProgress={handleProgress}
-                  onEnd={handleEnd}
-                  onLoad={handleLoad}
-                  onError={handleError}
-                  style={styles.hiddenVideo}
-                  ignoreSilentSwitch="ignore"
-                  playInBackground={true}
-                  playWhenInactive={true}
-                  // Enable external playback (lock screen, AirPlay, etc.)
-                  allowsExternalPlayback={true}
-               // react-native-video automatically handles media session
-               // when playInBackground is true
-               />
-            )}
+      <Animated.View
+         style={[
+            styles.container,
+            containerAnimatedStyle,
+            {
+               // When minimized: floating PiP window in bottom-right
+               // When maximized: full width, positioned above tab bar
+               bottom: isMinimized ? minimizedBottomPosition : tabBarHeight,
+               ...(isMinimized
+                  ? {
+                     // Minimized: floating PiP window
+                     // Don't set left - let it be undefined to override base style
+                     right: spacing.md,
+                     width: 140, // Fixed width for PiP
+                     height: 140, // Fixed height for PiP
+                     backgroundColor: 'transparent',
+                     // Ensure container is visible for debugging
+                     // Remove this after confirming visibility
+                  }
+                  : {
+                     // Maximized: full width player
+                     left: 0,
+                     right: 0,
+                     width: '100%',
+                     backgroundColor: colors.background.darkGray,
+                  }
+               ),
+               zIndex: isMinimized ? 250 : 100,
+               elevation: isMinimized ? 250 : 100,
+            }
+         ]}
+      >
+         {isMinimized ? (
+            // Minimized: No SafeAreaView needed for floating PiP window
+            <>
+               {/* Hidden Video component for audio playback */}
+               {masterPlaylistUri && (
+                  <Video
+                     ref={videoRef}
+                     source={{
+                        uri: masterPlaylistUri,
+                        bufferConfig: {
+                           minBufferMs: 30000,
+                           maxBufferMs: 120000,
+                           bufferForPlaybackMs: 1000,
+                           bufferForPlaybackAfterRebufferMs: 2000,
+                        },
+                        headers,
+                     }}
+                     paused={!isPlaying}
+                     onProgress={handleProgress}
+                     onEnd={handleEnd}
+                     onLoad={handleLoad}
+                     onError={handleError}
+                     style={styles.hiddenVideo}
+                     ignoreSilentSwitch="ignore"
+                     playInBackground={true}
+                     playWhenInactive={true}
+                     // Enable external playback (lock screen, AirPlay, etc.)
+                     allowsExternalPlayback={true}
+                  // react-native-video automatically handles media session
+                  // when playInBackground is true
+                  />
+               )}
 
-            {isMinimized ? (
-               /* Minimized Player Bar */
-               <Animated.View style={minimizedAnimatedStyle}>
+               {/* Minimized Player - Picture-in-Picture Style */}
+               <Animated.View
+                  style={[minimizedAnimatedStyle, styles.minimizedPiPContainer]}
+                  pointerEvents="auto"
+               >
                   <TouchableOpacity
                      style={styles.minimizedContainer}
                      onPress={handleExpand}
                      activeOpacity={0.9}
                   >
-                     <View style={styles.minimizedContent}>
-                        {/* Cover Thumbnail */}
-                        {chapterCoverUri && (
-                           <Image
-                              source={{ uri: chapterCoverUri }}
-                              style={styles.minimizedCover}
-                              contentFit="cover"
-                           />
-                        )}
-
-                        {/* Title and Progress */}
-                        <View style={styles.minimizedInfo}>
-                           <Text style={styles.minimizedTitle} numberOfLines={1}>
-                              {chapterMetadata?.title || 'Loading...'}
-                           </Text>
-                           <View style={styles.minimizedProgressBar}>
-                              <View
-                                 style={[
-                                    styles.minimizedProgressFill,
-                                    { width: `${totalProgress * 100}%` },
-                                 ]}
-                              />
-                           </View>
+                     {/* Cover Image Background */}
+                     {chapterCoverUri ? (
+                        <Image
+                           source={{ uri: chapterCoverUri }}
+                           style={styles.minimizedCover}
+                           contentFit="cover"
+                        />
+                     ) : (
+                        <View style={[styles.minimizedCover, styles.minimizedCoverPlaceholder]}>
+                           <Ionicons name="musical-notes" size={32} color={colors.text.secondaryDark} />
                         </View>
+                     )}
 
-                        {/* Play/Pause Button */}
+                     {/* Semi-transparent Overlay for Button Visibility */}
+                     <View style={styles.minimizedOverlay} />
+
+                     {/* Centered Play/Pause Button */}
+                     <View style={styles.minimizedPlayButtonContainer}>
                         <TouchableOpacity
                            onPress={(e) => {
                               e.stopPropagation();
@@ -560,74 +867,91 @@ export const AudioPlayer: React.FC = React.memo(() => {
                            {isLoading ? (
                               <ActivityIndicator
                                  size="small"
-                                 color={colors.text.dark}
+                                 color={colors.background.dark}
                               />
                            ) : (
-                              <View style={styles.iconWrapper}>
-                                 <Ionicons
-                                    name={isPlaying ? 'pause' : 'play'}
-                                    size={20}
-                                    color={colors.text.dark}
-                                    style={!isPlaying ? styles.playIconOffset : undefined}
-                                 />
-                              </View>
+                              <Ionicons
+                                 name={isPlaying ? 'pause' : 'play'}
+                                 size={32}
+                                 color={colors.background.dark}
+                                 style={!isPlaying ? styles.playIconOffset : undefined}
+                              />
                            )}
                         </TouchableOpacity>
+                     </View>
 
-                        {/* Expand Button */}
-                        <TouchableOpacity
-                           onPress={(e) => {
-                              e.stopPropagation();
-                              handleExpand();
-                           }}
-                           style={styles.minimizedExpandButton}
-                           activeOpacity={0.7}
-                        >
-                           <Ionicons
-                              name="chevron-up"
-                              size={20}
-                              color={colors.text.dark}
-                           />
-                        </TouchableOpacity>
-
-                        {/* Close Button */}
-                        <TouchableOpacity
-                           onPress={(e) => {
-                              e.stopPropagation();
-                              handleClose();
-                           }}
-                           style={styles.minimizedCloseButton}
-                           activeOpacity={0.7}
-                        >
+                     {/* Close Button - Top Right */}
+                     <TouchableOpacity
+                        onPress={(e) => {
+                           e.stopPropagation();
+                           handleClose();
+                        }}
+                        style={styles.minimizedCloseButton}
+                        activeOpacity={0.7}
+                     >
+                        <View style={styles.minimizedCloseButtonBackground}>
                            <Ionicons
                               name="close"
-                              size={20}
+                              size={18}
                               color={colors.text.dark}
                            />
-                        </TouchableOpacity>
-                     </View>
+                        </View>
+                     </TouchableOpacity>
                   </TouchableOpacity>
                </Animated.View>
-            ) : (
-               /* Full Player View */
-               <Animated.View style={[styles.playerContainer, fullPlayerAnimatedStyle]}>
-                  {/* Header with minimize and close buttons */}
+            </>
+         ) : (
+            // Maximized: Use SafeAreaView for full player
+            <SafeAreaView edges={[]} style={styles.safeArea}>
+               {/* Hidden Video component for audio playback */}
+               {masterPlaylistUri && (
+                  <Video
+                     ref={videoRef}
+                     source={{
+                        uri: masterPlaylistUri,
+                        bufferConfig: {
+                           minBufferMs: 30000,
+                           maxBufferMs: 120000,
+                           bufferForPlaybackMs: 1000,
+                           bufferForPlaybackAfterRebufferMs: 2000,
+                        },
+                        headers,
+                     }}
+                     paused={!isPlaying}
+                     onProgress={handleProgress}
+                     onEnd={handleEnd}
+                     onLoad={handleLoad}
+                     onError={handleError}
+                     style={styles.hiddenVideo}
+                     ignoreSilentSwitch="ignore"
+                     playInBackground={true}
+                     playWhenInactive={true}
+                     // Enable external playback (lock screen, AirPlay, etc.)
+                     allowsExternalPlayback={true}
+                  // react-native-video automatically handles media session
+                  // when playInBackground is true
+                  />
+               )}
+
+               {/* Full Player View */}
+               <Animated.View
+                  style={[styles.playerContainer, fullPlayerAnimatedStyle, dragAnimatedStyle]}
+                  {...panResponder.panHandlers}
+               >
+                  {/* Drag Handler Indicator */}
+                  <View
+                     style={styles.dragHandlerContainer}
+                     pointerEvents="box-none"
+                  >
+                     <View style={styles.dragHandler} />
+                  </View>
+
+                  {/* Header with close button */}
                   <View style={styles.header}>
                      <Text style={styles.title} numberOfLines={1}>
                         {chapterMetadata?.title || 'Loading...'}
                      </Text>
                      <View style={styles.headerButtons}>
-                        <TouchableOpacity
-                           onPress={handleMinimize}
-                           style={styles.minimizeButton}
-                           activeOpacity={0.7}
-                        >
-                           <Ionicons
-                              name="chevron-down"
-                              size={24}
-                              color={colors.text.dark}
-                           />
-                        </TouchableOpacity>
                         <TouchableOpacity
                            onPress={handleClose}
                            style={styles.closeButton}
@@ -659,53 +983,31 @@ export const AudioPlayer: React.FC = React.memo(() => {
                      >
                         <View
                            style={styles.progressBarTouchable}
-                           onTouchStart={handleTouchStart}
-                           onTouchMove={handleTouchMove}
-                           onTouchEnd={handleTouchEnd}
-                           onTouchCancel={handleTouchCancel}
+                           {...progressBarPanResponder.panHandlers}
                            collapsable={false}
-                           pointerEvents="box-only"
                         >
                            <View style={styles.progressBarContainer}>
                               <View style={styles.progressBar}>
-                                 {isDragging ? (
-                                    <Animated.View
-                                       style={[
-                                          styles.progressFill,
-                                          dragProgressAnimatedStyle,
-                                       ]}
-                                    />
-                                 ) : (
-                                    <View
-                                       style={[
-                                          styles.progressFill,
-                                          { width: `${totalProgress * 100}%` },
-                                       ]}
-                                    />
-                                 )}
+                                 <Animated.View
+                                    style={[
+                                       styles.progressFill,
+                                       progressFillAnimatedStyle,
+                                    ]}
+                                 />
                               </View>
-                              {isDragging ? (
-                                 <Animated.View
-                                    style={[
-                                       styles.progressHandle,
-                                       dragHandleAnimatedStyle,
-                                    ]}
-                                 />
-                              ) : (
-                                 <Animated.View
-                                    style={[
-                                       styles.progressHandle,
-                                       progressHandleAnimatedStyle,
-                                    ]}
-                                 />
-                              )}
+                              <Animated.View
+                                 style={[
+                                    styles.progressHandle,
+                                    progressHandleAnimatedStyle,
+                                 ]}
+                              />
                            </View>
                         </View>
                      </View>
                      <View style={styles.timeContainer}>
                         <Text style={styles.timeText}>
-                           {isDragging
-                              ? formatDuration(dragProgress * totalDuration)
+                           {displayedTime > 0
+                              ? formatDuration(displayedTime)
                               : formatDuration(elapsedTime)}
                         </Text>
                         <Text style={styles.timeText}>
@@ -736,7 +1038,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
                               disabled={isLoading}
                            >
                               <Ionicons
-                                 name="play-back-outline"
+                                 name="play-back-circle"
                                  size={24}
                                  color={colors.text.dark}
                               />
@@ -775,7 +1077,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
                               disabled={isLoading}
                            >
                               <Ionicons
-                                 name="play-forward-outline"
+                                 name="play-forward-circle"
                                  size={24}
                                  color={colors.text.dark}
                               />
@@ -785,26 +1087,33 @@ export const AudioPlayer: React.FC = React.memo(() => {
                      )}
                   </View>
                </Animated.View>
-            )}
-         </SafeAreaView>
+            </SafeAreaView>
+         )}
       </Animated.View>
    );
 });
 
 AudioPlayer.displayName = 'AudioPlayer';
 
-// Tab bar height constants - must match tab bar height in app/(tabs)/_layout.tsx
-const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 90 : 70;
+// Tab bar height calculation - must match tab bar height in app/(tabs)/_layout.tsx
+// This will be calculated dynamically in the component using useSafeAreaInsets
+const getTabBarHeight = (bottomInset: number): number => {
+   const tabBarBaseHeight = Platform.OS === 'ios' ? 60 : 50;
+   const tabBarPaddingTop = Platform.OS === 'ios' ? 10 : 5;
+   const tabBarPaddingBottom = Platform.OS === 'ios' ? 20 : 5;
+   return tabBarBaseHeight + tabBarPaddingTop + tabBarPaddingBottom + bottomInset;
+};
 
 const styles = StyleSheet.create({
    container: {
       position: 'absolute',
-      bottom: TAB_BAR_HEIGHT, // Position above tab bar instead of covering it
-      left: 0,
-      right: 0,
+      // bottom, left, right, width will be set dynamically based on minimized state
+      // When minimized: floating PiP window in bottom-right (left not set, right set inline)
+      // When maximized: full width above tab bar (left: 0, right: 0 set inline)
+      // Note: left is not set in base style so it can be undefined when minimized
       backgroundColor: colors.background.darkGray,
-      zIndex: 1000, // Ensure AudioPlayer sits on top of bottom navigation bar
-      elevation: 1000, // Android elevation to ensure it's above tab bar
+      // zIndex and elevation set conditionally based on minimized state
+      overflow: 'hidden', // Prevent content overflow during animations
    },
    safeArea: {
       flex: 1,
@@ -856,8 +1165,20 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       gap: spacing.xs,
    },
-   minimizeButton: {
-      padding: spacing.xs,
+   dragHandlerContainer: {
+      alignItems: 'center',
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xs,
+      // Increase touchable area for better drag interaction
+      minHeight: 44,
+      justifyContent: 'center',
+   },
+   dragHandler: {
+      width: 40,
+      height: 4,
+      backgroundColor: colors.text.secondaryDark,
+      borderRadius: 2,
+      opacity: 0.5,
    },
    closeButton: {
       padding: spacing.xs,
@@ -1033,71 +1354,6 @@ const styles = StyleSheet.create({
          },
       }),
    },
-   minimizedContainer: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      backgroundColor: colors.background.darkGray,
-      borderTopWidth: 1,
-      borderTopColor: colors.background.dark,
-      ...Platform.select({
-         ios: {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 2,
-         },
-         android: {
-            elevation: 3,
-         },
-      }),
-   },
-   minimizedContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-   },
-   minimizedCover: {
-      width: 50,
-      height: 50,
-      borderRadius: borderRadius.sm,
-   },
-   minimizedInfo: {
-      flex: 1,
-      justifyContent: 'center',
-      gap: spacing.xs,
-   },
-   minimizedTitle: {
-      fontSize: typography.fontSize.sm,
-      fontWeight: '600',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   minimizedProgressBar: {
-      height: 2,
-      backgroundColor: colors.background.dark,
-      borderRadius: borderRadius.sm,
-      overflow: 'hidden',
-   },
-   minimizedProgressFill: {
-      height: '100%',
-      backgroundColor: colors.app.red,
-   },
-   minimizedPlayButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.app.red,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
    iconWrapper: {
       justifyContent: 'center',
       alignItems: 'center',
@@ -1105,13 +1361,93 @@ const styles = StyleSheet.create({
    playIconOffset: {
       marginLeft: 1, // Slight offset to visually center the play triangle
    },
-   minimizedCloseButton: {
-      padding: spacing.xs,
+   minimizedPiPContainer: {
+      width: 140, // Fixed size for PiP window
+      height: 140,
+      borderRadius: borderRadius.lg,
+      overflow: 'hidden',
+      ...Platform.select({
+         ios: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+         },
+         android: {
+            elevation: 8,
+         },
+      }),
+   },
+   minimizedContainer: {
+      width: '100%',
+      height: '100%',
+      position: 'relative',
+      backgroundColor: colors.background.darkGray,
+      borderRadius: borderRadius.lg,
+      overflow: 'hidden',
+   },
+   minimizedCover: {
+      position: 'absolute',
+      width: '100%',
+      height: '100%',
+      borderRadius: borderRadius.lg,
+      backgroundColor: colors.background.dark,
+   },
+   minimizedCoverPlaceholder: {
       justifyContent: 'center',
       alignItems: 'center',
    },
-   minimizedExpandButton: {
-      padding: spacing.xs,
+   minimizedOverlay: {
+      position: 'absolute',
+      width: '100%',
+      height: '100%',
+      backgroundColor: 'rgba(0, 0, 0, 0.3)', // Semi-transparent overlay for button visibility
+      borderRadius: borderRadius.lg,
+   },
+   minimizedPlayButtonContainer: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+   },
+   minimizedPlayButton: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: 'rgba(255, 255, 255, 0.9)', // Semi-transparent white background
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...Platform.select({
+         ios: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 4,
+         },
+         android: {
+            elevation: 4,
+         },
+      }),
+   },
+   minimizedCloseButton: {
+      position: 'absolute',
+      top: spacing.xs,
+      right: spacing.xs,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 10,
+   },
+   minimizedCloseButtonBackground: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 16,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)', // Dark semi-transparent background
       justifyContent: 'center',
       alignItems: 'center',
    },
