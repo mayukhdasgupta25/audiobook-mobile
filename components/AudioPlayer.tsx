@@ -794,39 +794,39 @@ export const AudioPlayer: React.FC = React.memo(() => {
             }
          ]}
       >
+         {/* Hidden Video component for audio playback - Single instance that persists across minimize/maximize */}
+         {masterPlaylistUri && (
+            <Video
+               ref={videoRef}
+               source={{
+                  uri: masterPlaylistUri,
+                  bufferConfig: {
+                     minBufferMs: 30000,
+                     maxBufferMs: 120000,
+                     bufferForPlaybackMs: 1000,
+                     bufferForPlaybackAfterRebufferMs: 2000,
+                  },
+                  headers,
+               }}
+               paused={!isPlaying}
+               onProgress={handleProgress}
+               onEnd={handleEnd}
+               onLoad={handleLoad}
+               onError={handleError}
+               style={styles.hiddenVideo}
+               ignoreSilentSwitch="ignore"
+               playInBackground={true}
+               playWhenInactive={true}
+               // Enable external playback (lock screen, AirPlay, etc.)
+               allowsExternalPlayback={true}
+            // react-native-video automatically handles media session
+            // when playInBackground is true
+            />
+         )}
+
          {isMinimized ? (
             // Minimized: No SafeAreaView needed for floating PiP window
             <>
-               {/* Hidden Video component for audio playback */}
-               {masterPlaylistUri && (
-                  <Video
-                     ref={videoRef}
-                     source={{
-                        uri: masterPlaylistUri,
-                        bufferConfig: {
-                           minBufferMs: 30000,
-                           maxBufferMs: 120000,
-                           bufferForPlaybackMs: 1000,
-                           bufferForPlaybackAfterRebufferMs: 2000,
-                        },
-                        headers,
-                     }}
-                     paused={!isPlaying}
-                     onProgress={handleProgress}
-                     onEnd={handleEnd}
-                     onLoad={handleLoad}
-                     onError={handleError}
-                     style={styles.hiddenVideo}
-                     ignoreSilentSwitch="ignore"
-                     playInBackground={true}
-                     playWhenInactive={true}
-                     // Enable external playback (lock screen, AirPlay, etc.)
-                     allowsExternalPlayback={true}
-                  // react-native-video automatically handles media session
-                  // when playInBackground is true
-                  />
-               )}
-
                {/* Minimized Player - Picture-in-Picture Style */}
                <Animated.View
                   style={[minimizedAnimatedStyle, styles.minimizedPiPContainer]}
@@ -903,36 +903,6 @@ export const AudioPlayer: React.FC = React.memo(() => {
          ) : (
             // Maximized: Use SafeAreaView for full player
             <SafeAreaView edges={[]} style={styles.safeArea}>
-               {/* Hidden Video component for audio playback */}
-               {masterPlaylistUri && (
-                  <Video
-                     ref={videoRef}
-                     source={{
-                        uri: masterPlaylistUri,
-                        bufferConfig: {
-                           minBufferMs: 30000,
-                           maxBufferMs: 120000,
-                           bufferForPlaybackMs: 1000,
-                           bufferForPlaybackAfterRebufferMs: 2000,
-                        },
-                        headers,
-                     }}
-                     paused={!isPlaying}
-                     onProgress={handleProgress}
-                     onEnd={handleEnd}
-                     onLoad={handleLoad}
-                     onError={handleError}
-                     style={styles.hiddenVideo}
-                     ignoreSilentSwitch="ignore"
-                     playInBackground={true}
-                     playWhenInactive={true}
-                     // Enable external playback (lock screen, AirPlay, etc.)
-                     allowsExternalPlayback={true}
-                  // react-native-video automatically handles media session
-                  // when playInBackground is true
-                  />
-               )}
-
                {/* Full Player View */}
                <Animated.View
                   style={[styles.playerContainer, fullPlayerAnimatedStyle, dragAnimatedStyle]}
