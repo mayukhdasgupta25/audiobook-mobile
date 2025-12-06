@@ -17,7 +17,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
    ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.audiobook.mobile',
-      jsEngine: 'jsc',
+      jsEngine: 'hermes',
+      googleServicesFile: process.env.EXPO_PUBLIC_GOOGLE_SERVICES_IOS || undefined,
    },
    android: {
       adaptiveIcon: {
@@ -25,7 +26,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
          backgroundColor: '#000000',
       },
       package: 'com.audiobook.mobile',
-      jsEngine: 'jsc',
+      jsEngine: 'hermes',
+      googleServicesFile: process.env.EXPO_PUBLIC_GOOGLE_SERVICES_ANDROID || undefined,
    },
    web: {
       // favicon: './assets/favicon.png', // Uncomment when favicon.png is added
@@ -45,6 +47,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-secure-store',
       'react-native-video',
       './app.plugin.js',
+      [
+         '@react-native-google-signin/google-signin',
+         {
+            iosUrlScheme: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.replace(/:/g, '') || '',
+         },
+      ],
    ],
    scheme: 'audiobook',
    experiments: {

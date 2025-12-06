@@ -13,6 +13,7 @@ import { RootState } from '@/store';
 import { colors } from '@/theme';
 import SplashScreen from '@/components/SplashScreen';
 import { AudioPlayer } from '@/components/AudioPlayer';
+import { configureGoogleSignIn } from '@/services/auth';
 import '../global.css';
 
 // Create a client for TanStack Query outside component to prevent recreation on every render
@@ -97,6 +98,9 @@ function InnerLayout() {
    useEffect(() => {
       // Initialize auth state on app startup
       const init = async () => {
+         // Configure Google Sign-In
+         configureGoogleSignIn();
+         // Initialize app state
          await initializeApp();
          setIsAppReady(true);
       };

@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDispatch } from 'react-redux';
 import { TextInput } from '@/components/TextInput';
 import { colors, spacing, typography, borderRadius } from '@/theme';
-import { login } from '@/services/auth';
+import { login, googleAuth } from '@/services/auth';
 import { setAuth } from '@/store/auth';
 import { ApiError } from '@/services/api';
 
@@ -27,20 +27,21 @@ export default function SignInScreen() {
    const dispatch = useDispatch();
    const [email, setEmail] = useState('');
    const [password, setPassword] = useState('');
-   const [isLoading, setIsLoading] = useState(false);
+   const [isLoadingSignIn, setIsLoadingSignIn] = useState(false);
+   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
    const [error, setError] = useState<string | null>(null);
 
    const handleSignIn = useCallback(async () => {
-      Keyboard.dismiss();
-      setError(null);
-
       // Basic validation
       if (!email.trim() || !password.trim()) {
          setError('Please enter both email and password');
          return;
       }
 
-      setIsLoading(true);
+      Keyboard.dismiss();
+      setError(null);
+
+      setIsLoadingSignIn(true);
 
       try {
          // Call login API
@@ -82,15 +83,62 @@ export default function SignInScreen() {
             setError(userMessage);
          }
       } finally {
-         setIsLoading(false);
+         setIsLoadingSignIn(false);
       }
    }, [email, password, dispatch]);
 
-   const handleGoogleLogin = useCallback(() => {
+   const handleGoogleLogin = useCallback(async () => {
       Keyboard.dismiss();
-      console.log('Google login pressed');
-      // TODO: Implement Google OAuth
-   }, []);
+      setError(null);
+      setIsLoadingGoogle(true);
+
+      try {
+         // Call Google OAuth API
+         const response = await googleAuth();
+
+         // Store auth state in Redux
+         dispatch(
+            setAuth({
+               accessToken: response.accessToken,
+               refreshToken: response.refreshToken,
+               user: response.user,
+            })
+         );
+
+         // Redirect to home screen
+         router.replace('/(tabs)');
+      } catch (err) {
+         // Handle API errors
+         if (err instanceof ApiError) {
+            if (err.status === 401) {
+               setError('Google authentication failed. Please try again.');
+            } else if (err.status === 400) {
+               setError('Invalid Google token. Please try again.');
+            } else {
+               const errorData = err.data as { message?: string } | undefined;
+               setError(errorData?.message || 'Google login failed. Please try again.');
+            }
+         } else {
+            const errorMessage =
+               err instanceof Error ? err.message : 'Unknown error';
+            console.error('[SignIn] Google OAuth error:', errorMessage);
+
+            // Provide helpful error messages
+            let userMessage = 'Google sign-in failed. Please try again.';
+            if (errorMessage.includes('cancelled') || errorMessage.includes('cancel')) {
+               userMessage = 'Google sign-in was cancelled';
+            } else if (errorMessage.includes('not configured')) {
+               userMessage = 'Google sign-in is not configured. Please contact support.';
+            } else if (errorMessage.includes('Network request failed')) {
+               userMessage = 'Cannot connect to server. If testing on a physical device, set EXPO_PUBLIC_AUTH_API_URL to your computer\'s IP address (e.g., http://192.168.1.100:8080)';
+            }
+
+            setError(userMessage);
+         }
+      } finally {
+         setIsLoadingGoogle(false);
+      }
+   }, [dispatch]);
 
    const handleForgotPassword = useCallback(() => {
       Keyboard.dismiss();
@@ -175,13 +223,13 @@ export default function SignInScreen() {
 
                      {/* Sign In Button */}
                      <TouchableOpacity
-                        style={[styles.signInButton, isLoading && styles.signInButtonDisabled]}
+                        style={[styles.signInButton, isLoadingSignIn && styles.signInButtonDisabled]}
                         onPress={handleSignIn}
                         activeOpacity={0.8}
-                        disabled={isLoading}
+                        disabled={isLoadingSignIn || isLoadingGoogle}
                         testID="signin-button"
                      >
-                        {isLoading ? (
+                        {isLoadingSignIn ? (
                            <ActivityIndicator color={colors.text.dark} />
                         ) : (
                            <Text style={styles.signInButtonText}>Sign In</Text>
@@ -197,20 +245,27 @@ export default function SignInScreen() {
 
                      {/* Google Login Button */}
                      <TouchableOpacity
-                        style={styles.googleButton}
+                        style={[styles.googleButton, isLoadingGoogle && styles.googleButtonDisabled]}
                         onPress={handleGoogleLogin}
                         activeOpacity={0.8}
+                        disabled={isLoadingSignIn || isLoadingGoogle}
                         testID="google-login-button"
                      >
-                        <Ionicons
-                           name="logo-google"
-                           size={20}
-                           color={colors.text.dark}
-                           style={styles.googleIcon}
-                        />
-                        <Text style={styles.googleButtonText}>
-                           Continue with Google
-                        </Text>
+                        {isLoadingGoogle ? (
+                           <ActivityIndicator color={colors.text.dark} />
+                        ) : (
+                           <>
+                              <Ionicons
+                                 name="logo-google"
+                                 size={20}
+                                 color={colors.text.dark}
+                                 style={styles.googleIcon}
+                              />
+                              <Text style={styles.googleButtonText}>
+                                 Continue with Google
+                              </Text>
+                           </>
+                        )}
                      </TouchableOpacity>
 
                      {/* Sign Up Link */}
@@ -383,6 +438,9 @@ const styles = StyleSheet.create({
       marginBottom: spacing.lg,
       borderWidth: 1,
       borderColor: 'rgba(255, 255, 255, 0.1)',
+   },
+   googleButtonDisabled: {
+      opacity: 0.6,
    },
    googleIcon: {
       marginRight: spacing.sm,

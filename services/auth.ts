@@ -3,6 +3,8 @@
  * Handles authentication API calls
  */
 
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { Platform } from 'react-native';
 import { post, ApiError } from './api';
 
 /**
@@ -92,7 +94,7 @@ export async function signup(
 ): Promise<SignupResponse> {
    try {
       // Use auth API (port 8080) for signup endpoint
-      const response = await post<SignupResponse>('/auth/signup', credentials, false, true);
+      const response = await post<SignupResponse>('/auth/register', credentials, false, true);
       return response.data;
    } catch (error) {
       console.error('[Auth Service] Signup error', {
@@ -117,10 +119,126 @@ export interface LogoutRequest {
 }
 
 /**
+ * Google OAuth request payload
+ */
+export interface GoogleAuthRequest {
+   token: string;
+}
+
+/**
+ * Google OAuth response from API (same structure as login)
+ */
+export interface GoogleAuthResponse {
+   message: string;
+   accessToken: string;
+   refreshToken: string;
+   user: User;
+}
+
+/**
  * Logout response from API
  */
 export interface LogoutResponse {
    message: string;
+}
+
+/**
+ * Initialize Google Sign-In configuration
+ * Should be called once when the app starts
+ */
+export function configureGoogleSignIn(): void {
+   // Get Google OAuth client IDs from environment variables
+   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+   const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+
+   if (!webClientId) {
+      console.warn('[Auth Service] Google Sign-In web client ID is not configured. Please set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID environment variable.');
+      return;
+   }
+
+   // Configure Google Sign-In
+   GoogleSignin.configure({
+      webClientId, // Required for getting the idToken on Android
+      iosClientId, // Optional, for iOS
+      offlineAccess: false, // If you want to access Google API on behalf of the user FROM YOUR SERVER
+      forceCodeForRefreshToken: false, // [Android] related to `serverAuthCode`, read the docs link below *.
+      scopes: ['profile', 'email'], // What API you want to access on behalf of the user,
+   });
+}
+
+/**
+ * Google OAuth function
+ * Initiates Google Sign-In flow and sends token to server
+ * @returns Promise with Google auth response containing accessToken, refreshToken, and user
+ * @throws ApiError if Google auth fails
+ */
+export async function googleAuth(): Promise<GoogleAuthResponse> {
+   try {
+      // Ensure Google Sign-In is configured
+      configureGoogleSignIn();
+
+      // Check if Google Play Services are available (Android only)
+      if (Platform.OS === 'android') {
+         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      }
+
+      // Sign in with Google
+      const userInfo = await GoogleSignin.signIn();
+
+      // Check if sign-in was cancelled or failed
+      if (!userInfo || !userInfo.data) {
+         throw new Error('Google sign-in was cancelled or failed');
+      }
+
+      // Get the ID token
+      const idToken = userInfo.data.idToken;
+      if (!idToken) {
+         throw new Error('Failed to retrieve Google ID token');
+      }
+
+      // Send token to server
+      const response = await post<GoogleAuthResponse>(
+         '/auth/google',
+         { token: idToken },
+         false,
+         true
+      );
+
+      return response.data;
+   } catch (error: unknown) {
+      console.error('[Auth Service] Google auth error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+      });
+
+      // Handle Google Sign-In specific errors
+      if (error && typeof error === 'object' && 'code' in error) {
+         const googleError = error as { code: string; message?: string };
+         if (googleError.code === 'SIGN_IN_CANCELLED') {
+            throw new Error('Google sign-in was cancelled');
+         }
+         if (googleError.code === 'IN_PROGRESS') {
+            throw new Error('Google sign-in is already in progress');
+         }
+         if (googleError.code === 'PLAY_SERVICES_NOT_AVAILABLE') {
+            throw new Error('Google Play Services are not available. Please update Google Play Services.');
+         }
+      }
+
+      if (error instanceof ApiError) {
+         throw error;
+      }
+
+      // Re-throw user-friendly errors
+      if (error instanceof Error) {
+         throw error;
+      }
+
+      throw new Error(
+         `Google authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
 }
 
 /**
