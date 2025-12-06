@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, usePathname } from 'expo-router';
+import { useSelector } from 'react-redux';
 import { Header } from '@/components/Header';
 import { NavigationPills } from '@/components/NavigationPills';
 import { HeroSection } from '@/components/HeroSection';
@@ -17,6 +18,7 @@ import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
 import { colors, spacing, typography } from '@/theme';
 import { useHomeContent } from '@/hooks/useHomeContent';
 import { apiConfig } from '@/services/api';
+import { RootState } from '@/store';
 
 // Memoized section components to prevent re-renders when other sections update
 const MemoizedHeader = React.memo<{
@@ -88,6 +90,23 @@ function HomeScreenContent() {
    const paginationTriggeredRef = useRef<Record<string, boolean>>({});
    const insets = useSafeAreaInsets();
    const pathname = usePathname();
+
+   // Get user profile from Redux
+   const userProfile = useSelector((state: RootState) => state.auth.userProfile);
+
+   // Compute display name from user profile
+   // If firstName and lastName exist, use them; otherwise use username; fallback to "Mayukh"
+   const displayName = useMemo(() => {
+      if (userProfile) {
+         if (userProfile.firstName && userProfile.lastName) {
+            return `${userProfile.firstName} ${userProfile.lastName}`;
+         }
+         if (userProfile.username) {
+            return userProfile.username;
+         }
+      }
+      return 'Mayukh'; // Fallback if profile not loaded yet
+   }, [userProfile]);
 
    // Check if home screen is focused (pathname matches home route)
    const isHomeFocused = useMemo(() => {
@@ -196,7 +215,7 @@ function HomeScreenContent() {
          >
             {/* Header with greeting and icons - Memoized to prevent re-renders */}
             <MemoizedHeader
-               userName="Mayukh"
+               userName={displayName}
                onCastPress={handleCastPress}
                onDownloadPress={handleDownloadPress}
                onSearchPress={handleSearchPress}

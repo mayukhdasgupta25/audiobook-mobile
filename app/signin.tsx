@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
    View,
    Text,
@@ -17,19 +17,36 @@ import { useDispatch } from 'react-redux';
 import { TextInput } from '@/components/TextInput';
 import { colors, spacing, typography, borderRadius } from '@/theme';
 import { login, googleAuth } from '@/services/auth';
-import { setAuth } from '@/store/auth';
+import { setAuth, fetchUserProfile, hasStoredUserProfile } from '@/store/auth';
+import { AppDispatch } from '@/store';
 import { ApiError } from '@/services/api';
 
 /**
  * Sign in screen with email/password inputs, Google login, and navigation links
  */
 export default function SignInScreen() {
-   const dispatch = useDispatch();
+   const dispatch = useDispatch<AppDispatch>();
    const [email, setEmail] = useState('');
    const [password, setPassword] = useState('');
    const [isLoadingSignIn, setIsLoadingSignIn] = useState(false);
    const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
    const [error, setError] = useState<string | null>(null);
+   const [hasStoredProfile, setHasStoredProfile] = useState<boolean | null>(null);
+
+   // Check if user profile exists in storage on component mount
+   useEffect(() => {
+      const checkStoredProfile = async () => {
+         try {
+            const hasProfile = await hasStoredUserProfile();
+            setHasStoredProfile(hasProfile);
+         } catch (error) {
+            console.error('[SignIn] Error checking stored profile:', error);
+            setHasStoredProfile(false);
+         }
+      };
+
+      checkStoredProfile();
+   }, []);
 
    const handleSignIn = useCallback(async () => {
       // Basic validation
@@ -55,6 +72,14 @@ export default function SignInScreen() {
                user: response.user,
             })
          );
+
+         // Fetch user profile after successful login
+         try {
+            await dispatch(fetchUserProfile()).unwrap();
+         } catch (profileError) {
+            // Log error but don't block navigation - profile fetch failure shouldn't prevent login
+            console.error('[SignIn] Failed to fetch user profile:', profileError);
+         }
 
          // Redirect to home screen
          router.replace('/(tabs)');
@@ -104,6 +129,14 @@ export default function SignInScreen() {
                user: response.user,
             })
          );
+
+         // Fetch user profile after successful login
+         try {
+            await dispatch(fetchUserProfile()).unwrap();
+         } catch (profileError) {
+            // Log error but don't block navigation - profile fetch failure shouldn't prevent login
+            console.error('[SignIn] Failed to fetch user profile:', profileError);
+         }
 
          // Redirect to home screen
          router.replace('/(tabs)');
@@ -175,7 +208,13 @@ export default function SignInScreen() {
                >
                   {/* Header */}
                   <View style={styles.header}>
-                     <Text style={styles.title}>Welcome Back</Text>
+                     <Text style={styles.title}>
+                        {hasStoredProfile === null
+                           ? 'Welcome'
+                           : hasStoredProfile
+                              ? 'Welcome Back'
+                              : 'Welcome'}
+                     </Text>
                      <Text style={styles.subtitle}>
                         Sign in to continue to your account
                      </Text>

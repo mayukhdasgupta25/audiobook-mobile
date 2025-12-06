@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useSelector } from 'react-redux';
 import { ProfileHeader } from '@/components/ProfileHeader';
 import { DownloadsCard } from '@/components/DownloadsCard';
 import { StoryCardWithShare } from '@/components/StoryCardWithShare';
@@ -10,6 +11,7 @@ import { DrawerMenu } from '@/components/DrawerMenu';
 import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
 import { colors, spacing, typography } from '@/theme';
 import { logout } from '@/utils/logout';
+import { RootState } from '@/store';
 
 // Memoized section components to prevent re-renders when other sections update
 const MemoizedProfileHeader = React.memo<{
@@ -93,6 +95,23 @@ function ProfileScreenContent() {
    // Drawer menu state
    const [drawerVisible, setDrawerVisible] = useState(false);
    const insets = useSafeAreaInsets();
+
+   // Get user profile from Redux
+   const userProfile = useSelector((state: RootState) => state.auth.userProfile);
+
+   // Compute display name from user profile
+   // If firstName and lastName exist, use them; otherwise use username; fallback to "Mayukh"
+   const displayName = useMemo(() => {
+      if (userProfile) {
+         if (userProfile.firstName && userProfile.lastName) {
+            return `${userProfile.firstName} ${userProfile.lastName}`;
+         }
+         if (userProfile.username) {
+            return userProfile.username;
+         }
+      }
+      return 'Mayukh'; // Fallback if profile not loaded yet
+   }, [userProfile]);
 
    // Memoize sample data to prevent recreation on every render
    const likedStories: LikedStory[] = useMemo(() => [
@@ -193,7 +212,7 @@ function ProfileScreenContent() {
          >
             {/* Profile Header - Memoized to prevent re-renders */}
             <MemoizedProfileHeader
-               userName="Mayukh"
+               userName={displayName}
                onAvatarPress={handleAvatarPress}
                onCastPress={handleCastPress}
                onSearchPress={handleSearchPress}

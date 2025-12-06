@@ -58,7 +58,9 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                )}
             </View>
             <View style={styles.nameContainer}>
-               <Text style={styles.userName}>{userName}</Text>
+               <Text style={styles.userName} numberOfLines={1} ellipsizeMode="tail">
+                  {userName}
+               </Text>
                <Ionicons
                   name="chevron-down"
                   size={20}
@@ -111,6 +113,7 @@ const styles = StyleSheet.create({
       flexDirection: 'row',
       alignItems: 'center',
       flex: 1,
+      minWidth: 0, // Allow flex item to shrink below its content size
    },
    avatarContainer: {
       marginRight: spacing.sm,
@@ -143,12 +146,15 @@ const styles = StyleSheet.create({
    nameContainer: {
       flexDirection: 'row',
       alignItems: 'center',
+      flex: 1,
+      minWidth: 0, // Allow flex item to shrink below its content size
    },
    userName: {
       fontSize: typography.fontSize['2xl'],
       fontWeight: '600',
       color: colors.text.dark,
       letterSpacing: -0.3,
+      flexShrink: 1, // Allow text to shrink and truncate
       ...Platform.select({
          ios: {
             fontFamily: 'System',

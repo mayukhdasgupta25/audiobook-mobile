@@ -16,14 +16,15 @@ import { useDispatch } from 'react-redux';
 import { TextInput } from '@/components/TextInput';
 import { colors, spacing, typography, borderRadius } from '@/theme';
 import { signup } from '@/services/auth';
-import { setAuth } from '@/store/auth';
+import { setAuth, fetchUserProfile } from '@/store/auth';
+import { AppDispatch } from '@/store';
 import { ApiError } from '@/services/api';
 
 /**
  * Sign up screen with email, password, and confirm password inputs
  */
 export default function SignUpScreen() {
-   const dispatch = useDispatch();
+   const dispatch = useDispatch<AppDispatch>();
    const [email, setEmail] = useState('');
    const [password, setPassword] = useState('');
    const [confirmPassword, setConfirmPassword] = useState('');
@@ -73,6 +74,14 @@ export default function SignUpScreen() {
                user: response.user,
             })
          );
+
+         // Fetch user profile after successful signup
+         try {
+            await dispatch(fetchUserProfile()).unwrap();
+         } catch (profileError) {
+            // Log error but don't block navigation - profile fetch failure shouldn't prevent signup
+            console.error('[SignUp] Failed to fetch user profile:', profileError);
+         }
 
          // Redirect to home screen
          router.replace('/(tabs)');
