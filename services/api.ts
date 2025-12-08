@@ -425,6 +425,29 @@ export async function apiRequest<T>(
       logHeaders.Authorization = tokenPreview;
    }
 
+   // Log API request to Reactotron in development mode
+   if (__DEV__) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const Reactotron = require('../config/ReactotronConfig').default;
+      if (Reactotron && Reactotron.display) {
+         Reactotron.display({
+            name: 'API Request',
+            preview: `${options.method || 'GET'} ${endpoint}`,
+            value: {
+               method: options.method || 'GET',
+               url,
+               endpoint,
+               headers: logHeaders,
+               body: options.body ? (typeof options.body === 'string' ? JSON.parse(options.body) : options.body) : undefined,
+               useAuth,
+               useAuthApi,
+               useStreamingApi,
+            },
+            important: false,
+         });
+      }
+   }
+
    try {
       const response = await fetch(url, {
          ...options,
@@ -499,12 +522,58 @@ export async function apiRequest<T>(
          }
       }
 
-      return {
+      const apiResponse = {
          data,
          status: response.status,
          statusText: response.statusText,
       };
+
+      // Log successful API response to Reactotron in development mode
+      if (__DEV__) {
+         // eslint-disable-next-line @typescript-eslint/no-require-imports
+         const Reactotron = require('../config/ReactotronConfig').default;
+         if (Reactotron && Reactotron.display) {
+            Reactotron.display({
+               name: 'API Response',
+               preview: `${response.status} ${response.statusText} - ${options.method || 'GET'} ${endpoint}`,
+               value: {
+                  method: options.method || 'GET',
+                  url,
+                  endpoint,
+                  status: response.status,
+                  statusText: response.statusText,
+                  data: typeof data === 'string' && data.length > 1000 ? `${data.substring(0, 1000)}... (truncated)` : data,
+                  headers: Object.fromEntries(response.headers.entries()),
+               },
+               important: response.status >= 400,
+            });
+         }
+      }
+
+      return apiResponse;
    } catch (error) {
+      // Log API error to Reactotron in development mode
+      if (__DEV__) {
+         // eslint-disable-next-line @typescript-eslint/no-require-imports
+         const Reactotron = require('../config/ReactotronConfig').default;
+         if (Reactotron && Reactotron.display) {
+            Reactotron.display({
+               name: 'API Error',
+               preview: `${options.method || 'GET'} ${endpoint} - ${error instanceof Error ? error.message : 'Unknown error'}`,
+               value: {
+                  method: options.method || 'GET',
+                  url,
+                  endpoint,
+                  error: error instanceof Error ? error.message : String(error),
+                  errorType: error instanceof Error ? error.constructor.name : typeof error,
+                  errorData: error instanceof ApiError ? error.data : undefined,
+                  status: error instanceof ApiError ? error.status : undefined,
+               },
+               important: true,
+            });
+         }
+      }
+
       console.error('[API Request Error]', {
          error,
          errorType: error instanceof Error ? error.constructor.name : typeof error,

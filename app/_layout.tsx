@@ -16,6 +16,14 @@ import { AudioPlayer } from '@/components/AudioPlayer';
 import { configureGoogleSignIn } from '@/services/auth';
 import '../global.css';
 
+// Initialize Reactotron in development mode
+if (__DEV__) {
+   // eslint-disable-next-line @typescript-eslint/no-require-imports
+   const Reactotron = require('../config/ReactotronConfig').default;
+   // Note: React Query plugin would be configured here if needed
+   // For now, Redux and API monitoring are set up
+}
+
 // Create a client for TanStack Query outside component to prevent recreation on every render
 // This ensures the QueryClient instance is stable across re-renders
 export const queryClient = new QueryClient({
@@ -158,12 +166,23 @@ function InnerLayout() {
       const inAuthGroup =
          segments[0] === '(tabs)' ||
          segments[0] === 'details' ||
-         segments[0] === 'search';
+         segments[0] === 'search' ||
+         segments[0] === 'account' ||
+         segments[0] === 'update-first-name' ||
+         segments[0] === 'update-last-name' ||
+         segments[0] === 'update-avatar' ||
+         segments[0] === 'change-password' ||
+         segments[0] === 'change-email' ||
+         segments[0] === 'verify-password-otp' ||
+         segments[0] === 'verify-email-otp';
 
       if (!isAuthenticated && inAuthGroup) {
          // User is not authenticated but trying to access protected route
          router.replace('/signin');
-      } else if (isAuthenticated && (segments[0] === 'signin' || segments[0] === 'signup')) {
+      } else if (
+         isAuthenticated &&
+         (segments[0] === 'signin' || segments[0] === 'signup' || segments[0] === 'verify-otp')
+      ) {
          // User is authenticated but on auth pages, redirect to home
          router.replace('/(tabs)');
       }
@@ -218,6 +237,78 @@ function InnerLayout() {
             />
             <Stack.Screen
                name="signup"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="verify-otp"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="verify-password-otp"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="verify-email-otp"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="change-password"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="change-email"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="update-first-name"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="update-last-name"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="update-avatar"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="account"
                options={{
                   contentStyle: {
                      backgroundColor: colors.background.dark,

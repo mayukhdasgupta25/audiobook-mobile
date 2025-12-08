@@ -17,14 +17,12 @@ import { RootState } from '@/store';
 const MemoizedProfileHeader = React.memo<{
    userName: string;
    onAvatarPress: () => void;
-   onCastPress: () => void;
    onSearchPress: () => void;
    onMenuPress: () => void;
-}>(({ userName, onAvatarPress, onCastPress, onSearchPress, onMenuPress }) => (
+}>(({ userName, onAvatarPress, onSearchPress, onMenuPress }) => (
    <ProfileHeader
       userName={userName}
       onAvatarPress={onAvatarPress}
-      onCastPress={onCastPress}
       onSearchPress={onSearchPress}
       onMenuPress={onMenuPress}
    />
@@ -163,8 +161,7 @@ function ProfileScreenContent() {
    }, []);
 
    const handleAccountPress = useCallback(() => {
-      console.log('Account pressed');
-      // TODO: Navigate to account management screen
+      router.push('/account');
    }, []);
 
    const handleHelpPress = useCallback(() => {
@@ -190,10 +187,6 @@ function ProfileScreenContent() {
       console.log('Avatar pressed');
    }, []);
 
-   const handleCastPress = useCallback(() => {
-      console.log('Cast pressed');
-   }, []);
-
    // Calculate dynamic padding for scroll content
    const scrollContentPadding = useMemo(() => {
       const tabBarBaseHeight = Platform.OS === 'ios' ? 90 : 70;
@@ -214,7 +207,6 @@ function ProfileScreenContent() {
             <MemoizedProfileHeader
                userName={displayName}
                onAvatarPress={handleAvatarPress}
-               onCastPress={handleCastPress}
                onSearchPress={handleSearchPress}
                onMenuPress={handleMenuPress}
             />

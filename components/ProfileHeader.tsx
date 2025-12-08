@@ -14,7 +14,6 @@ interface ProfileHeaderProps {
    userName: string;
    avatarUri?: string;
    onAvatarPress?: () => void;
-   onCastPress?: () => void;
    onSearchPress?: () => void;
    onMenuPress?: () => void;
 }
@@ -27,7 +26,6 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
    userName,
    avatarUri,
    onAvatarPress,
-   onCastPress,
    onSearchPress,
    onMenuPress,
 }) => {
@@ -72,14 +70,6 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
          {/* Right side: Action icons */}
          <View style={styles.actionsContainer}>
-            <TouchableOpacity
-               onPress={onCastPress}
-               style={styles.iconButton}
-               activeOpacity={0.7}
-            >
-               <Ionicons name="tv-outline" size={24} color={colors.text.dark} />
-            </TouchableOpacity>
-
             <TouchableOpacity
                onPress={onSearchPress}
                style={styles.iconButton}

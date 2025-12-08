@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '@/theme';
+import { RootState } from '@/store';
 
 interface HeaderProps {
    userName?: string;
-   onCastPress?: () => void;
    onDownloadPress?: () => void;
    onSearchPress?: () => void;
    onNotificationPress?: () => void;
@@ -15,30 +16,37 @@ interface HeaderProps {
 /**
  * Header component with personalized greeting and action icons
  * Modern app header design
+ * Uses same display name logic as My Audiobook screen (profile screen)
  */
 const HeaderComponent: React.FC<HeaderProps> = ({
-   userName = 'Mayukh',
-   onCastPress,
+   userName,
    onDownloadPress,
    onSearchPress,
    onNotificationPress,
 }) => {
+   // Get user profile from Redux
+   const userProfile = useSelector((state: RootState) => state.auth.userProfile);
+
+   // Compute display name from user profile - use firstName only (not lastName)
+   const displayName = useMemo(() => {
+      if (userProfile) {
+         if (userProfile.firstName) {
+            return userProfile.firstName;
+         }
+         if (userProfile.username) {
+            return userProfile.username;
+         }
+      }
+      return ''; // Fallback if profile not loaded yet
+   }, [userProfile, userName]);
    return (
       <SafeAreaView edges={['top']} style={styles.container}>
          <View style={styles.content}>
             {/* Personalized greeting */}
-            <Text style={styles.greeting}>For {userName}</Text>
+            <Text style={styles.greeting}>For {displayName}</Text>
 
             {/* Action icons */}
             <View style={styles.iconsContainer}>
-               <TouchableOpacity
-                  onPress={onCastPress}
-                  style={styles.iconButton}
-                  activeOpacity={0.7}
-               >
-                  <Ionicons name="tv-outline" size={24} color={colors.text.dark} />
-               </TouchableOpacity>
-
                <TouchableOpacity
                   onPress={onDownloadPress}
                   style={styles.iconButton}

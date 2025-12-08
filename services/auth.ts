@@ -5,7 +5,7 @@
 
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
-import { post, ApiError } from './api';
+import { post, get, ApiError } from './api';
 
 /**
  * User interface matching API response
@@ -47,6 +47,24 @@ export interface SignupRequest {
  * Signup response from API (same structure as login)
  */
 export interface SignupResponse {
+   message: string;
+   accessToken: string;
+   refreshToken: string;
+   user: User;
+}
+
+/**
+ * OTP verification request payload
+ */
+export interface VerifyOtpRequest {
+   email: string;
+   otp: string;
+}
+
+/**
+ * OTP verification response from API (same structure as login)
+ */
+export interface VerifyOtpResponse {
    message: string;
    accessToken: string;
    refreshToken: string;
@@ -107,6 +125,376 @@ export async function signup(
       }
       throw new Error(
          `Signup failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Verify registration OTP function
+ * Calls POST /auth/verify-registration-otp with email and OTP
+ * @param request - Email and OTP
+ * @returns Promise with verification response containing accessToken, refreshToken, and user
+ * @throws ApiError if verification fails
+ */
+export async function verifyRegistrationOtp(
+   request: VerifyOtpRequest
+): Promise<VerifyOtpResponse> {
+   try {
+      // Use auth API (port 8080) for OTP verification endpoint
+      const response = await post<VerifyOtpResponse>(
+         '/auth/verify-registration-otp',
+         request,
+         false,
+         true
+      );
+      return response.data;
+   } catch (error) {
+      console.error('[Auth Service] OTP verification error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `OTP verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Resend OTP request payload
+ */
+export interface ResendOtpRequest {
+   email: string;
+}
+
+/**
+ * Resend OTP response
+ */
+export interface ResendOtpResponse {
+   message: string;
+}
+
+/**
+ * Resend registration OTP function
+ * Calls POST /auth/resend-otp with user's email
+ * @param request - Resend OTP request containing email
+ * @returns Promise with response message
+ * @throws ApiError if resend fails
+ */
+export async function resendRegistrationOTP(
+   request: ResendOtpRequest
+): Promise<ResendOtpResponse> {
+   try {
+      const response = await post<ResendOtpResponse>(
+         '/auth/resend-otp',
+         { email: request.email },
+         false,
+         true
+      );
+      return response.data;
+   } catch (error) {
+      console.error('[Auth Service] Resend OTP error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Resend OTP failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Request password change OTP request payload
+ */
+export interface RequestPasswordChangeOtpRequest {
+   // Empty - uses authenticated user's email
+}
+
+/**
+ * Request password change OTP response
+ */
+export interface RequestPasswordChangeOtpResponse {
+   message: string;
+}
+
+/**
+ * Verify password change OTP request payload
+ */
+export interface VerifyPasswordChangeOtpRequest {
+   otp: string;
+}
+
+/**
+ * Verify password change OTP response
+ */
+export interface VerifyPasswordChangeOtpResponse {
+   message: string;
+}
+
+/**
+ * Request email update OTP request payload
+ */
+export interface RequestEmailUpdateOtpRequest {
+   email: string;
+}
+
+/**
+ * Request email update OTP response
+ */
+export interface RequestEmailUpdateOtpResponse {
+   message: string;
+}
+
+/**
+ * Verify email update OTP request payload
+ */
+export interface VerifyEmailUpdateOtpRequest {
+   otp: string;
+}
+
+/**
+ * Verify email update OTP response
+ */
+export interface VerifyEmailUpdateOtpResponse {
+   message: string;
+}
+
+/**
+ * Request password change OTP function
+ * Calls GET /auth/request-password-change-otp
+ * Sends OTP to user's current email
+ * @returns Promise with response message
+ * @throws ApiError if request fails
+ */
+export async function requestPasswordChangeOtp(): Promise<RequestPasswordChangeOtpResponse> {
+   try {
+      // Use auth API (port 8080) and require authentication
+      const response = await get<RequestPasswordChangeOtpResponse>(
+         '/auth/request-password-change-otp',
+         true,
+         true
+      );
+      return response.data;
+   } catch (error) {
+      console.error('[Auth Service] Request password change OTP error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Request password change OTP failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Verify password change OTP function
+ * Calls POST /auth/verify-password-change-otp
+ * @param request - OTP
+ * @returns Promise with verification response
+ * @throws ApiError if verification fails
+ */
+export async function verifyPasswordChangeOtp(
+   request: VerifyPasswordChangeOtpRequest
+): Promise<VerifyPasswordChangeOtpResponse> {
+   try {
+      // Use auth API (port 8080) and require authentication
+      const response = await post<VerifyPasswordChangeOtpResponse>(
+         '/auth/verify-password-change-otp',
+         request,
+         true,
+         true
+      );
+      return response.data;
+   } catch (error) {
+      console.error('[Auth Service] Verify password change OTP error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Verify password change OTP failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Request email update OTP function
+ * Calls GET /auth/request-email-update-otp?email={email}
+ * Sends OTP to specified email
+ * @param request - Email address
+ * @returns Promise with response message
+ * @throws ApiError if request fails
+ */
+export async function requestEmailUpdateOtp(
+   request: RequestEmailUpdateOtpRequest
+): Promise<RequestEmailUpdateOtpResponse> {
+   try {
+      // Use auth API (port 8080) and require authentication
+      // Pass email as query parameter
+      const response = await get<RequestEmailUpdateOtpResponse>(
+         `/auth/request-email-update-otp?email=${encodeURIComponent(request.email)}`,
+         true,
+         true
+      );
+      return response.data;
+   } catch (error) {
+      console.error('[Auth Service] Request email update OTP error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Request email update OTP failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Verify email update OTP function
+ * Calls POST /auth/verify-email-update-otp
+ * @param request - OTP
+ * @returns Promise with verification response
+ * @throws ApiError if verification fails
+ */
+export async function verifyEmailUpdateOtp(
+   request: VerifyEmailUpdateOtpRequest
+): Promise<VerifyEmailUpdateOtpResponse> {
+   try {
+      // Use auth API (port 8080) and require authentication
+      const response = await post<VerifyEmailUpdateOtpResponse>(
+         '/auth/verify-email-update-otp',
+         request,
+         true,
+         true
+      );
+      return response.data;
+   } catch (error) {
+      console.error('[Auth Service] Verify email update OTP error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Verify email update OTP failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Change password request payload
+ */
+export interface ChangePasswordRequest {
+   currentPassword: string;
+   newPassword: string;
+}
+
+/**
+ * Change password response
+ */
+export interface ChangePasswordResponse {
+   message: string;
+}
+
+/**
+ * Update email request payload
+ */
+export interface UpdateEmailRequest {
+   newEmail: string;
+}
+
+/**
+ * Update email response
+ */
+export interface UpdateEmailResponse {
+   message: string;
+}
+
+/**
+ * Change password function
+ * Calls POST /auth/change-password with new password
+ * Requires OTP verification to be completed first
+ * @param request - New password
+ * @returns Promise with response message
+ * @throws ApiError if password change fails
+ */
+export async function changePassword(
+   request: ChangePasswordRequest
+): Promise<ChangePasswordResponse> {
+   try {
+      // Use auth API (port 8080) and require authentication
+      const response = await post<ChangePasswordResponse>(
+         '/auth/change-password',
+         request,
+         true,
+         true
+      );
+      return response.data;
+   } catch (error) {
+      console.error('[Auth Service] Change password error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Change password failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Update email function
+ * Calls POST /auth/update-email with new email
+ * Requires OTP verification to be completed first
+ * @param request - New email
+ * @returns Promise with response message
+ * @throws ApiError if email update fails
+ */
+export async function updateEmail(
+   request: UpdateEmailRequest
+): Promise<UpdateEmailResponse> {
+   try {
+      // Use auth API (port 8080) and require authentication
+      const response = await post<UpdateEmailResponse>(
+         '/auth/update-email',
+         request,
+         true,
+         true
+      );
+      return response.data;
+   } catch (error) {
+      console.error('[Auth Service] Update email error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Update email failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
    }
 }

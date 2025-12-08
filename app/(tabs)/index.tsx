@@ -23,14 +23,12 @@ import { RootState } from '@/store';
 // Memoized section components to prevent re-renders when other sections update
 const MemoizedHeader = React.memo<{
    userName: string;
-   onCastPress: () => void;
    onDownloadPress: () => void;
    onSearchPress: () => void;
    onNotificationPress: () => void;
-}>(({ userName, onCastPress, onDownloadPress, onSearchPress, onNotificationPress }) => (
+}>(({ userName, onDownloadPress, onSearchPress, onNotificationPress }) => (
    <Header
       userName={userName}
-      onCastPress={onCastPress}
       onDownloadPress={onDownloadPress}
       onSearchPress={onSearchPress}
       onNotificationPress={onNotificationPress}
@@ -94,18 +92,12 @@ function HomeScreenContent() {
    // Get user profile from Redux
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
 
-   // Compute display name from user profile
-   // If firstName and lastName exist, use them; otherwise use username; fallback to "Mayukh"
+   // Compute display name from user profile - use firstName only
    const displayName = useMemo(() => {
-      if (userProfile) {
-         if (userProfile.firstName && userProfile.lastName) {
-            return `${userProfile.firstName} ${userProfile.lastName}`;
-         }
-         if (userProfile.username) {
-            return userProfile.username;
-         }
+      if (userProfile?.firstName) {
+         return userProfile.firstName;
       }
-      return 'Mayukh'; // Fallback if profile not loaded yet
+      return 'Mayukh'; // Fallback if profile not loaded yet or firstName not available
    }, [userProfile]);
 
    // Check if home screen is focused (pathname matches home route)
@@ -152,10 +144,6 @@ function HomeScreenContent() {
    }, []);
 
    // Memoize other handlers
-   const handleCastPress = useCallback(() => {
-      console.log('Cast pressed');
-   }, []);
-
    const handleDownloadPress = useCallback(() => {
       console.log('Download pressed');
    }, []);
@@ -216,7 +204,6 @@ function HomeScreenContent() {
             {/* Header with greeting and icons - Memoized to prevent re-renders */}
             <MemoizedHeader
                userName={displayName}
-               onCastPress={handleCastPress}
                onDownloadPress={handleDownloadPress}
                onSearchPress={handleSearchPress}
                onNotificationPress={handleNotificationPress}

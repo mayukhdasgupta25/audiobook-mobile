@@ -12,85 +12,84 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
-import { useDispatch } from 'react-redux';
 import { TextInput } from '@/components/TextInput';
 import { colors, spacing, typography, borderRadius } from '@/theme';
-import { signup } from '@/services/auth';
+import { updateEmail, UpdateEmailRequest } from '@/services/auth';
+import { fetchUserProfile } from '@/store/auth';
 import { AppDispatch } from '@/store';
+import { useDispatch } from 'react-redux';
 import { ApiError } from '@/services/api';
 
 /**
- * Sign up screen with email, password, and confirm password inputs
+ * Change email screen
+ * Allows user to set new email after OTP verification
  */
-export default function SignUpScreen() {
+export default function ChangeEmailScreen() {
    const dispatch = useDispatch<AppDispatch>();
-   const [email, setEmail] = useState('');
-   const [password, setPassword] = useState('');
-   const [confirmPassword, setConfirmPassword] = useState('');
+   const [newEmail, setNewEmail] = useState('');
    const [isLoading, setIsLoading] = useState(false);
    const [error, setError] = useState<string | null>(null);
 
-   const handleSignUp = useCallback(async () => {
+   const handleChangeEmail = useCallback(async () => {
       Keyboard.dismiss();
       setError(null);
 
       // Basic validation
-      if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
-         setError('Please fill in all fields');
+      if (!newEmail.trim()) {
+         setError('Please enter a new email address');
          return;
       }
 
       // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email.trim())) {
+      if (!emailRegex.test(newEmail.trim())) {
          setError('Please enter a valid email address');
-         return;
-      }
-
-      // Validate password match
-      if (password !== confirmPassword) {
-         setError('Passwords do not match');
-         return;
-      }
-
-      // Validate password length
-      if (password.length < 6) {
-         setError('Password must be at least 6 characters long');
          return;
       }
 
       setIsLoading(true);
 
       try {
-         // Call signup API - this will send OTP to the user's email
-         await signup({ email: email.trim(), password });
+         const request: UpdateEmailRequest = {
+            newEmail: newEmail.trim(),
+         };
 
-         // Redirect to OTP verification screen with email
-         router.push({
-            pathname: '/verify-otp',
-            params: { email: email.trim() },
-         });
+         // Update email
+         await updateEmail(request);
+
+         // Refresh user profile
+         try {
+            await dispatch(fetchUserProfile()).unwrap();
+         } catch (profileError) {
+            console.error('[ChangeEmail] Failed to refresh user profile:', profileError);
+         }
+
+         // Redirect back to account screen
+         router.replace('/account');
       } catch (err) {
          // Handle API errors
          if (err instanceof ApiError) {
             if (err.status === 400) {
                const errorData = err.data as { message?: string } | undefined;
-               setError(errorData?.message || 'Invalid signup data. Please check your information.');
+               setError(errorData?.message || 'Invalid email. Please try again.');
+            } else if (err.status === 401) {
+               setError('Email update failed. Please verify OTP again.');
             } else if (err.status === 409) {
                setError('An account with this email already exists');
             } else {
                const errorData = err.data as { message?: string } | undefined;
-               setError(errorData?.message || 'Signup failed. Please try again.');
+               setError(errorData?.message || 'Email update failed. Please try again.');
             }
          } else {
             const errorMessage =
                err instanceof Error ? err.message : 'Unknown error';
-            console.error('[SignUp] Non-API error:', errorMessage);
+            console.error('[ChangeEmail] Non-API error:', errorMessage);
 
             // Provide helpful error message for network issues
             let userMessage = 'Network error. Please check your connection and try again.';
             if (errorMessage.includes('Network request failed')) {
-               userMessage = 'Cannot connect to server. If testing on a physical device, set EXPO_PUBLIC_AUTH_API_URL to your computer\'s IP address (e.g., http://192.168.1.100:8080)';
+               userMessage =
+                  'Cannot connect to server. If testing on a physical device, set EXPO_PUBLIC_AUTH_API_URL to your computer\'s IP address (e.g., http://192.168.1.100:8080)';
             }
 
             setError(userMessage);
@@ -98,11 +97,11 @@ export default function SignUpScreen() {
       } finally {
          setIsLoading(false);
       }
-   }, [email, password, confirmPassword, dispatch]);
+   }, [newEmail, dispatch]);
 
-   const handleNavigateToSignIn = useCallback(() => {
+   const handleBackPress = useCallback(() => {
       Keyboard.dismiss();
-      router.push('/signin');
+      router.back();
    }, []);
 
    return (
@@ -129,45 +128,26 @@ export default function SignUpScreen() {
                >
                   {/* Header */}
                   <View style={styles.header}>
-                     <Text style={styles.title}>Create Account</Text>
+                     <TouchableOpacity onPress={handleBackPress} style={styles.backButton} activeOpacity={0.7}>
+                        <Text style={styles.backButtonText}>← Back</Text>
+                     </TouchableOpacity>
+                     <Text style={styles.title}>Change Email</Text>
                      <Text style={styles.subtitle}>
-                        Sign up to get started with AudioBook
+                        Enter your new email address
                      </Text>
                   </View>
 
                   {/* Form */}
                   <View style={styles.form}>
                      <TextInput
-                        label="Email"
-                        value={email}
-                        onChangeText={setEmail}
-                        placeholder="Enter your email"
+                        label="New Email"
+                        value={newEmail}
+                        onChangeText={setNewEmail}
+                        placeholder="Enter your new email"
                         keyboardType="email-address"
                         autoCapitalize="none"
                         icon="mail-outline"
-                        testID="signup-email-input"
-                     />
-
-                     <TextInput
-                        label="Password"
-                        value={password}
-                        onChangeText={setPassword}
-                        placeholder="Enter your password"
-                        secureTextEntry={true}
-                        autoCapitalize="none"
-                        icon="lock-closed-outline"
-                        testID="signup-password-input"
-                     />
-
-                     <TextInput
-                        label="Confirm Password"
-                        value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                        placeholder="Confirm your password"
-                        secureTextEntry={true}
-                        autoCapitalize="none"
-                        icon="lock-closed-outline"
-                        testID="signup-confirm-password-input"
+                        testID="new-email-input"
                      />
 
                      {/* Error Message */}
@@ -177,33 +157,20 @@ export default function SignUpScreen() {
                         </View>
                      )}
 
-                     {/* Sign Up Button */}
+                     {/* Change Email Button */}
                      <TouchableOpacity
-                        style={[styles.signUpButton, isLoading && styles.signUpButtonDisabled]}
-                        onPress={handleSignUp}
+                        style={[styles.changeEmailButton, isLoading && styles.changeEmailButtonDisabled]}
+                        onPress={handleChangeEmail}
                         activeOpacity={0.8}
                         disabled={isLoading}
-                        testID="signup-button"
+                        testID="change-email-button"
                      >
                         {isLoading ? (
                            <ActivityIndicator color={colors.text.dark} />
                         ) : (
-                           <Text style={styles.signUpButtonText}>Sign Up</Text>
+                           <Text style={styles.changeEmailButtonText}>Change Email</Text>
                         )}
                      </TouchableOpacity>
-
-                     {/* Sign In Link */}
-                     <View style={styles.signInLinkContainer}>
-                        <Text style={styles.signInLinkText}>
-                           Already have an account?{' '}
-                        </Text>
-                        <TouchableOpacity
-                           onPress={handleNavigateToSignIn}
-                           activeOpacity={0.7}
-                        >
-                           <Text style={styles.signInLink}>Sign In</Text>
-                        </TouchableOpacity>
-                     </View>
                   </View>
                </ScrollView>
             </KeyboardAvoidingView>
@@ -231,14 +198,30 @@ const styles = StyleSheet.create({
    },
    header: {
       marginBottom: spacing.xl,
-      alignItems: 'center',
+   },
+   backButton: {
+      alignSelf: 'flex-start',
+      marginBottom: spacing.md,
+      padding: spacing.xs,
+   },
+   backButtonText: {
+      fontSize: typography.fontSize.base,
+      color: colors.primary[400],
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '500',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
    },
    title: {
       fontSize: typography.fontSize['4xl'],
       fontWeight: '700',
       color: colors.text.dark,
       marginBottom: spacing.sm,
-      textAlign: 'center',
       ...Platform.select({
          ios: {
             fontFamily: 'System',
@@ -252,7 +235,6 @@ const styles = StyleSheet.create({
    subtitle: {
       fontSize: typography.fontSize.base,
       color: colors.text.secondaryDark,
-      textAlign: 'center',
       ...Platform.select({
          ios: {
             fontFamily: 'System',
@@ -285,10 +267,10 @@ const styles = StyleSheet.create({
          },
       }),
    },
-   signUpButtonDisabled: {
+   changeEmailButtonDisabled: {
       opacity: 0.6,
    },
-   signUpButton: {
+   changeEmailButton: {
       backgroundColor: colors.app.red,
       borderRadius: borderRadius.md,
       height: 48,
@@ -297,43 +279,10 @@ const styles = StyleSheet.create({
       marginTop: spacing.md,
       marginBottom: spacing.lg,
    },
-   signUpButtonText: {
+   changeEmailButtonText: {
       fontSize: typography.fontSize.lg,
       fontWeight: '600',
       color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   signInLinkContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: spacing.md,
-   },
-   signInLinkText: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   signInLink: {
-      fontSize: typography.fontSize.base,
-      color: colors.primary[400],
-      fontWeight: '600',
       ...Platform.select({
          ios: {
             fontFamily: 'System',

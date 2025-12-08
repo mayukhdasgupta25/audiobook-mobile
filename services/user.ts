@@ -3,7 +3,7 @@
  * Handles user profile API calls
  */
 
-import { get, ApiError } from './api';
+import { get, put, ApiError } from './api';
 import { API_V1_PATH } from './api';
 
 /**
@@ -65,6 +65,48 @@ export async function getUserProfile(): Promise<UserProfileResponse> {
       }
       throw new Error(
          `Get profile failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Update user profile request payload
+ */
+export interface UpdateProfileRequest {
+   firstName?: string | null;
+   lastName?: string | null;
+   avatar?: string | null;
+}
+
+/**
+ * Update user profile
+ * Calls PUT /api/v1/user/profile with authentication
+ * @param profileData - Profile data to update (firstName, lastName, avatar)
+ * @returns Promise with updated user profile response
+ * @throws ApiError if profile update fails
+ */
+export async function updateUserProfile(
+   profileData: UpdateProfileRequest
+): Promise<UserProfileResponse> {
+   try {
+      // Use authenticated API call (useAuth=true) to include Bearer token
+      const response = await put<UserProfileResponse>(
+         `${API_V1_PATH}/user/profile`,
+         profileData,
+         true
+      );
+      return response.data;
+   } catch (error) {
+      console.error('[User Service] Update profile error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Update profile failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
    }
 }

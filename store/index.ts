@@ -11,6 +11,9 @@ import audiobooksReducer from './audiobooks';
 import streamingReducer from './streaming';
 import playerReducer from './player';
 
+// Import Reactotron for Redux monitoring (only active in development)
+import Reactotron from '../config/ReactotronConfig';
+
 /**
  * Root reducer combining all feature reducers
  */
@@ -52,6 +55,16 @@ export const store = configureStore({
             ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
          },
       }),
+   // Add Reactotron enhancer in development mode
+   enhancers: (getDefaultEnhancers) => {
+      if (__DEV__ && Reactotron && 'createEnhancer' in Reactotron && typeof Reactotron.createEnhancer === 'function') {
+         const enhancer = Reactotron.createEnhancer();
+         if (enhancer && typeof enhancer === 'function') {
+            return getDefaultEnhancers().concat(enhancer as ReturnType<typeof getDefaultEnhancers>[number]);
+         }
+      }
+      return getDefaultEnhancers();
+   },
 });
 
 /**

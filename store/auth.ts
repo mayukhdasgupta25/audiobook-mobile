@@ -114,6 +114,7 @@ const authSlice = createSlice({
    reducers: {
       /**
        * Set authentication state after successful login or signup
+       * Clears previous user profile to ensure new account's profile replaces old one
        */
       setAuth: (
          state,
@@ -124,6 +125,11 @@ const authSlice = createSlice({
          state.user = action.payload.user;
          state.isAuthenticated = true;
 
+         // Clear previous user profile when new account logs in
+         // This ensures multiple accounts on same device don't mix profiles
+         state.userProfile = null;
+         state.profileFetched = false;
+
          // Persist to secure store
          SecureStore.setItemAsync(ACCESS_TOKEN_KEY, action.payload.accessToken).catch(
             (error) => console.error('Error saving access token:', error)
@@ -133,6 +139,12 @@ const authSlice = createSlice({
          );
          SecureStore.setItemAsync(USER_KEY, JSON.stringify(action.payload.user)).catch(
             (error) => console.error('Error saving user data:', error)
+         );
+
+         // Clear previous user profile from SecureStore when new account logs in
+         // New profile will be saved when fetchUserProfile completes
+         SecureStore.deleteItemAsync(USER_PROFILE_KEY).catch((error) =>
+            console.error('[Auth] Error clearing previous user profile from SecureStore:', error)
          );
       },
       /**
