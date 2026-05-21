@@ -35,6 +35,16 @@ export interface AudiobookTag {
 }
 
 /**
+ * Subscription access info returned with a single audiobook
+ */
+export interface SubscriptionAccess {
+   canAccess: boolean;
+   message?: string;
+   requiredTier?: number;
+   userTier?: number;
+}
+
+/**
  * Audiobook interface matching API response structure
  */
 export interface Audiobook {
@@ -62,6 +72,8 @@ export interface Audiobook {
    genre?: Genre; // Deprecated - use genres array instead
    genres: Array<{ name: string }>;
    meta: Record<string, string> | null;
+   minSubscriptionTier?: number;
+   subscriptionAccess?: SubscriptionAccess;
 }
 
 /**

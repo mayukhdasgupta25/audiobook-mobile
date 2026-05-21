@@ -75,9 +75,14 @@ export default function DetailsScreen() {
 
    const audiobook = audiobookData?.data;
 
+   const isAccessRestricted = audiobook?.subscriptionAccess?.canAccess === false;
+   const shouldFetchChapters = !!audiobook && !isAccessRestricted;
+
+   const upgradeMessage = audiobook?.subscriptionAccess?.message;
+
    // Create query options for all pages up to currentPage
    const chapterQueryOptions = useMemo(() => {
-      if (!id || !isAuthenticated || !isInitialized) {
+      if (!id || !isAuthenticated || !isInitialized || !shouldFetchChapters) {
          return [];
       }
 
@@ -90,7 +95,7 @@ export default function DetailsScreen() {
          });
       }
       return options;
-   }, [id, currentPage, isAuthenticated, isInitialized]);
+   }, [id, currentPage, isAuthenticated, isInitialized, shouldFetchChapters]);
 
    // Fetch chapters for all pages
    const chapterQueries = useQueries({
@@ -103,8 +108,21 @@ export default function DetailsScreen() {
       pagination: { hasNextPage: boolean; currentPage: number; totalPages: number } | null;
    }>({ chapterIds: new Set(), pagination: null });
 
+   // Clear chapter list when subscription does not allow access
+   useEffect(() => {
+      if (isAccessRestricted) {
+         setAllChapters([]);
+         setPagination(null);
+         lastProcessedDataRef.current = { chapterIds: new Set(), pagination: null };
+      }
+   }, [isAccessRestricted]);
+
    // Combine all chapters from all pages and sort by chapterNumber
    useEffect(() => {
+      if (!shouldFetchChapters) {
+         return;
+      }
+
       const chapters: Chapter[] = [];
       let latestPagination: { hasNextPage: boolean; currentPage: number; totalPages: number } | null = null;
 
@@ -165,7 +183,7 @@ export default function DetailsScreen() {
             };
          }
       }
-   }, [chapterQueries]);
+   }, [chapterQueries, shouldFetchChapters]);
 
    // Check loading state
    const isLoadingChapters = chapterQueries.some((query) => query.isLoading);
@@ -183,7 +201,10 @@ export default function DetailsScreen() {
 
    // Fetch streaming playlist for first chapter after chapters have loaded
    // This pre-fetches master playlist and playlist data for the first chapter
-   useStreamingPlaylist(firstChapterId, !!firstChapterId && allChapters.length > 0);
+   useStreamingPlaylist(
+      firstChapterId,
+      shouldFetchChapters && !!firstChapterId && allChapters.length > 0
+   );
 
    // Get playlists from Redux to check if playlist is loaded
    const playlistsByChapterId = useSelector(
@@ -266,6 +287,7 @@ export default function DetailsScreen() {
    // Load next page when user scrolls to bottom
    const loadNextPage = useCallback(() => {
       if (
+         shouldFetchChapters &&
          pagination?.hasNextPage &&
          !paginationLoadingRef.current &&
          !isLoadingChapters &&
@@ -281,11 +303,15 @@ export default function DetailsScreen() {
             return nextPage;
          });
       }
-   }, [pagination, isLoadingChapters, currentPage]);
+   }, [shouldFetchChapters, pagination, isLoadingChapters, currentPage]);
 
    // Handle back button press
    const handleBack = useCallback(() => {
       router.back();
+   }, []);
+
+   const handleUpgradePlanPress = useCallback(() => {
+      router.push('/subscription-plans');
    }, []);
 
    // Handle chapter press
@@ -467,6 +493,10 @@ export default function DetailsScreen() {
 
    // Render empty state
    const renderEmpty = useCallback(() => {
+      if (isAccessRestricted) {
+         return null;
+      }
+
       if (isLoadingChapters) {
          return (
             <View style={styles.emptyContainer}>
@@ -493,7 +523,7 @@ export default function DetailsScreen() {
             <Text style={styles.emptyText}>No chapters available</Text>
          </View>
       );
-   }, [isLoadingChapters, chaptersError]);
+   }, [isAccessRestricted, isLoadingChapters, chaptersError]);
 
    // Toggle meta expansion
    const toggleMetaExpansion = useCallback(() => {
@@ -640,9 +670,27 @@ export default function DetailsScreen() {
                )}
             </View>
 
-            {/* Chapters Title */}
+            {/* Chapters or upgrade prompt */}
             <View style={styles.chaptersSection}>
-               <Text style={styles.chaptersTitle}>Chapters</Text>
+               {isAccessRestricted ? (
+                  <View style={styles.upgradeSection}>
+                     <TouchableOpacity
+                        style={styles.upgradeBadge}
+                        onPress={handleUpgradePlanPress}
+                        activeOpacity={0.7}
+                        accessibilityLabel="Upgrade your plan"
+                        accessibilityRole="button"
+                     >
+                        <Ionicons name="lock-closed" size={16} color={colors.text.dark} />
+                        <Text style={styles.upgradeBadgeText}>Upgrade your plan</Text>
+                     </TouchableOpacity>
+                     {upgradeMessage ? (
+                        <Text style={styles.upgradeMessage}>{upgradeMessage}</Text>
+                     ) : null}
+                  </View>
+               ) : (
+                  <Text style={styles.chaptersTitle}>Chapters</Text>
+               )}
             </View>
          </>
       );
@@ -660,6 +708,9 @@ export default function DetailsScreen() {
       metaAnimationHeight,
       metaContentHeight,
       toggleMetaExpansion,
+      isAccessRestricted,
+      upgradeMessage,
+      handleUpgradePlanPress,
    ]);
 
    // Handle navigation to tabs
@@ -694,7 +745,7 @@ export default function DetailsScreen() {
             </View>
 
             <FlatList
-               data={allChapters}
+               data={isAccessRestricted ? [] : allChapters}
                renderItem={renderChapterItem}
                keyExtractor={(item) => item.id}
                ListHeaderComponent={renderHeader}
@@ -1053,6 +1104,60 @@ const styles = StyleSheet.create({
          },
          android: {
             fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   upgradeSection: {
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.md,
+      gap: spacing.sm,
+   },
+   upgradeBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: spacing.xs,
+      backgroundColor: colors.app.red,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.md,
+      ...Platform.select({
+         ios: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 3,
+         },
+         android: {
+            elevation: 5,
+         },
+      }),
+   },
+   upgradeBadgeText: {
+      fontSize: typography.fontSize.base,
+      color: colors.text.dark,
+      fontWeight: '600',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   upgradeMessage: {
+      fontSize: typography.fontSize.sm,
+      color: colors.text.secondaryDark,
+      lineHeight: typography.lineHeight.relaxed * typography.fontSize.sm,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
          },
       }),
    },

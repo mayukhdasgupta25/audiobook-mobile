@@ -168,6 +168,7 @@ function InnerLayout() {
          segments[0] === 'details' ||
          segments[0] === 'search' ||
          segments[0] === 'account' ||
+         segments[0] === 'subscription-plans' ||
          segments[0] === 'update-first-name' ||
          segments[0] === 'update-last-name' ||
          segments[0] === 'update-avatar' ||
@@ -309,6 +310,14 @@ function InnerLayout() {
             />
             <Stack.Screen
                name="account"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="subscription-plans"
                options={{
                   contentStyle: {
                      backgroundColor: colors.background.dark,
