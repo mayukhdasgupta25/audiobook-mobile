@@ -19,6 +19,8 @@ import {
    requestEmailUpdateOtp,
 } from '@/services/auth';
 import { ApiError } from '@/services/api';
+import { useUserSubscription } from '@/hooks/useUserSubscription';
+import { formatAccountDate, formatPlanPrice } from '@/utils/format';
 
 /**
  * Account screen - Netflix-style account management
@@ -45,12 +47,13 @@ export default function AccountScreen() {
       }
    }, [userProfile?.createdAt]);
 
-   // Calculate next payment date (30 days from now as placeholder)
-   const nextPaymentDate = useMemo(() => {
-      const date = new Date();
-      date.setDate(date.getDate() + 30);
-      return date.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
-   }, []);
+   const userProfileId = userProfile?.id ?? '';
+   const {
+      activeSubscription,
+      isLoading: isSubscriptionLoading,
+      error: subscriptionError,
+      refetch: refetchSubscription,
+   } = useUserSubscription(userProfileId);
 
    const handleBackPress = () => {
       router.back();
@@ -141,9 +144,8 @@ export default function AccountScreen() {
       // TODO: Navigate to download devices screen
    };
 
-   const handlePaymentHistoryPress = () => {
-      console.log('View payment history pressed');
-      // TODO: Navigate to payment history screen
+   const handleUpgradePlanPress = () => {
+      router.push('/subscription-plans');
    };
 
    const handleCancelMembershipPress = () => {
@@ -189,20 +191,100 @@ export default function AccountScreen() {
                      <View style={styles.memberSinceBadge}>
                         <Text style={styles.memberSinceText}>Member since {memberSince}</Text>
                      </View>
-                     <Text style={styles.planName}>Standard plan</Text>
-                     <Text style={styles.paymentInfo}>Next payment: {nextPaymentDate}</Text>
-                     <View style={styles.paymentMethod}>
-                        <View style={styles.paymentIcon}>
-                           <Ionicons name="card-outline" size={20} color={colors.text.dark} />
+
+                     {isSubscriptionLoading ? (
+                        <View style={styles.membershipLoading}>
+                           <ActivityIndicator size="small" color={colors.app.red} />
+                           <Text style={styles.membershipLoadingText}>
+                              Loading membership details...
+                           </Text>
                         </View>
-                        <Text style={styles.paymentMethodText}>8***@ybl</Text>
-                     </View>
+                     ) : subscriptionError ? (
+                        <View style={styles.membershipError}>
+                           <Text style={styles.membershipErrorText}>
+                              {subscriptionError instanceof ApiError
+                                 ? (subscriptionError.data as { message?: string } | undefined)
+                                      ?.message ?? 'Failed to load membership details.'
+                                 : subscriptionError instanceof Error
+                                   ? subscriptionError.message
+                                   : 'Failed to load membership details.'}
+                           </Text>
+                           <TouchableOpacity
+                              onPress={() => refetchSubscription()}
+                              style={styles.retryButton}
+                              activeOpacity={0.7}
+                           >
+                              <Text style={styles.linkText}>Retry</Text>
+                           </TouchableOpacity>
+                        </View>
+                     ) : !activeSubscription ? (
+                        <Text style={styles.membershipEmptyText}>No active membership</Text>
+                     ) : (
+                        <>
+                           <View style={styles.planHeader}>
+                              <Text style={styles.planName}>
+                                 {activeSubscription.plan.name} plan
+                              </Text>
+                              <View
+                                 style={[
+                                    styles.statusBadge,
+                                    activeSubscription.status === 'ACTIVE' &&
+                                       styles.statusBadgeActive,
+                                 ]}
+                              >
+                                 <Text style={styles.statusBadgeText}>
+                                    {activeSubscription.status}
+                                 </Text>
+                              </View>
+                           </View>
+
+                           <Text style={styles.paymentInfo}>
+                              {formatPlanPrice(
+                                 activeSubscription.plan.price,
+                                 activeSubscription.plan.currency
+                              )}
+                           </Text>
+
+                           <Text style={styles.paymentInfo}>
+                              Billing period:{' '}
+                              {formatAccountDate(activeSubscription.currentPeriodStart)}
+                              {activeSubscription.currentPeriodEnd
+                                 ? ` – ${formatAccountDate(activeSubscription.currentPeriodEnd)}`
+                                 : ''}
+                           </Text>
+
+                           {activeSubscription.currentPeriodEnd ? (
+                              <Text style={styles.paymentInfo}>
+                                 Next payment:{' '}
+                                 {formatAccountDate(activeSubscription.currentPeriodEnd)}
+                              </Text>
+                           ) : null}
+
+                           {activeSubscription.plan.features.items.length > 0 ? (
+                              <View style={styles.featureList}>
+                                 {activeSubscription.plan.features.items.map(
+                                    (feature, index) => (
+                                       <View key={index} style={styles.featureItem}>
+                                          <Ionicons
+                                             name="checkmark-circle"
+                                             size={18}
+                                             color={colors.success}
+                                          />
+                                          <Text style={styles.featureText}>{feature}</Text>
+                                       </View>
+                                    )
+                                 )}
+                              </View>
+                           ) : null}
+                        </>
+                     )}
+
                      <TouchableOpacity
-                        onPress={handlePaymentHistoryPress}
-                        style={styles.paymentHistoryLink}
+                        onPress={handleUpgradePlanPress}
+                        style={styles.upgradePlanLink}
                         activeOpacity={0.7}
                      >
-                        <Text style={styles.linkText}>View payment history</Text>
+                        <Text style={styles.linkText}>Upgrade Plan</Text>
                         <Ionicons name="chevron-forward" size={20} color={colors.text.secondaryDark} />
                      </TouchableOpacity>
                   </View>
@@ -477,11 +559,71 @@ const styles = StyleSheet.create({
          },
       }),
    },
+   membershipLoading: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+   },
+   membershipLoadingText: {
+      fontSize: typography.fontSize.base,
+      color: colors.text.secondaryDark,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   membershipError: {
+      marginBottom: spacing.md,
+      gap: spacing.sm,
+   },
+   membershipErrorText: {
+      fontSize: typography.fontSize.base,
+      color: colors.app.red,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   membershipEmptyText: {
+      fontSize: typography.fontSize.base,
+      color: colors.text.secondaryDark,
+      marginBottom: spacing.md,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   retryButton: {
+      alignSelf: 'flex-start',
+   },
+   planHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+   },
    planName: {
+      flex: 1,
       fontSize: typography.fontSize.lg,
       fontWeight: '600',
       color: colors.text.dark,
-      marginBottom: spacing.sm,
       ...Platform.select({
          ios: {
             fontFamily: 'System',
@@ -489,6 +631,54 @@ const styles = StyleSheet.create({
          },
          android: {
             fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   statusBadge: {
+      backgroundColor: colors.background.darkGray,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.full,
+   },
+   statusBadgeActive: {
+      backgroundColor: colors.success,
+   },
+   statusBadgeText: {
+      fontSize: typography.fontSize.xs,
+      fontWeight: '600',
+      color: colors.text.dark,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   featureList: {
+      marginTop: spacing.sm,
+      marginBottom: spacing.md,
+      gap: spacing.sm,
+   },
+   featureItem: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+   },
+   featureText: {
+      flex: 1,
+      fontSize: typography.fontSize.base,
+      color: colors.text.dark,
+      lineHeight: typography.lineHeight.relaxed * typography.fontSize.base,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
          },
       }),
    },
@@ -506,34 +696,7 @@ const styles = StyleSheet.create({
          },
       }),
    },
-   paymentMethod: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: spacing.md,
-   },
-   paymentIcon: {
-      width: 32,
-      height: 32,
-      borderRadius: borderRadius.md,
-      backgroundColor: colors.background.darkGray,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: spacing.sm,
-   },
-   paymentMethodText: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   paymentHistoryLink: {
+   upgradePlanLink: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',

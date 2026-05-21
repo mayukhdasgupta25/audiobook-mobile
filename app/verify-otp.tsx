@@ -114,8 +114,7 @@ export default function VerifyOtpScreen() {
                console.error('[VerifyOtp] Failed to fetch user profile:', profileError);
             }
 
-            // Redirect to home screen
-            router.replace('/(tabs)');
+            // Navigation is handled centrally by the auth guard in `app/_layout.tsx`
          } catch (err) {
             // Handle API errors
             if (err instanceof ApiError) {

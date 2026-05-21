@@ -29,6 +29,10 @@ export default function TabLayout() {
             <Tabs
                screenOptions={{
                   headerShown: false,
+                  // Critical: mount all tab screens immediately.
+                  // Otherwise the first time you tap a tab, that screen mounts as "active"
+                  // and `AnimatedTabScreen` treats it as initial render (no slide animation).
+                  lazy: false,
                   tabBarActiveTintColor: colors.text.dark,
                   tabBarInactiveTintColor: colors.text.secondaryDark,
                   // Set dark background for all tab screens by default
