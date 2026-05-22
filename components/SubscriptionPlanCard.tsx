@@ -5,6 +5,7 @@ import {
    StyleSheet,
    TouchableOpacity,
    Platform,
+   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '@/theme';
@@ -14,6 +15,7 @@ import { formatPlanPrice } from '@/utils/format';
 interface SubscriptionPlanCardProps {
    plan: SubscriptionPlan;
    isCurrentPlan?: boolean;
+   isUpgrading?: boolean;
    onUpgradePress: (plan: SubscriptionPlan) => void;
 }
 
@@ -23,6 +25,7 @@ interface SubscriptionPlanCardProps {
 export function SubscriptionPlanCard({
    plan,
    isCurrentPlan = false,
+   isUpgrading = false,
    onUpgradePress,
 }: SubscriptionPlanCardProps) {
    const priceLabel =
@@ -54,15 +57,19 @@ export function SubscriptionPlanCard({
          <TouchableOpacity
             style={[
                styles.upgradeButton,
-               isCurrentPlan && styles.upgradeButtonDisabled,
+               (isCurrentPlan || isUpgrading) && styles.upgradeButtonDisabled,
             ]}
             onPress={() => onUpgradePress(plan)}
             activeOpacity={0.7}
-            disabled={isCurrentPlan}
+            disabled={isCurrentPlan || isUpgrading}
          >
-            <Text style={styles.upgradeButtonText}>
-               {isCurrentPlan ? 'Current plan' : 'Upgrade Plan'}
-            </Text>
+            {isUpgrading ? (
+               <ActivityIndicator size="small" color={colors.text.dark} />
+            ) : (
+               <Text style={styles.upgradeButtonText}>
+                  {isCurrentPlan ? 'Current plan' : 'Upgrade Plan'}
+               </Text>
+            )}
          </TouchableOpacity>
       </View>
    );

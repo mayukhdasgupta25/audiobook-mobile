@@ -18,7 +18,7 @@
  * // Unauthenticated request (no token):
  * await get(`${API_V1_PATH}/tags`, false); // useAuth=false
  * 
- * All API helper functions (get, post, put, del) support useAuth parameter.
+ * All API helper functions (get, post, put, patch, del) support useAuth parameter.
  * When useAuth=true, the Bearer token from Redux store is automatically included.
  */
 
@@ -661,6 +661,33 @@ export async function put<T>(
       endpoint,
       {
          method: 'PUT',
+         body: body ? JSON.stringify(body) : undefined,
+      },
+      useAuth,
+      useAuthApi,
+      useStreamingApi
+   );
+}
+
+/**
+ * PATCH request helper
+ * @param endpoint - API endpoint path
+ * @param body - Request body
+ * @param useAuth - Whether to include Bearer token in headers (default: false)
+ * @param useAuthApi - Whether to use auth API URL (port 8080) instead of main API URL (default: false)
+ * @param useStreamingApi - Whether to use streaming API URL instead of main API URL (default: false)
+ */
+export async function patch<T>(
+   endpoint: string,
+   body?: unknown,
+   useAuth = false,
+   useAuthApi = false,
+   useStreamingApi = false
+): Promise<ApiResponse<T>> {
+   return apiRequest<T>(
+      endpoint,
+      {
+         method: 'PATCH',
          body: body ? JSON.stringify(body) : undefined,
       },
       useAuth,

@@ -3,7 +3,7 @@
  * Handles user subscription API calls
  */
 
-import { get, ApiError, API_V1_PATH } from './api';
+import { get, patch, ApiError, API_V1_PATH } from './api';
 import { PaginationInfo } from './audiobooks';
 
 /**
@@ -52,9 +52,65 @@ export interface UserSubscription {
    canceledAt: string | null;
    autoRenew: boolean;
    paymentMethod: string | null;
+   pendingPlanId: string | null;
+   pendingPlanChangeAt: string | null;
+   pendingPlanChangeType: string | null;
+   pastDueRetryCount: number;
    createdAt: string;
    updatedAt: string;
    plan: SubscriptionPlan;
+   pendingPlan?: SubscriptionPlan | null;
+}
+
+/**
+ * Request body for PATCH /api/v1/subscriptions/:id/plan
+ */
+export interface ChangePlanRequest {
+   planId: string;
+}
+
+/**
+ * Proration breakdown returned on immediate plan upgrades
+ */
+export interface ProrationBreakdown {
+   remainingDays: number;
+   periodDays: number;
+   credit: number;
+   newCost: number;
+   immediateCharge: number;
+   nextRenewalAmount: number;
+   currency: string;
+   trialEnded?: boolean;
+}
+
+/**
+ * Scheduled downgrade applied at period end
+ */
+export interface ScheduledPlanChange {
+   effectiveAt: string;
+   pendingPlanId: string;
+   pendingPlan?: SubscriptionPlan;
+}
+
+/**
+ * Result payload from plan change (upgrade or scheduled downgrade)
+ */
+export interface ChangePlanResult {
+   subscription: UserSubscription;
+   proration?: ProrationBreakdown;
+   scheduledChange?: ScheduledPlanChange;
+}
+
+/**
+ * API response wrapper for plan change
+ */
+export interface ChangePlanResponse {
+   success: boolean;
+   data: ChangePlanResult;
+   message: string;
+   statusCode: number;
+   timestamp: string;
+   path: string;
 }
 
 /**
@@ -146,6 +202,41 @@ export async function getSubscriptionPlans(): Promise<SubscriptionPlansResponse>
       }
       throw new Error(
          `Failed to fetch subscription plans: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Change the subscription plan (upgrade immediately or schedule downgrade)
+ * Calls PATCH /api/v1/subscriptions/:id/plan with Bearer token
+ *
+ * On upgrade: data includes proration breakdown and updated subscription.
+ * On downgrade: data includes scheduledChange and subscription with pending plan fields.
+ */
+export async function changeSubscriptionPlan(
+   subscriptionId: string,
+   request: ChangePlanRequest
+): Promise<ChangePlanResponse> {
+   try {
+      const response = await patch<ChangePlanResponse>(
+         `${API_V1_PATH}/subscriptions/${subscriptionId}/plan`,
+         request,
+         true
+      );
+      return response.data;
+   } catch (error) {
+      console.warn('[Subscriptions Service] Change subscription plan error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+         subscriptionId,
+         planId: request.planId,
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Failed to change subscription plan: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
    }
 }
