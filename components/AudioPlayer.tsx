@@ -23,7 +23,7 @@ import Animated, {
    useAnimatedReaction,
    runOnJS,
 } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
@@ -785,11 +785,11 @@ export const AudioPlayer: React.FC = React.memo(() => {
                      // Remove this after confirming visibility
                   }
                   : {
-                     // Maximized: full width player
+                     // Maximized: sheet wraps content; background is on playerContainer
                      left: 0,
                      right: 0,
                      width: '100%',
-                     backgroundColor: colors.background.darkGray,
+                     backgroundColor: 'transparent',
                   }
                ),
                zIndex: isMinimized ? 250 : 100,
@@ -874,11 +874,14 @@ export const AudioPlayer: React.FC = React.memo(() => {
                </Animated.View>
             </>
          ) : (
-            // Maximized: Use SafeAreaView for full player
-            <SafeAreaView edges={[]} style={styles.safeArea}>
-               {/* Full Player View */}
+            <View style={styles.playerSheet}>
                <Animated.View
-                  style={[styles.playerContainer, fullPlayerAnimatedStyle, dragAnimatedStyle]}
+                  style={[
+                     styles.playerContainer,
+                     fullPlayerAnimatedStyle,
+                     dragAnimatedStyle,
+                     { paddingBottom: spacing.lg + insets.bottom },
+                  ]}
                   {...panResponder.panHandlers}
                >
                   {/* Drag Handler Indicator */}
@@ -1054,7 +1057,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
                      )}
                   </View>
                </Animated.View>
-            </SafeAreaView>
+            </View>
          )}
       </Animated.View>
    );
@@ -1078,12 +1081,12 @@ const styles = StyleSheet.create({
       // When minimized: floating PiP window in bottom-right (left not set, right set inline)
       // When maximized: full width above tab bar (left: 0, right: 0 set inline)
       // Note: left is not set in base style so it can be undefined when minimized
-      backgroundColor: colors.background.darkGray,
+      backgroundColor: 'transparent',
       // zIndex and elevation set conditionally based on minimized state
-      overflow: 'hidden', // Prevent content overflow during animations
+      overflow: 'visible',
    },
-   safeArea: {
-      flex: 1,
+   playerSheet: {
+      alignSelf: 'stretch',
    },
    hiddenVideo: {
       width: 0,
@@ -1092,8 +1095,10 @@ const styles = StyleSheet.create({
    },
    playerContainer: {
       padding: spacing.lg,
+      backgroundColor: colors.background.darkGray,
       borderTopLeftRadius: borderRadius.xl,
       borderTopRightRadius: borderRadius.xl,
+      overflow: 'hidden',
       ...Platform.select({
          ios: {
             shadowColor: '#000',
