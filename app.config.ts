@@ -28,6 +28,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       package: 'com.audiobook.mobile',
       jsEngine: 'hermes',
       googleServicesFile: process.env.EXPO_PUBLIC_GOOGLE_SERVICES_ANDROID || undefined,
+      permissions: [
+         'android.permission.POST_NOTIFICATIONS',
+         'android.permission.FOREGROUND_SERVICE',
+         'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+         'android.permission.WAKE_LOCK',
+      ],
    },
    web: {
       bundler: 'metro',
@@ -51,7 +57,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
          },
       ],
    ],
-   scheme: 'audiobook',
+   scheme: ['audiobook', 'trackplayer'],
    newArchEnabled: true,
    experiments: {
       typedRoutes: true,

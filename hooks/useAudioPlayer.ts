@@ -34,6 +34,9 @@ import {
    setupTrackPlayerOnce,
    updateTrackPlayerOptions,
 } from '@/hooks/useTrackPlayerSetup';
+import { registerChapterReload } from '@/services/playbackReload';
+import { ensureMediaNotificationPermission } from '@/utils/ensureMediaNotificationPermission';
+import { Platform } from 'react-native';
 
 const LOAD_TIMEOUT_MS = 30_000;
 
@@ -99,6 +102,7 @@ export function useAudioPlayer() {
       const state = store.getState().player;
       const resumePosition = state.playbackPosition;
       const skipDurationSeconds = store.getState().settings.skipDurationSeconds;
+      const audiobookId = state.audiobookId;
 
       clearLoadTimeout();
       dispatch(setLoading(true));
@@ -114,6 +118,9 @@ export function useAudioPlayer() {
       }, LOAD_TIMEOUT_MS);
 
       try {
+         if (Platform.OS === 'android') {
+            await ensureMediaNotificationPermission();
+         }
          await setupTrackPlayerOnce();
          await updateTrackPlayerOptions(skipDurationSeconds);
 
@@ -143,6 +150,8 @@ export function useAudioPlayer() {
             type: TrackType.HLS,
             title: chapterMetadata.title || 'Unknown Chapter',
             artist: 'AudioBook',
+            // `album` stores audiobook id for notification tap navigation
+            album: audiobookId ?? undefined,
             artwork: buildArtworkUrl(chapterMetadata.coverImage),
             headers: {
                Authorization: `Bearer ${accessToken}`,
@@ -236,6 +245,19 @@ export function useAudioPlayer() {
                   ? (event as { state: State }).state
                   : (event as State);
 
+            // Keep Redux in sync when play/pause comes from notification or lock screen
+            const playerSnapshot = store.getState().player;
+            if (playerSnapshot.currentChapterId) {
+               if (playbackState === State.Playing && !playerSnapshot.isPlaying) {
+                  dispatch(play());
+               } else if (
+                  (playbackState === State.Paused || playbackState === State.Stopped) &&
+                  playerSnapshot.isPlaying
+               ) {
+                  dispatch(pause());
+               }
+            }
+
             if (
                playbackState === State.Ready ||
                playbackState === State.Playing ||
@@ -297,7 +319,11 @@ export function useAudioPlayer() {
          }
 
          try {
-            const { position, duration } = await TrackPlayer.getProgress();
+            const [{ position, duration }, playbackState] = await Promise.all([
+               TrackPlayer.getProgress(),
+               TrackPlayer.getPlaybackState(),
+            ]);
+
             if (
                !mounted ||
                lastLoadedChapterRef.current !== currentChapterId ||
@@ -305,6 +331,17 @@ export function useAudioPlayer() {
                getIsDragging()
             ) {
                return;
+            }
+
+            const reduxPlayer = store.getState().player;
+            if (playbackState.state === State.Playing && !reduxPlayer.isPlaying) {
+               dispatch(play());
+            } else if (
+               (playbackState.state === State.Paused ||
+                  playbackState.state === State.Stopped) &&
+               reduxPlayer.isPlaying
+            ) {
+               dispatch(pause());
             }
 
             dispatch(setPosition(position));
@@ -456,6 +493,16 @@ export function useAudioPlayer() {
       }
    }, [clearLoadTimeout]);
 
+   const reloadChapter = useCallback(() => {
+      lastLoadedChapterRef.current = null;
+      void loadChapter();
+   }, [loadChapter]);
+
+   useEffect(() => {
+      registerChapterReload(reloadChapter);
+      return () => registerChapterReload(null);
+   }, [reloadChapter]);
+
    useEffect(() => {
       registerTrackPlayerHandlers({
          seekToTime: (seconds) => {
@@ -464,9 +511,22 @@ export function useAudioPlayer() {
          seekBy: handleSeek,
          skipToNextChapter,
          skipToPreviousChapter,
+         playPlayback: () => {
+            void playPlayback();
+         },
+         pausePlayback: () => {
+            void pausePlayback();
+         },
       });
       return () => registerTrackPlayerHandlers(null);
-   }, [seekToTime, handleSeek, skipToNextChapter, skipToPreviousChapter]);
+   }, [
+      seekToTime,
+      handleSeek,
+      skipToNextChapter,
+      skipToPreviousChapter,
+      playPlayback,
+      pausePlayback,
+   ]);
 
    useEffect(() => {
       if (!currentChapterId) {

@@ -1,16 +1,16 @@
 /**
- * Patches react-native-track-player MusicModule.kt for:
- * 1. TurboModule (New Arch): @ReactMethod must not return Job from `= scope.launch`
- * 2. Kotlin null-safety for Bundle? on RN 0.81
+ * Patches react-native-track-player for New Architecture (RN 0.81 / Expo 54):
+ * 1. MusicModule.kt — TurboModule @ReactMethod must not return Job
+ * 2. MusicModule.kt — Kotlin null-safety for Bundle?
+ * 3. MusicService.kt — emit() uses HeadlessJsTaskService.reactContext (bridgeless)
  */
 const fs = require('fs');
 const path = require('path');
 
+const rntpRoot = path.join(__dirname, '..', 'node_modules', 'react-native-track-player');
+
 const modulePath = path.join(
-  __dirname,
-  '..',
-  'node_modules',
-  'react-native-track-player',
+  rntpRoot,
   'android',
   'src',
   'main',
@@ -20,6 +20,19 @@ const modulePath = path.join(
   'trackplayer',
   'module',
   'MusicModule.kt'
+);
+
+const musicServicePath = path.join(
+  rntpRoot,
+  'android',
+  'src',
+  'main',
+  'java',
+  'com',
+  'doublesymmetry',
+  'trackplayer',
+  'service',
+  'MusicService.kt'
 );
 
 let lines = fs.readFileSync(modulePath, 'utf8').split('\n');
@@ -108,3 +121,30 @@ content = content.replace(
 
 fs.writeFileSync(modulePath, content);
 console.log('Patched', modulePath);
+
+let musicService = fs.readFileSync(musicServicePath, 'utf8');
+const legacyEmit =
+  'reactNativeHost.reactInstanceManager.currentReactContext\n            ?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)';
+const bridgelessEmit =
+  'reactContext\n            ?.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)';
+
+if (musicService.includes(legacyEmit)) {
+  musicService = musicService.split(legacyEmit).join(bridgelessEmit);
+  fs.writeFileSync(musicServicePath, musicService);
+  console.log('Patched', musicServicePath, '(bridgeless emit)');
+} else if (musicService.includes(bridgelessEmit)) {
+  console.log('Already patched', musicServicePath);
+} else {
+  console.warn('MusicService.kt emit pattern not found — manual patch may be required');
+}
+
+const notificationIntentLegacy =
+  'flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP';
+const notificationIntentResume =
+  'flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT';
+
+if (musicService.includes(notificationIntentLegacy)) {
+  musicService = musicService.split(notificationIntentLegacy).join(notificationIntentResume);
+  fs.writeFileSync(musicServicePath, musicService);
+  console.log('Patched', musicServicePath, '(notification intent flags)');
+}

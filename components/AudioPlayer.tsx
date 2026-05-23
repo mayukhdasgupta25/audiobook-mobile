@@ -29,7 +29,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store';
 import { setVisible, setMinimized } from '@/store/player';
-import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { useAudioPlayerControls } from '@/contexts/AudioPlaybackContext';
 import { usePlaybackSync } from '@/hooks/usePlaybackSync';
 import { syncPlayback, initializePlaybackSession } from '@/services/audiobooks';
 import { colors, spacing, typography, borderRadius } from '@/theme';
@@ -100,7 +100,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
       skipToNextChapter,
       skipToPreviousChapter,
       setDragging,
-   } = useAudioPlayer();
+   } = useAudioPlayerControls();
 
    // Use playback sync hook to automatically sync every 5 seconds during playback
    // Only sync when player is visible (active)

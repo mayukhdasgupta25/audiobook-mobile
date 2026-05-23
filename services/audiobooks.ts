@@ -171,6 +171,29 @@ export interface ChaptersResponse {
 }
 
 /**
+ * Chapter listening progress from GET /chapters/:chapterId/progress
+ */
+export interface ChapterProgress {
+   id: string;
+   userProfileId: string;
+   chapterId: string;
+   currentPosition: number;
+   completed: boolean;
+   lastListenedAt: string;
+   createdAt: string;
+   updatedAt: string;
+}
+
+export interface ChapterProgressResponse {
+   success: boolean;
+   data: ChapterProgress;
+   message: string;
+   statusCode: number;
+   timestamp: string;
+   path: string;
+}
+
+/**
  * Single audiobook API response interface
  */
 export interface AudiobookResponse {
@@ -397,6 +420,36 @@ export async function getAudiobookById(
       }
       throw new Error(
          `Failed to fetch audiobook: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Get saved playback progress for a chapter.
+ * GET /api/v1/chapters/:chapterId/progress
+ */
+export async function getChapterProgress(
+   chapterId: string
+): Promise<ChapterProgress | null> {
+   try {
+      const response = await get<ChapterProgressResponse>(
+         `${API_V1_PATH}/chapters/${chapterId}/progress`,
+         true
+      );
+      return response.data.data;
+   } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+         return null;
+      }
+      console.warn('[Audiobooks Service] Get chapter progress error', {
+         error,
+         chapterId,
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Failed to fetch chapter progress: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
    }
 }

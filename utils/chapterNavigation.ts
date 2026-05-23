@@ -3,8 +3,10 @@
  */
 
 import type { AppDispatch } from '@/store';
-import { setChapter, play, stop } from '@/store/player';
+import { stop } from '@/store/player';
 import { getChapters, syncPlayback, type Chapter } from '@/services/audiobooks';
+import { openChapterForPlayback } from '@/utils/openChapterForPlayback';
+import { requestChapterReload } from '@/services/playbackReload';
 
 export async function fetchAllChapters(audiobookId: string): Promise<Chapter[]> {
    let allChapters: Chapter[] = [];
@@ -45,21 +47,12 @@ export async function switchToChapter(
    chapter: Chapter,
    options?: { onChapterSwitched?: (chapterId: string) => void }
 ): Promise<void> {
-   dispatch(
-      setChapter({
-         chapterId: chapter.id,
-         metadata: {
-            id: chapter.id,
-            title: chapter.title,
-            coverImage: chapter.coverImage,
-            maximizedChapterCoverImage: chapter.maximizedChapterCoverImage || null,
-            minimizedChapterCoverImage: chapter.minimizedChapterCoverImage || null,
-         },
-         audiobookId: chapter.audiobookId,
-         resumePosition: 0,
-      })
-   );
-   dispatch(play());
+   await openChapterForPlayback({
+      chapter,
+      dispatch,
+      autoPlay: true,
+   });
+   requestChapterReload();
    options?.onChapterSwitched?.(chapter.id);
 }
 

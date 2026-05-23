@@ -4,17 +4,38 @@
 
 import { useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
-import TrackPlayer, { Capability } from 'react-native-track-player';
+import TrackPlayer, {
+   AppKilledPlaybackBehavior,
+   Capability,
+} from 'react-native-track-player';
+import { Platform } from 'react-native';
 import { RootState } from '@/store';
+import { ensureMediaNotificationPermission } from '@/utils/ensureMediaNotificationPermission';
+import { setupPlaybackServiceHandlers } from '@/services/playbackServiceHandlers';
 
 let setupPromise: Promise<void> | null = null;
 
 export async function setupTrackPlayerOnce(): Promise<void> {
    if (setupPromise) {
+      if (Platform.OS === 'android') {
+         setupPlaybackServiceHandlers();
+      }
       return setupPromise;
    }
 
-   setupPromise = TrackPlayer.setupPlayer().then(() => undefined);
+   setupPromise = (async () => {
+      if (Platform.OS === 'android') {
+         await ensureMediaNotificationPermission();
+      }
+      await TrackPlayer.setupPlayer({
+         autoUpdateMetadata: true,
+      });
+
+      // Android headless task does not receive DeviceEventEmitter; register in main JS.
+      if (Platform.OS === 'android') {
+         setupPlaybackServiceHandlers();
+      }
+   })();
    return setupPromise;
 }
 
@@ -30,15 +51,34 @@ export async function updateTrackPlayerOptions(skipDurationSeconds: number): Pro
          Capability.SkipToNext,
          Capability.SkipToPrevious,
       ],
+      // One Play entry maps to a single PLAY_PAUSE control (Play + Pause would duplicate it).
+      notificationCapabilities: [
+         Capability.Play,
+         Capability.SeekTo,
+         Capability.JumpForward,
+         Capability.JumpBackward,
+         Capability.SkipToNext,
+         Capability.SkipToPrevious,
+      ],
       compactCapabilities: [
          Capability.Play,
-         Capability.Pause,
          Capability.JumpForward,
          Capability.JumpBackward,
       ],
       forwardJumpInterval: skipDurationSeconds,
       backwardJumpInterval: skipDurationSeconds,
       progressUpdateEventInterval: 1,
+      android: {
+         appKilledPlaybackBehavior:
+            AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+         alwaysPauseOnInterruption: true,
+         stopForegroundGracePeriod: 5,
+      },
+      ...(Platform.OS === 'android'
+         ? {
+              color: 0xffe53935,
+           }
+         : {}),
    });
 }
 

@@ -30,6 +30,8 @@ export interface PlayerState {
    isMinimized: boolean; // Whether player is in minimized state
    chapterMetadata: ChapterMetadata | null; // Chapter title and cover for UI
    audiobookId: string | null; // Audiobook ID for fetching next chapter
+   /** Last in-app route while a chapter was loaded (for notification resume). */
+   playbackReturnPath: string | null;
 }
 
 /**
@@ -46,6 +48,7 @@ const initialState: PlayerState = {
    isMinimized: false,
    chapterMetadata: null,
    audiobookId: null,
+   playbackReturnPath: null,
 };
 
 /**
@@ -151,6 +154,9 @@ const playerSlice = createSlice({
       setMinimized: (state, action: PayloadAction<boolean>) => {
          state.isMinimized = action.payload;
       },
+      setPlaybackReturnPath: (state, action: PayloadAction<string | null>) => {
+         state.playbackReturnPath = action.payload;
+      },
    },
 });
 
@@ -166,6 +172,7 @@ export const {
    setError,
    setVisible,
    setMinimized,
+   setPlaybackReturnPath,
 } = playerSlice.actions;
 export default playerSlice.reducer;
 

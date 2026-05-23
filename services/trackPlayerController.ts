@@ -7,6 +7,8 @@ export interface TrackPlayerHandlers {
    seekBy: (seconds: number) => void;
    skipToNextChapter: () => Promise<void>;
    skipToPreviousChapter: () => Promise<void>;
+   playPlayback?: () => void | Promise<void>;
+   pausePlayback?: () => void | Promise<void>;
 }
 
 let handlers: TrackPlayerHandlers | null = null;
@@ -38,4 +40,12 @@ export async function skipToNextChapter(): Promise<void> {
 
 export async function skipToPreviousChapter(): Promise<void> {
    await handlers?.skipToPreviousChapter();
+}
+
+export function playPlayback(): void {
+   void handlers?.playPlayback?.();
+}
+
+export function pausePlayback(): void {
+   void handlers?.pausePlayback?.();
 }

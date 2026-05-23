@@ -21,6 +21,9 @@ interface ChapterListItemProps {
    chapter: Chapter;
    onPress: (chapter: Chapter) => void;
    isCurrentlyPlaying?: boolean;
+   /** Saved or live position in seconds */
+   progressSeconds?: number;
+   showResumeBadge?: boolean;
 }
 
 /**
@@ -28,7 +31,13 @@ interface ChapterListItemProps {
  * Displays a horizontal card with chapter cover, title, description, and duration
  */
 export const ChapterListItem: React.FC<ChapterListItemProps> = React.memo(
-   ({ chapter, onPress, isCurrentlyPlaying = false }) => {
+   ({
+      chapter,
+      onPress,
+      isCurrentlyPlaying = false,
+      progressSeconds = 0,
+      showResumeBadge = false,
+   }) => {
       // Build full image URL using chapterCardCoverImage, fallback to coverImage
       const imagePath = chapter.chapterCardCoverImage || chapter.coverImage;
       const imageUri = imagePath
@@ -36,6 +45,10 @@ export const ChapterListItem: React.FC<ChapterListItemProps> = React.memo(
          : undefined;
 
       const formattedDuration = formatDuration(chapter.duration);
+      const progressRatio =
+         chapter.duration > 0
+            ? Math.min(1, Math.max(0, progressSeconds / chapter.duration))
+            : 0;
 
       return (
          <TouchableOpacity
@@ -45,6 +58,12 @@ export const ChapterListItem: React.FC<ChapterListItemProps> = React.memo(
             accessibilityRole="button"
             accessibilityLabel={`${chapter.title} - ${formattedDuration}`}
          >
+            {showResumeBadge && (
+               <View style={styles.resumeBadge}>
+                  <Text style={styles.resumeBadgeText}>Resume</Text>
+               </View>
+            )}
+
             {/* Now Playing Badge - Top Right of Card */}
             {isCurrentlyPlaying && (
                <View style={styles.nowPlayingBadge}>
@@ -85,6 +104,14 @@ export const ChapterListItem: React.FC<ChapterListItemProps> = React.memo(
                   {formattedDuration}
                </Text>
             </View>
+
+            {progressRatio > 0 && (
+               <View style={styles.progressTrack} accessibilityElementsHidden>
+                  <View
+                     style={[styles.progressFill, { width: `${progressRatio * 100}%` }]}
+                  />
+               </View>
+            )}
          </TouchableOpacity>
       );
    }
@@ -110,6 +137,32 @@ const styles = StyleSheet.create({
       width: 80,
       height: 120,
       borderRadius: borderRadius.md,
+   },
+   resumeBadge: {
+      position: 'absolute',
+      top: spacing.sm,
+      left: spacing.sm,
+      backgroundColor: colors.background.darkGray,
+      borderWidth: 1,
+      borderColor: colors.app.red,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs / 2,
+      borderRadius: borderRadius.sm,
+      zIndex: 10,
+   },
+   resumeBadgeText: {
+      fontSize: typography.fontSize.xs,
+      color: colors.app.red,
+      fontWeight: '600',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
    },
    nowPlayingBadge: {
       position: 'absolute',
@@ -202,6 +255,18 @@ const styles = StyleSheet.create({
             fontFamily: 'sans-serif',
          },
       }),
+   },
+   progressTrack: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: 3,
+      backgroundColor: 'rgba(255, 255, 255, 0.12)',
+   },
+   progressFill: {
+      height: '100%',
+      backgroundColor: colors.app.red,
    },
 });
 
