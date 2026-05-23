@@ -1,7 +1,6 @@
 import Expo
 import React
 import ReactAppDependencyProvider
-import MediaPlayer
 import AVFoundation
 import UIKit
 
@@ -30,18 +29,13 @@ public class AppDelegate: ExpoAppDelegate {
       withModuleName: "main",
       in: window,
       launchOptions: launchOptions)
-    
-    // Configure audio session for background playback
+
     setupAudioSession()
-    
-    // Setup remote command center for lock screen controls
-    setupRemoteCommandCenter()
 #endif
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
-  
-  // Configure audio session for background playback
+
   private func setupAudioSession() {
     do {
       let audioSession = AVAudioSession.sharedInstance()
@@ -51,130 +45,7 @@ public class AppDelegate: ExpoAppDelegate {
       print("[AppDelegate] Failed to setup audio session: \(error)")
     }
   }
-  
-  // Setup remote command center for lock screen controls
-  private func setupRemoteCommandCenter() {
-    let commandCenter = MPRemoteCommandCenter.shared()
-    
-    // Enable play command
-    commandCenter.playCommand.isEnabled = true
-    commandCenter.playCommand.addTarget { [weak self] _ in
-      // Send play event to React Native
-      self?.sendRemoteCommandEvent("play")
-      return .success
-    }
-    
-    // Enable pause command
-    commandCenter.pauseCommand.isEnabled = true
-    commandCenter.pauseCommand.addTarget { [weak self] _ in
-      // Send pause event to React Native
-      self?.sendRemoteCommandEvent("pause")
-      return .success
-    }
-    
-    // Enable toggle play/pause command
-    commandCenter.togglePlayPauseCommand.isEnabled = true
-    commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
-      // Send toggle event to React Native
-      self?.sendRemoteCommandEvent("toggle")
-      return .success
-    }
-    
-    // Enable next track command (for chapter navigation)
-    commandCenter.nextTrackCommand.isEnabled = true
-    commandCenter.nextTrackCommand.addTarget { [weak self] _ in
-      // Send next event to React Native
-      self?.sendRemoteCommandEvent("next")
-      return .success
-    }
-    
-    // Enable previous track command (for chapter navigation)
-    commandCenter.previousTrackCommand.isEnabled = true
-    commandCenter.previousTrackCommand.addTarget { [weak self] _ in
-      // Send previous event to React Native
-      self?.sendRemoteCommandEvent("previous")
-      return .success
-    }
-    
-    // Enable seek forward command
-    commandCenter.skipForwardCommand.preferredIntervals = [10]
-    commandCenter.skipForwardCommand.isEnabled = true
-    commandCenter.skipForwardCommand.addTarget { [weak self] _ in
-      // Send seek forward event to React Native
-      self?.sendRemoteCommandEvent("seekForward", value: 10)
-      return .success
-    }
-    
-    // Enable seek backward command
-    commandCenter.skipBackwardCommand.preferredIntervals = [10]
-    commandCenter.skipBackwardCommand.isEnabled = true
-    commandCenter.skipBackwardCommand.addTarget { [weak self] _ in
-      // Send seek backward event to React Native
-      self?.sendRemoteCommandEvent("seekBackward", value: 10)
-      return .success
-    }
-  }
-  
-  // Send remote command event to React Native bridge
-  private func sendRemoteCommandEvent(_ command: String, value: Double? = nil) {
-    // Note: react-native-video handles most remote control events automatically
-    // This is a placeholder for custom handling if needed
-    // The Video component's onPlay/onPause callbacks will be triggered
-    print("[AppDelegate] Remote command: \(command), value: \(value ?? 0)")
-    
-    // For now, react-native-video will handle play/pause automatically
-    // If custom handling is needed, create a native module to bridge events
-  }
-  
-  // Update now playing info for lock screen - called from JavaScript
-  @objc func updateNowPlayingInfo(_ info: [String: Any]) {
-    var nowPlayingInfo = [String: Any]()
-    
-    // Set title
-    if let title = info["title"] as? String {
-      nowPlayingInfo[MPMediaItemPropertyTitle] = title
-    }
-    
-    // Set artist
-    if let artist = info["artist"] as? String {
-      nowPlayingInfo[MPMediaItemPropertyArtist] = artist
-    }
-    
-    // Set duration
-    if let duration = info["duration"] as? Double {
-      nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
-    }
-    
-    // Set elapsed time
-    if let elapsedTime = info["elapsedTime"] as? Double {
-      nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsedTime
-    }
-    
-    // Set playback rate
-    if let isPlaying = info["isPlaying"] as? Bool {
-      nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
-    }
-    
-    // Set artwork if provided
-    if let artworkUrl = info["artwork"] as? String, let url = URL(string: artworkUrl) {
-      // Load image asynchronously
-      URLSession.shared.dataTask(with: url) { data, _, _ in
-        if let data = data, let image = UIImage(data: data) {
-          let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
-          nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
-          MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
-        } else {
-          // Set info without artwork if image fails to load
-          MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
-        }
-      }.resume()
-    } else {
-      // Set info without artwork
-      MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
-    }
-  }
 
-  // Linking API
   public override func application(
     _ app: UIApplication,
     open url: URL,
@@ -183,7 +54,6 @@ public class AppDelegate: ExpoAppDelegate {
     return super.application(app, open: url, options: options) || RCTLinkingManager.application(app, open: url, options: options)
   }
 
-  // Universal Links
   public override func application(
     _ application: UIApplication,
     continue userActivity: NSUserActivity,
@@ -195,10 +65,7 @@ public class AppDelegate: ExpoAppDelegate {
 }
 
 class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
-  // Extension point for config-plugins
-
   override func sourceURL(for bridge: RCTBridge) -> URL? {
-    // needed to return the correct URL for expo-dev-client.
     bridge.bundleURL ?? bundleURL()
   }
 

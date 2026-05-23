@@ -24,7 +24,10 @@ import { ChapterListItem } from '@/components/ChapterListItem';
 import { formatDuration } from '@/utils/duration';
 import { apiConfig } from '@/services/api';
 import { useDispatch } from 'react-redux';
-import { setChapter, setTotalDuration, play } from '@/store/player';
+import { setTotalDuration, play } from '@/store/player';
+import { useChaptersProgress } from '@/hooks/useChaptersProgress';
+import { openChapterForPlayback } from '@/utils/openChapterForPlayback';
+import { requestChapterReload } from '@/services/playbackReload';
 
 export default function DetailsScreen() {
    const { id, autoPlay } = useLocalSearchParams<{ id: string; autoPlay?: string }>();
@@ -218,10 +221,22 @@ export default function DetailsScreen() {
    const isPlaying = useSelector(
       (state: RootState) => state.player.isPlaying
    );
+   const playbackPosition = useSelector(
+      (state: RootState) => state.player.playbackPosition
+   );
    const audiobookId = useSelector(
       (state: RootState) => state.player.audiobookId
    );
    const user = useSelector((state: RootState) => state.auth.user);
+
+   const chapterIds = useMemo(
+      () => allChapters.map((chapter) => chapter.id),
+      [allChapters]
+   );
+   const progressByChapterId = useChaptersProgress(
+      chapterIds,
+      shouldFetchChapters && allChapters.length > 0
+   );
 
    // Track last initialized chapter to prevent duplicate API calls
    const lastInitializedChapterRef = useRef<string | null>(null);
@@ -316,68 +331,50 @@ export default function DetailsScreen() {
 
    // Handle chapter press
    const handleChapterPress = useCallback(
-      (chapter: Chapter) => {
-         // Track that user clicked this chapter (for auto-play)
+      async (chapter: Chapter) => {
          clickedChapterIdRef.current = chapter.id;
 
-         // Set current chapter with metadata and audiobookId
-         dispatch(
-            setChapter({
-               chapterId: chapter.id,
-               metadata: {
-                  id: chapter.id,
-                  title: chapter.title,
-                  coverImage: chapter.coverImage,
-                  maximizedChapterCoverImage: chapter.maximizedChapterCoverImage || null,
-                  minimizedChapterCoverImage: chapter.minimizedChapterCoverImage || null,
-               },
-               audiobookId: chapter.audiobookId,
-            })
-         );
-
-         // Get playlist data from Redux (might not be loaded yet)
          const playlistData = playlistsByChapterId[chapter.id];
+         const totalDurationSeconds = playlistData
+            ? playlistData.playlist.segments.reduce(
+                 (sum: number, segment: { duration: number }) => sum + segment.duration,
+                 0
+              )
+            : undefined;
 
-         if (playlistData) {
-            // Calculate total duration from segments
-            const totalDuration = playlistData.playlist.segments.reduce(
-               (sum: number, segment: { duration: number }) => sum + segment.duration,
-               0
-            );
-            dispatch(setTotalDuration(totalDuration));
-            // Start playback automatically when user clicks on chapter
-            dispatch(play());
+         await openChapterForPlayback({
+            chapter,
+            dispatch,
+            totalDurationSeconds,
+            autoPlay: !!playlistData,
+         });
 
-            // Initialize playback session when playback starts
-            if (
-               user?.id &&
-               chapter.audiobookId &&
-               chapter.id &&
-               lastInitializedChapterRef.current !== chapter.id
-            ) {
-               lastInitializedChapterRef.current = chapter.id;
-               initializePlaybackSession({
-                  userId: user.id,
-                  audiobookId: chapter.audiobookId,
-                  chapterId: chapter.id,
-               }).catch((error: unknown) => {
-                  // Log error but don't block playback
-                  console.error('[Details Screen] Failed to initialize playback session:', error);
-               });
-            }
+         requestChapterReload();
 
-            // Note: Initial sync on play is handled by usePlaybackSync hook (1 second delay)
-            // No need to sync immediately here
-         } else {
-            // Playlist will be fetched by useStreamingPlaylist hook
-            // Playback will start automatically when playlist loads
+         if (
+            user?.id &&
+            chapter.audiobookId &&
+            chapter.id &&
+            lastInitializedChapterRef.current !== chapter.id
+         ) {
+            lastInitializedChapterRef.current = chapter.id;
+            initializePlaybackSession({
+               userId: user.id,
+               audiobookId: chapter.audiobookId,
+               chapterId: chapter.id,
+            }).catch((error: unknown) => {
+               console.error('[Details Screen] Failed to initialize playback session:', error);
+            });
+         }
+
+         if (!playlistData) {
             console.log(
                '[Details Screen] Playlist not loaded yet, will fetch for chapter:',
                chapter.id
             );
          }
       },
-      [dispatch, playlistsByChapterId]
+      [dispatch, playlistsByChapterId, user?.id]
    );
 
    // Track if auto-play has been triggered to prevent multiple triggers
@@ -465,18 +462,39 @@ export default function DetailsScreen() {
 
    // Render chapter item
    const renderChapterItem = useCallback(
-      ({ item }: { item: Chapter }) => (
-         <ChapterListItem
-            chapter={item}
-            onPress={handleChapterPress}
-            isCurrentlyPlaying={
-               isPlayerVisible &&
-               item.id === currentPlayingChapterId &&
-               isPlaying
-            }
-         />
-      ),
-      [handleChapterPress, currentPlayingChapterId, isPlaying, isPlayerVisible]
+      ({ item }: { item: Chapter }) => {
+         const isActiveChapter = item.id === currentPlayingChapterId;
+         const useLiveProgress =
+            isActiveChapter && (isPlaying || isPlayerVisible);
+         const apiProgress = progressByChapterId[item.id] ?? 0;
+         const progressSeconds = useLiveProgress ? playbackPosition : apiProgress;
+         const showResume =
+            progressSeconds > 0 && !(isActiveChapter && isPlaying);
+
+         return (
+            <ChapterListItem
+               chapter={item}
+               onPress={(chapter) => {
+                  void handleChapterPress(chapter);
+               }}
+               isCurrentlyPlaying={
+                  isPlayerVisible &&
+                  item.id === currentPlayingChapterId &&
+                  isPlaying
+               }
+               progressSeconds={progressSeconds}
+               showResumeBadge={showResume}
+            />
+         );
+      },
+      [
+         handleChapterPress,
+         currentPlayingChapterId,
+         isPlaying,
+         isPlayerVisible,
+         playbackPosition,
+         progressByChapterId,
+      ]
    );
 
    // Render footer with loading indicator

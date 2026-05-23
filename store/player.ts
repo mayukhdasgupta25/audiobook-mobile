@@ -30,6 +30,8 @@ export interface PlayerState {
    isMinimized: boolean; // Whether player is in minimized state
    chapterMetadata: ChapterMetadata | null; // Chapter title and cover for UI
    audiobookId: string | null; // Audiobook ID for fetching next chapter
+   /** Last in-app route while a chapter was loaded (for notification resume). */
+   playbackReturnPath: string | null;
 }
 
 /**
@@ -46,6 +48,7 @@ const initialState: PlayerState = {
    isMinimized: false,
    chapterMetadata: null,
    audiobookId: null,
+   playbackReturnPath: null,
 };
 
 /**
@@ -60,10 +63,15 @@ const playerSlice = createSlice({
        */
       setChapter: (
          state,
-         action: PayloadAction<{ chapterId: string; metadata: ChapterMetadata; audiobookId?: string }>
+         action: PayloadAction<{
+            chapterId: string;
+            metadata: ChapterMetadata;
+            audiobookId?: string;
+            resumePosition?: number;
+         }>
       ) => {
          state.currentChapterId = action.payload.chapterId;
-         state.playbackPosition = 0;
+         state.playbackPosition = Math.max(0, action.payload.resumePosition ?? 0);
          state.isVisible = true;
          state.error = null;
          state.chapterMetadata = action.payload.metadata;
@@ -72,11 +80,15 @@ const playerSlice = createSlice({
          }
       },
       /**
-       * Start or resume playback
+       * Start or resume playback. Re-opens player when a chapter is already loaded.
        */
       play: (state) => {
          state.isPlaying = true;
          state.error = null;
+         if (state.currentChapterId) {
+            state.isVisible = true;
+            state.isMinimized = false;
+         }
       },
       /**
        * Pause playback
@@ -142,6 +154,9 @@ const playerSlice = createSlice({
       setMinimized: (state, action: PayloadAction<boolean>) => {
          state.isMinimized = action.payload;
       },
+      setPlaybackReturnPath: (state, action: PayloadAction<string | null>) => {
+         state.playbackReturnPath = action.payload;
+      },
    },
 });
 
@@ -157,6 +172,7 @@ export const {
    setError,
    setVisible,
    setMinimized,
+   setPlaybackReturnPath,
 } = playerSlice.actions;
 export default playerSlice.reducer;
 

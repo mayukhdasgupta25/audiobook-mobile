@@ -1,13 +1,11 @@
 /**
- * Audio Player Hook
- * Manages audio playback using react-native-video with native HLS streaming
+ * Audio Player Hook — HLS playback via react-native-track-player.
  */
 
-import { useRef, useCallback, useMemo } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { OnProgressData, OnLoadData } from 'react-native-video';
-import type { VideoRef } from 'react-native-video';
-import { RootState } from '@/store';
+import TrackPlayer, { Event, State, TrackType } from 'react-native-track-player';
+import { RootState, store } from '@/store';
 import {
    stop,
    setPosition,
@@ -15,382 +13,537 @@ import {
    setLoading,
    setError,
    seek,
+   play,
+   pause,
 } from '@/store/player';
-import { getChapters, type Chapter, initializePlaybackSession, syncPlayback } from '@/services/audiobooks';
-import { setChapter, play } from '@/store/player';
-import { STREAMING_API_BASE_URL, API_V1_STREAM_PATH } from '@/services/api';
+import { setPlaylist } from '@/store/streaming';
+import { initializePlaybackSession, syncPlayback } from '@/services/audiobooks';
+import { apiConfig } from '@/services/api';
+import {
+   advanceToNextChapter,
+   skipToNextChapterRemote,
+   skipToPreviousChapterRemote,
+} from '@/utils/chapterNavigation';
+import { resolveChapterPlaybackSource } from '@/utils/chapterStreamUrl';
+import {
+   registerTrackPlayerHandlers,
+   setTrackPlayerDragging,
+   getIsDragging,
+} from '@/services/trackPlayerController';
+import {
+   setupTrackPlayerOnce,
+   updateTrackPlayerOptions,
+} from '@/hooks/useTrackPlayerSetup';
+import { registerChapterReload } from '@/services/playbackReload';
+import { ensureMediaNotificationPermission } from '@/utils/ensureMediaNotificationPermission';
+import { Platform } from 'react-native';
+
+const LOAD_TIMEOUT_MS = 30_000;
+
+function buildArtworkUrl(coverImage: string | null): string | undefined {
+   if (!coverImage) {
+      return undefined;
+   }
+   return `${apiConfig.baseURL}${coverImage}`;
+}
 
 /**
- * Hook to manage audio playback for chapters
- * Uses native HLS streaming via react-native-video
+ * Hook to manage audiobook chapter playback.
  */
 export function useAudioPlayer() {
    const dispatch = useDispatch();
-   const videoRef = useRef<VideoRef>(null);
-   // Track if user is dragging to prevent progress updates from interfering
    const isDraggingRef = useRef(false);
+   const lastLoadedChapterRef = useRef<string | null>(null);
+   const lastInitializedChapterRef = useRef<string | null>(null);
+   const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-   // Get player state from Redux
-   const {
-      isPlaying,
-      currentChapterId,
-   } = useSelector((state: RootState) => state.player);
-
-   // Get access token and user from Redux
+   const { isPlaying, currentChapterId, chapterMetadata, playbackPosition } = useSelector(
+      (state: RootState) => state.player
+   );
    const accessToken = useSelector((state: RootState) => state.auth.accessToken);
    const user = useSelector((state: RootState) => state.auth.user);
 
-   // Track last initialized chapter to prevent duplicate API calls
-   const lastInitializedChapterRef = useRef<string | null>(null);
-
-   // Construct playlist URL for current chapter
-   // Both Android and iOS use master.m3u8
-   const masterPlaylistUri = useMemo(() => {
-      if (!currentChapterId) {
-         return null;
+   const clearLoadTimeout = useCallback(() => {
+      if (loadTimeoutRef.current) {
+         clearTimeout(loadTimeoutRef.current);
+         loadTimeoutRef.current = null;
       }
-      const endpoint = `${API_V1_STREAM_PATH}/chapters/${currentChapterId}/master.m3u8`;
-      return `${STREAMING_API_BASE_URL}${endpoint}`;
-   }, [currentChapterId]);
+   }, []);
 
-   // Construct headers with Bearer token for HLS requests
-   const headers = useMemo(() => {
-      if (!accessToken) {
-         return undefined;
-      }
-      return {
-         Authorization: `Bearer ${accessToken}`,
-      };
-   }, [accessToken]);
-
-   /**
-    * Handle playback progress
-    * Skip updates while user is dragging to prevent conflicts
-    */
-   const handleProgress = useCallback(
-      (data: OnProgressData) => {
-         // Don't update position while user is dragging - prevents tug-of-war
-         if (isDraggingRef.current) {
-            return;
-         }
-         // currentTime is absolute position from start of chapter
-         dispatch(setPosition(data.currentTime));
-      },
-      [dispatch]
-   );
-
-   /**
-    * Handle chapter end - auto-advance to next chapter if available
-    */
-   const handleEnd = useCallback(async () => {
-      // Get fresh values from Redux to avoid stale closures
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      const { store } = require('@/store');
-      const state = store.getState();
-      const freshChapterId = state.player.currentChapterId;
-      const freshAudiobookId = state.player.audiobookId;
-
-      // Reached end of chapter - try to auto-advance to next chapter
-      if (freshAudiobookId) {
-         try {
-            // Fetch all chapters for the audiobook
-            let allChapters: Chapter[] = [];
-            let page = 1;
-            let hasNextPage = true;
-
-            while (hasNextPage) {
-               const response = await getChapters(freshAudiobookId, page);
-               allChapters.push(...response.data);
-
-               if (response.pagination) {
-                  hasNextPage = response.pagination.hasNextPage;
-                  page++;
-               } else {
-                  hasNextPage = false;
-               }
-
-               // If we found the current chapter and next chapter, we can stop fetching
-               const currentChapter = allChapters.find((c) => c.id === freshChapterId);
-               if (currentChapter) {
-                  const nextChapter = allChapters.find(
-                     (c) => c.chapterNumber === currentChapter.chapterNumber + 1
-                  );
-                  if (nextChapter) {
-                     // Found next chapter, stop fetching
-                     hasNextPage = false;
-                  }
-               }
-            }
-
-            // Sort chapters by chapterNumber to ensure correct order
-            allChapters.sort((a, b) => a.chapterNumber - b.chapterNumber);
-
-            // Find current chapter
-            const currentChapter = allChapters.find((c) => c.id === freshChapterId);
-
-            if (currentChapter) {
-               // Find next chapter by chapterNumber
-               const nextChapter = allChapters.find(
-                  (c) => c.chapterNumber === currentChapter.chapterNumber + 1
-               );
-
-               if (nextChapter) {
-                  console.log('[Audio Player] Auto-advancing to next chapter', {
-                     currentChapter: currentChapter.title,
-                     nextChapter: nextChapter.title,
-                  });
-
-                  // Switch to next chapter - react-native-video will handle loading the new master.m3u8
-                  dispatch(
-                     setChapter({
-                        chapterId: nextChapter.id,
-                        metadata: {
-                           id: nextChapter.id,
-                           title: nextChapter.title,
-                           coverImage: nextChapter.coverImage,
-                           maximizedChapterCoverImage: nextChapter.maximizedChapterCoverImage || null,
-                           minimizedChapterCoverImage: nextChapter.minimizedChapterCoverImage || null,
-                        },
-                        audiobookId: nextChapter.audiobookId,
-                     })
-                  );
-
-                  // Continue playback - duration will be set from onLoad callback
-                  dispatch(play());
-
-                  // Note: Initial sync on play is handled by usePlaybackSync hook (1 second delay)
-                  // No need to sync immediately here
-
-                  // Initialize playback session for the new chapter
-                  if (
-                     user?.id &&
-                     nextChapter.audiobookId &&
-                     nextChapter.id &&
-                     lastInitializedChapterRef.current !== nextChapter.id
-                  ) {
-                     lastInitializedChapterRef.current = nextChapter.id;
-                     initializePlaybackSession({
-                        userId: user.id,
-                        audiobookId: nextChapter.audiobookId,
-                        chapterId: nextChapter.id,
-                     }).catch((error: unknown) => {
-                        // Log error but don't block playback
-                        console.error('[Audio Player] Failed to initialize playback session:', error);
-                     });
-                  }
-               } else {
-                  // No next chapter, stop playback
-                  console.log('[Audio Player] Reached end of audiobook');
-
-                  // Sync final position before stopping (only if player is active)
-                  const freshIsVisible = state.player.isVisible;
-                  if (freshIsVisible && freshAudiobookId && freshChapterId) {
-                     syncPlayback({
-                        audiobookId: freshAudiobookId,
-                        chapterId: freshChapterId,
-                        action: 'pause',
-                        position: state.player.totalDuration, // Final position at end
-                     }).catch((error: unknown) => {
-                        console.error('[Audio Player] Failed to sync playback at end:', error);
-                     });
-                  }
-
-                  dispatch(stop());
-               }
-            } else {
-               // Could not find current chapter, stop playback
-               console.warn('[Audio Player] Could not find current chapter in list');
-
-               // Sync final position before stopping (only if player is active)
-               const freshIsVisible = state.player.isVisible;
-               if (freshIsVisible && freshAudiobookId && freshChapterId) {
-                  syncPlayback({
-                     audiobookId: freshAudiobookId,
-                     chapterId: freshChapterId,
-                     action: 'pause',
-                     position: state.player.totalDuration, // Final position at end
-                  }).catch((error: unknown) => {
-                     console.error('[Audio Player] Failed to sync playback at end:', error);
-                  });
-               }
-
-               dispatch(stop());
-            }
-         } catch (error) {
-            console.error('[Audio Player] Error auto-advancing to next chapter:', error);
-
-            // Sync final position before stopping on error (only if player is active)
-            const freshIsVisible = state.player.isVisible;
-            if (freshIsVisible && freshAudiobookId && freshChapterId) {
-               syncPlayback({
-                  audiobookId: freshAudiobookId,
-                  chapterId: freshChapterId,
-                  action: 'pause',
-                  position: state.player.totalDuration, // Final position at end
-               }).catch((syncError: unknown) => {
-                  console.error('[Audio Player] Failed to sync playback at end:', syncError);
+   const onChapterSwitched = useCallback(
+      (chapterId: string) => {
+         if (user?.id && lastInitializedChapterRef.current !== chapterId) {
+            const state = store.getState().player;
+            const bookId = state.audiobookId;
+            if (bookId) {
+               lastInitializedChapterRef.current = chapterId;
+               initializePlaybackSession({
+                  userId: user.id,
+                  audiobookId: bookId,
+                  chapterId,
+               }).catch((error: unknown) => {
+                  console.error('[Audio Player] Failed to initialize playback session:', error);
                });
             }
-
-            // On error, stop playback
-            dispatch(stop());
          }
-      } else {
-         // No audiobookId available, stop playback
-         console.log('[Audio Player] No audiobookId available for auto-advance');
-         dispatch(stop());
+      },
+      [user?.id]
+   );
+
+   const loadChapter = useCallback(async () => {
+      if (!currentChapterId || !chapterMetadata || !accessToken || !user?.id) {
+         return;
       }
-   }, [dispatch]);
 
-   /**
-    * Handle load data - get total duration from video metadata
-    */
-   const handleLoad = useCallback(
-      (data: OnLoadData) => {
-         // Set total duration from video metadata
-         if (data.duration) {
-            dispatch(setTotalDuration(data.duration));
+      if (lastLoadedChapterRef.current === currentChapterId) {
+         return;
+      }
+
+      const state = store.getState().player;
+      const resumePosition = state.playbackPosition;
+      const skipDurationSeconds = store.getState().settings.skipDurationSeconds;
+      const audiobookId = state.audiobookId;
+
+      clearLoadTimeout();
+      dispatch(setLoading(true));
+      dispatch(setError(null));
+
+      loadTimeoutRef.current = setTimeout(() => {
+         const playerState = store.getState().player;
+         if (playerState.isLoading && playerState.currentChapterId === currentChapterId) {
+            console.warn('[Audio Player] Load timed out');
+            dispatch(setError('Audio took too long to load. Check your connection and try again.'));
+            dispatch(setLoading(false));
          }
+      }, LOAD_TIMEOUT_MS);
+
+      try {
+         if (Platform.OS === 'android') {
+            await ensureMediaNotificationPermission();
+         }
+         await setupTrackPlayerOnce();
+         await updateTrackPlayerOptions(skipDurationSeconds);
+
+         const playbackSource = await resolveChapterPlaybackSource(
+            currentChapterId,
+            user.id
+         );
+
+         if (!store.getState().streaming.playlistsByChapterId[currentChapterId]) {
+            dispatch(
+               setPlaylist({
+                  chapterId: currentChapterId,
+                  playlistData: playbackSource.playlistData,
+               })
+            );
+         }
+
+         if (playbackSource.totalDurationSeconds > 0) {
+            dispatch(setTotalDuration(playbackSource.totalDurationSeconds));
+         }
+
+         await TrackPlayer.reset();
+
+         await TrackPlayer.add({
+            id: currentChapterId,
+            url: playbackSource.url,
+            type: TrackType.HLS,
+            title: chapterMetadata.title || 'Unknown Chapter',
+            artist: 'AudioBook',
+            // `album` stores audiobook id for notification tap navigation
+            album: audiobookId ?? undefined,
+            artwork: buildArtworkUrl(chapterMetadata.coverImage),
+            headers: {
+               Authorization: `Bearer ${accessToken}`,
+            },
+         });
+
+         // Re-apply options after reset so progress events stay enabled on Android
+         await updateTrackPlayerOptions(skipDurationSeconds);
+
+         lastLoadedChapterRef.current = currentChapterId;
+
+         if (resumePosition > 0) {
+            await TrackPlayer.seekTo(resumePosition);
+         }
+
+         if (state.isPlaying) {
+            await TrackPlayer.play();
+         }
+
          dispatch(setLoading(false));
-      },
-      [dispatch]
-   );
-
-   /**
-    * Handle error
-    */
-   const handleError = useCallback(
-      (e: {
-         error: {
-            errorString?: string;
-            errorException?: string;
-            errorCode?: string | number;
-            error?: string;
-         };
-      }) => {
-         console.error('[Audio Player] Playback error:', e);
-         const errorMessage =
-            e.error?.errorString ||
-            e.error?.errorException ||
-            e.error?.error ||
-            (e.error?.errorCode ? String(e.error.errorCode) : undefined) ||
-            'Playback error occurred';
-         dispatch(setError(errorMessage));
+         clearLoadTimeout();
+      } catch (error: unknown) {
+         console.error('[Audio Player] Failed to load chapter:', error);
+         dispatch(
+            setError(
+               error instanceof Error ? error.message : 'Failed to load audio'
+            )
+         );
          dispatch(setLoading(false));
-      },
-      [dispatch]
-   );
+         clearLoadTimeout();
+      }
+   }, [
+      currentChapterId,
+      chapterMetadata,
+      accessToken,
+      user?.id,
+      dispatch,
+      clearLoadTimeout,
+   ]);
 
+   useEffect(() => {
+      lastLoadedChapterRef.current = null;
+   }, [currentChapterId]);
 
-   /**
-    * Seek to absolute time position (in seconds from start of chapter)
-    */
+   // Register listeners before load/play so early events are not missed
+   useEffect(() => {
+      const subs = [
+         TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (event) => {
+            if (isDraggingRef.current || getIsDragging()) {
+               return;
+            }
+            dispatch(setPosition(event.position));
+            if (event.duration > 0) {
+               dispatch(setTotalDuration(event.duration));
+            }
+            dispatch(setLoading(false));
+            clearLoadTimeout();
+         }),
+
+         TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
+            const state = store.getState().player;
+            if (!state.audiobookId || !state.currentChapterId) {
+               dispatch(stop());
+               return;
+            }
+            lastLoadedChapterRef.current = null;
+            await advanceToNextChapter({
+               dispatch,
+               audiobookId: state.audiobookId,
+               currentChapterId: state.currentChapterId,
+               isVisible: state.isVisible,
+               totalDuration: state.totalDuration,
+               onChapterSwitched,
+            });
+         }),
+
+         TrackPlayer.addEventListener(Event.PlaybackError, (event) => {
+            console.error('[Audio Player] Playback error:', event);
+            const message =
+               'message' in event && typeof event.message === 'string'
+                  ? event.message
+                  : 'Playback error occurred';
+            dispatch(setError(message));
+            dispatch(setLoading(false));
+            clearLoadTimeout();
+         }),
+
+         TrackPlayer.addEventListener(Event.PlaybackState, async (event) => {
+            const playbackState =
+               typeof event === 'object' && event !== null && 'state' in event
+                  ? (event as { state: State }).state
+                  : (event as State);
+
+            // Keep Redux in sync when play/pause comes from notification or lock screen
+            const playerSnapshot = store.getState().player;
+            if (playerSnapshot.currentChapterId) {
+               if (playbackState === State.Playing && !playerSnapshot.isPlaying) {
+                  dispatch(play());
+               } else if (
+                  (playbackState === State.Paused || playbackState === State.Stopped) &&
+                  playerSnapshot.isPlaying
+               ) {
+                  dispatch(pause());
+               }
+            }
+
+            if (
+               playbackState === State.Ready ||
+               playbackState === State.Playing ||
+               playbackState === State.Paused ||
+               playbackState === State.Buffering
+            ) {
+               dispatch(setLoading(false));
+               clearLoadTimeout();
+            }
+
+            if (
+               playbackState === State.Playing ||
+               playbackState === State.Ready ||
+               playbackState === State.Paused
+            ) {
+               try {
+                  const duration = await TrackPlayer.getDuration();
+                  if (duration > 0) {
+                     dispatch(setTotalDuration(duration));
+                  }
+               } catch {
+                  // Duration not available yet
+               }
+            }
+
+            if (playbackState === State.Error) {
+               dispatch(setError('Playback error occurred'));
+               dispatch(setLoading(false));
+               clearLoadTimeout();
+            }
+         }),
+      ];
+
+      return () => {
+         subs.forEach((sub) => sub.remove());
+      };
+   }, [dispatch, onChapterSwitched, clearLoadTimeout]);
+
+   useEffect(() => {
+      void loadChapter();
+   }, [loadChapter]);
+
+   // Poll position — RNTP progress events can be unreliable on Android with HLS
+   useEffect(() => {
+      if (!currentChapterId) {
+         return;
+      }
+
+      let mounted = true;
+
+      const syncProgress = async () => {
+         if (
+            !mounted ||
+            lastLoadedChapterRef.current !== currentChapterId ||
+            isDraggingRef.current ||
+            getIsDragging()
+         ) {
+            return;
+         }
+
+         try {
+            const [{ position, duration }, playbackState] = await Promise.all([
+               TrackPlayer.getProgress(),
+               TrackPlayer.getPlaybackState(),
+            ]);
+
+            if (
+               !mounted ||
+               lastLoadedChapterRef.current !== currentChapterId ||
+               isDraggingRef.current ||
+               getIsDragging()
+            ) {
+               return;
+            }
+
+            const reduxPlayer = store.getState().player;
+            if (playbackState.state === State.Playing && !reduxPlayer.isPlaying) {
+               dispatch(play());
+            } else if (
+               (playbackState.state === State.Paused ||
+                  playbackState.state === State.Stopped) &&
+               reduxPlayer.isPlaying
+            ) {
+               dispatch(pause());
+            }
+
+            dispatch(setPosition(position));
+            if (duration > 0) {
+               dispatch(setTotalDuration(duration));
+            }
+            dispatch(setLoading(false));
+            clearLoadTimeout();
+         } catch {
+            // Player not ready yet
+         }
+      };
+
+      void syncProgress();
+      const intervalId = setInterval(() => {
+         void syncProgress();
+      }, 1000);
+
+      return () => {
+         mounted = false;
+         clearInterval(intervalId);
+      };
+   }, [currentChapterId, dispatch, clearLoadTimeout]);
+
+   useEffect(() => {
+      if (!currentChapterId || lastLoadedChapterRef.current !== currentChapterId) {
+         return;
+      }
+
+      void (async () => {
+         try {
+            if (isPlaying) {
+               await TrackPlayer.play();
+            } else {
+               await TrackPlayer.pause();
+            }
+         } catch (error: unknown) {
+            console.error('[Audio Player] Failed to sync play state:', error);
+         }
+      })();
+   }, [isPlaying, currentChapterId]);
+
    const seekToTime = useCallback(
-      (targetTime: number) => {
-         if (!videoRef.current) return;
+      async (targetTime: number) => {
+         const playerState = store.getState().player;
+         const freshTotalDuration = playerState.totalDuration;
+         const freshChapterId = playerState.currentChapterId;
+         const freshAudiobookId = playerState.audiobookId;
 
-         // Get fresh values from Redux to avoid stale closures
-         // eslint-disable-next-line react-hooks/exhaustive-deps
-         const { store } = require('@/store');
-         const state = store.getState();
-         const freshTotalDuration = state.player.totalDuration;
-         const freshChapterId = state.player.currentChapterId;
-         const freshAudiobookId = state.player.audiobookId;
+         if (freshTotalDuration === 0 && targetTime > 0) {
+            return;
+         }
 
-         if (freshTotalDuration === 0) return;
+         const clampedTime = Math.max(
+            0,
+            Math.min(targetTime, freshTotalDuration > 0 ? freshTotalDuration : targetTime)
+         );
 
-         // Clamp target time to valid range
-         const clampedTime = Math.max(0, Math.min(targetTime, freshTotalDuration));
-
-         // Update position in Redux
          dispatch(setPosition(clampedTime));
          dispatch(seek());
 
-         // Seek the video player - react-native-video handles segment selection automatically
-         videoRef.current.seek(clampedTime);
+         try {
+            await TrackPlayer.seekTo(clampedTime);
+         } catch (error: unknown) {
+            console.error('[Audio Player] Seek failed:', error);
+         }
 
-         // Sync playback state after seek (only if player is active)
-         const freshIsVisible = state.player.isVisible;
-         if (freshIsVisible && freshAudiobookId && freshChapterId) {
+         if (playerState.isVisible && freshAudiobookId && freshChapterId) {
             syncPlayback({
                audiobookId: freshAudiobookId,
                chapterId: freshChapterId,
                action: 'seek',
                position: clampedTime,
-            }).catch((error: unknown) => {
-               console.error('[Audio Player] Failed to sync playback after seek:', error);
+            }).catch((err: unknown) => {
+               console.error('[Audio Player] Failed to sync after seek:', err);
             });
          }
       },
       [dispatch]
    );
 
-   /**
-    * Handle seek (10s forward/backward)
-    */
    const handleSeek = useCallback(
       (seconds: number) => {
-         if (!videoRef.current) return;
-
-         // Get fresh values from Redux to avoid stale closures
-         // eslint-disable-next-line react-hooks/exhaustive-deps
-         const { store } = require('@/store');
-         const state = store.getState();
-         const freshPlaybackPosition = state.player.playbackPosition;
-         const freshTotalDuration = state.player.totalDuration;
-         const freshChapterId = state.player.currentChapterId;
-         const freshAudiobookId = state.player.audiobookId;
-
-         if (freshTotalDuration === 0) return;
-
-         // Calculate new position
-         let newPosition = freshPlaybackPosition + seconds;
-
-         // Clamp to valid range
-         newPosition = Math.max(0, Math.min(newPosition, freshTotalDuration));
-
-         // Update position in Redux and clear errors
-         dispatch(setPosition(newPosition));
-         dispatch(seek());
-
-         // Seek the video player - react-native-video handles segment selection automatically
-         videoRef.current.seek(newPosition);
-
-         // Sync playback state after seek (only if player is active)
-         const freshIsVisible = state.player.isVisible;
-         if (freshIsVisible && freshAudiobookId && freshChapterId) {
-            syncPlayback({
-               audiobookId: freshAudiobookId,
-               chapterId: freshChapterId,
-               action: 'seek',
-               position: newPosition,
-            }).catch((error: unknown) => {
-               console.error('[Audio Player] Failed to sync playback after seek:', error);
-            });
-         }
+         const playerState = store.getState().player;
+         const newPosition = playerState.playbackPosition + seconds;
+         void seekToTime(newPosition);
       },
-      [dispatch]
+      [seekToTime]
    );
 
-   /**
-    * Set dragging state to prevent progress updates during drag
-    */
+   const playPlayback = useCallback(async () => {
+      dispatch(play());
+      try {
+         await TrackPlayer.play();
+      } catch (error: unknown) {
+         console.error('[Audio Player] Play failed:', error);
+      }
+   }, [dispatch]);
+
+   const pausePlayback = useCallback(async () => {
+      dispatch(pause());
+      try {
+         await TrackPlayer.pause();
+      } catch (error: unknown) {
+         console.error('[Audio Player] Pause failed:', error);
+      }
+   }, [dispatch]);
+
+   const skipToNextChapter = useCallback(async () => {
+      const state = store.getState().player;
+      if (!state.audiobookId || !state.currentChapterId) {
+         return;
+      }
+      lastLoadedChapterRef.current = null;
+      await skipToNextChapterRemote(
+         dispatch,
+         state.audiobookId,
+         state.currentChapterId,
+         onChapterSwitched
+      );
+   }, [dispatch, onChapterSwitched]);
+
+   const skipToPreviousChapter = useCallback(async () => {
+      const state = store.getState().player;
+      if (!state.audiobookId || !state.currentChapterId) {
+         return;
+      }
+      lastLoadedChapterRef.current = null;
+      await skipToPreviousChapterRemote(
+         dispatch,
+         state.audiobookId,
+         state.currentChapterId,
+         onChapterSwitched
+      );
+   }, [dispatch, onChapterSwitched]);
+
    const setDragging = useCallback((dragging: boolean) => {
       isDraggingRef.current = dragging;
+      setTrackPlayerDragging(dragging);
    }, []);
 
-   return {
-      videoRef,
-      masterPlaylistUri,
-      headers,
-      isPlaying,
-      handleProgress,
-      handleEnd,
-      handleLoad,
-      handleError,
-      handleSeek,
+   const resetPlayer = useCallback(async () => {
+      lastLoadedChapterRef.current = null;
+      clearLoadTimeout();
+      try {
+         await TrackPlayer.reset();
+      } catch {
+         // Player may not be initialized
+      }
+   }, [clearLoadTimeout]);
+
+   const reloadChapter = useCallback(() => {
+      lastLoadedChapterRef.current = null;
+      void loadChapter();
+   }, [loadChapter]);
+
+   useEffect(() => {
+      registerChapterReload(reloadChapter);
+      return () => registerChapterReload(null);
+   }, [reloadChapter]);
+
+   useEffect(() => {
+      registerTrackPlayerHandlers({
+         seekToTime: (seconds) => {
+            void seekToTime(seconds);
+         },
+         seekBy: handleSeek,
+         skipToNextChapter,
+         skipToPreviousChapter,
+         playPlayback: () => {
+            void playPlayback();
+         },
+         pausePlayback: () => {
+            void pausePlayback();
+         },
+      });
+      return () => registerTrackPlayerHandlers(null);
+   }, [
       seekToTime,
+      handleSeek,
+      skipToNextChapter,
+      skipToPreviousChapter,
+      playPlayback,
+      pausePlayback,
+   ]);
+
+   useEffect(() => {
+      if (!currentChapterId) {
+         void resetPlayer();
+      }
+   }, [currentChapterId, resetPlayer]);
+
+   return {
+      isPlaying,
+      playbackPosition,
+      seekToTime,
+      handleSeek,
+      playPlayback,
+      pausePlayback,
+      skipToNextChapter,
+      skipToPreviousChapter,
       setDragging,
+      resetPlayer,
    };
 }
-

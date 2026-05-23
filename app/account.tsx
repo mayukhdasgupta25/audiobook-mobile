@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '@/theme';
 import { RootState } from '@/store';
@@ -21,13 +21,23 @@ import {
 import { ApiError } from '@/services/api';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { formatAccountDate, formatPlanPrice } from '@/utils/format';
+import {
+   setSkipDurationSeconds,
+   type SkipDurationSeconds,
+} from '@/store/settings';
 
 /**
  * Account screen - Netflix-style account management
  * Displays membership details, security settings, and device management
  */
+const SKIP_DURATION_OPTIONS: SkipDurationSeconds[] = [5, 10, 15];
+
 export default function AccountScreen() {
    const insets = useSafeAreaInsets();
+   const dispatch = useDispatch();
+   const skipDurationSeconds = useSelector(
+      (state: RootState) => state.settings.skipDurationSeconds
+   );
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
    const user = useSelector((state: RootState) => state.auth.user);
    const [isRequestingPasswordOtp, setIsRequestingPasswordOtp] = useState(false);
@@ -287,6 +297,41 @@ export default function AccountScreen() {
                         <Text style={styles.linkText}>Upgrade Plan</Text>
                         <Ionicons name="chevron-forward" size={20} color={colors.text.secondaryDark} />
                      </TouchableOpacity>
+                  </View>
+               </View>
+
+               {/* Playback Section */}
+               <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Playback</Text>
+                  <View style={styles.card}>
+                     <Text style={styles.playbackHint}>
+                        Skip forward and backward duration for in-app and lock screen controls.
+                     </Text>
+                     <View style={styles.skipDurationRow}>
+                        {SKIP_DURATION_OPTIONS.map((seconds) => {
+                           const isSelected = skipDurationSeconds === seconds;
+                           return (
+                              <TouchableOpacity
+                                 key={seconds}
+                                 style={[
+                                    styles.skipDurationOption,
+                                    isSelected && styles.skipDurationOptionSelected,
+                                 ]}
+                                 onPress={() => dispatch(setSkipDurationSeconds(seconds))}
+                                 activeOpacity={0.7}
+                              >
+                                 <Text
+                                    style={[
+                                       styles.skipDurationOptionText,
+                                       isSelected && styles.skipDurationOptionTextSelected,
+                                    ]}
+                                 >
+                                    {seconds}s
+                                 </Text>
+                              </TouchableOpacity>
+                           );
+                        })}
+                     </View>
                   </View>
                </View>
 
@@ -714,6 +759,37 @@ const styles = StyleSheet.create({
             fontFamily: 'sans-serif-medium',
          },
       }),
+   },
+   playbackHint: {
+      fontSize: typography.fontSize.sm,
+      color: colors.text.secondaryDark,
+      marginBottom: spacing.md,
+      lineHeight: typography.lineHeight.relaxed * typography.fontSize.sm,
+   },
+   skipDurationRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+   },
+   skipDurationOption: {
+      flex: 1,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.sm,
+      borderRadius: borderRadius.md,
+      borderWidth: 1,
+      borderColor: colors.text.secondaryDark,
+      alignItems: 'center',
+   },
+   skipDurationOptionSelected: {
+      borderColor: colors.primary[400],
+      backgroundColor: colors.primary[900],
+   },
+   skipDurationOptionText: {
+      fontSize: typography.fontSize.base,
+      color: colors.text.secondaryDark,
+      fontWeight: '500',
+   },
+   skipDurationOptionTextSelected: {
+      color: colors.primary[400],
    },
    menuItem: {
       flexDirection: 'row',

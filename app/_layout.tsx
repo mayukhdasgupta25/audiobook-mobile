@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View } from 'react-native';
-import { Stack, router, useSegments } from 'expo-router';
+import { Stack, router, useSegments, type Href } from 'expo-router';
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { Provider } from 'react-redux';
@@ -13,15 +13,20 @@ import { RootState } from '@/store';
 import { colors } from '@/theme';
 import SplashScreen from '@/components/SplashScreen';
 import { AudioPlayer } from '@/components/AudioPlayer';
+import { AudioPlaybackProvider } from '@/contexts/AudioPlaybackContext';
 import { configureGoogleSignIn } from '@/services/auth';
+import { useTrackPlayerSetup } from '@/hooks/useTrackPlayerSetup';
+import * as Linking from 'expo-linking';
+import { usePlaybackNotificationLinking } from '@/hooks/usePlaybackNotificationLinking';
+import { usePlaybackReturnPathTracker } from '@/hooks/usePlaybackReturnPathTracker';
+import { isTrackPlayerNotificationUrl } from '@/utils/playbackNotificationNavigation';
+import { resolvePersistedPlaybackRoute } from '@/utils/playbackReturnPathStorage';
 import '../global.css';
 
 // Initialize Reactotron in development mode
 if (__DEV__) {
    // eslint-disable-next-line @typescript-eslint/no-require-imports
-   const Reactotron = require('../config/ReactotronConfig').default;
-   // Note: React Query plugin would be configured here if needed
-   // For now, Redux and API monitoring are set up
+   require('../config/ReactotronConfig');
 }
 
 // Create a client for TanStack Query outside component to prevent recreation on every render
@@ -90,6 +95,7 @@ export const queryClient = new QueryClient({
  * Inner layout component that handles auth-based routing
  */
 function InnerLayout() {
+   useTrackPlayerSetup();
    const segments = useSegments();
    // Memoize selectors to prevent unnecessary re-renders
    const isAuthenticated = useSelector(
@@ -102,6 +108,9 @@ function InnerLayout() {
    const [showSplash, setShowSplash] = useState(true);
    const hasSetInitialRoute = useRef(false);
    const splashStartTime = useRef<number>(Date.now());
+
+   usePlaybackReturnPathTracker();
+   usePlaybackNotificationLinking(isAppReady && isInitialized && !showSplash);
 
    useEffect(() => {
       // Initialize auth state on app startup
@@ -146,15 +155,25 @@ function InnerLayout() {
          return; // Wait for app to initialize, auth to initialize, or splash to hide
       }
 
-      // Set initial route based on authentication state
       hasSetInitialRoute.current = true;
-      if (!isAuthenticated) {
-         // User is not authenticated, navigate to signin
-         router.replace('/signin');
-      } else {
-         // User is authenticated, navigate to home
+
+      void (async () => {
+         if (!isAuthenticated) {
+            router.replace('/signin');
+            return;
+         }
+
+         const initialUrl = await Linking.getInitialURL();
+         if (isTrackPlayerNotificationUrl(initialUrl)) {
+            const returnRoute = await resolvePersistedPlaybackRoute();
+            if (returnRoute) {
+               router.replace(returnRoute as Href);
+               return;
+            }
+         }
+
          router.replace('/(tabs)');
-      }
+      })();
    }, [isAppReady, isInitialized, isAuthenticated, showSplash]);
 
    // Handle route changes after initial load
@@ -326,8 +345,10 @@ function InnerLayout() {
             />
          </Stack>
 
-         {/* Audio Player - Global component available on all screens */}
-         <AudioPlayer />
+         {/* Playback logic stays mounted; UI hides when not visible */}
+         <AudioPlaybackProvider>
+            <AudioPlayer />
+         </AudioPlaybackProvider>
       </>
    );
 }

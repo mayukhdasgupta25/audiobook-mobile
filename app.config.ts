@@ -6,10 +6,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
    slug: 'audiobook-mobile',
    version: '1.0.0',
    orientation: 'portrait',
-   // icon: './assets/icon.png', // Uncomment when icon.png is added to assets folder
    userInterfaceStyle: 'automatic',
    splash: {
-      // image: './assets/splash.png', // Uncomment when splash.png is added to assets folder
       resizeMode: 'contain',
       backgroundColor: '#000000',
    },
@@ -19,18 +17,25 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       bundleIdentifier: 'com.audiobook.mobile',
       jsEngine: 'hermes',
       googleServicesFile: process.env.EXPO_PUBLIC_GOOGLE_SERVICES_IOS || undefined,
+      infoPlist: {
+         UIBackgroundModes: ['audio'],
+      },
    },
    android: {
       adaptiveIcon: {
-         // foregroundImage: './assets/adaptive-icon.png', // Uncomment when adaptive-icon.png is added
          backgroundColor: '#000000',
       },
       package: 'com.audiobook.mobile',
       jsEngine: 'hermes',
       googleServicesFile: process.env.EXPO_PUBLIC_GOOGLE_SERVICES_ANDROID || undefined,
+      permissions: [
+         'android.permission.POST_NOTIFICATIONS',
+         'android.permission.FOREGROUND_SERVICE',
+         'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+         'android.permission.WAKE_LOCK',
+      ],
    },
    web: {
-      // favicon: './assets/favicon.png', // Uncomment when favicon.png is added
       bundler: 'metro',
    },
    plugins: [
@@ -38,14 +43,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       [
          'expo-notifications',
          {
-            // icon: './assets/notification-icon.png', // Uncomment when notification-icon.png is added
             color: '#ffffff',
          },
       ],
       'expo-asset',
       'expo-localization',
       'expo-secure-store',
-      'react-native-video',
       './app.plugin.js',
       [
          '@react-native-google-signin/google-signin',
@@ -54,9 +57,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
          },
       ],
    ],
-   scheme: 'audiobook',
+   scheme: ['audiobook', 'trackplayer'],
+   newArchEnabled: true,
    experiments: {
       typedRoutes: true,
    },
 });
-

@@ -10,6 +10,7 @@ import authReducer, { initializeAuth } from './auth';
 import audiobooksReducer from './audiobooks';
 import streamingReducer from './streaming';
 import playerReducer from './player';
+import settingsReducer from './settings';
 
 // Import Reactotron for Redux monitoring (only active in development)
 import Reactotron from '../config/ReactotronConfig';
@@ -22,6 +23,7 @@ const rootReducer = combineReducers({
    audiobooks: audiobooksReducer,
    streaming: streamingReducer,
    player: playerReducer,
+   settings: settingsReducer,
 });
 
 /**
@@ -33,7 +35,7 @@ const persistConfig = {
    storage: AsyncStorage,
    // Only persist user data (non-sensitive), not accessToken (stored in SecureStore)
    // Don't persist audiobooks as they should be fetched fresh on app start
-   whitelist: ['auth'],
+   whitelist: ['auth', 'settings'],
    // Transform to exclude accessToken from persistence (it's in SecureStore)
    transforms: [],
 };
