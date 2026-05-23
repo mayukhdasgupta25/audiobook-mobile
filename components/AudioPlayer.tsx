@@ -26,12 +26,10 @@ import Animated, {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import Video from 'react-native-video';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store';
-import { play, pause, setVisible, setMinimized } from '@/store/player';
+import { setVisible, setMinimized } from '@/store/player';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
-import { useMediaSession } from '@/hooks/useMediaSession';
 import { usePlaybackSync } from '@/hooks/usePlaybackSync';
 import { syncPlayback, initializePlaybackSession } from '@/services/audiobooks';
 import { colors, spacing, typography, borderRadius } from '@/theme';
@@ -59,6 +57,10 @@ export const AudioPlayer: React.FC = React.memo(() => {
       chapterMetadata,
       audiobookId,
    } = useSelector((state: RootState) => state.player);
+
+   const skipDurationSeconds = useSelector(
+      (state: RootState) => state.settings.skipDurationSeconds
+   );
 
    // Get user from Redux for session initialization
    const user = useSelector((state: RootState) => state.auth.user);
@@ -91,21 +93,14 @@ export const AudioPlayer: React.FC = React.memo(() => {
 
    // Use audio player hook
    const {
-      videoRef,
-      masterPlaylistUri,
-      headers,
-      handleProgress,
-      handleEnd,
-      handleLoad,
-      handleError,
       handleSeek,
       seekToTime,
+      playPlayback,
+      pausePlayback,
+      skipToNextChapter,
+      skipToPreviousChapter,
       setDragging,
    } = useAudioPlayer();
-
-   // Use media session hook for lock screen controls
-   // react-native-video handles media session automatically when playInBackground is true
-   useMediaSession();
 
    // Use playback sync hook to automatically sync every 5 seconds during playback
    // Only sync when player is visible (active)
@@ -429,7 +424,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
    // Handle play/pause toggle
    const handlePlayPause = useCallback(() => {
       if (isPlaying) {
-         dispatch(pause());
+         void pausePlayback();
          // Sync playback state when pausing (only if player is active)
          if (isVisible && audiobookId && currentChapterId) {
             syncPlayback({
@@ -442,7 +437,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
             });
          }
       } else {
-         dispatch(play());
+         void playPlayback();
          // Sync playback state immediately when user clicks play (only if player is active)
          // The usePlaybackSync hook will also call play action after 1 second, but we call it immediately here
          // to ensure the API is called as soon as the user clicks play
@@ -457,10 +452,20 @@ export const AudioPlayer: React.FC = React.memo(() => {
             });
          }
       }
-   }, [isPlaying, isVisible, audiobookId, currentChapterId, playbackPosition, dispatch]);
+   }, [
+      isPlaying,
+      isVisible,
+      audiobookId,
+      currentChapterId,
+      playbackPosition,
+      playPlayback,
+      pausePlayback,
+   ]);
 
-   // Handle close
    const handleClose = () => {
+      if (isPlaying) {
+         void pausePlayback();
+      }
       dispatch(setVisible(false));
    };
 
@@ -538,14 +543,12 @@ export const AudioPlayer: React.FC = React.memo(() => {
       };
    });
 
-   // Handle 10s backward
    const handleBackward = () => {
-      handleSeek(-10);
+      handleSeek(-skipDurationSeconds);
    };
 
-   // Handle 10s forward
    const handleForward = () => {
-      handleSeek(10);
+      handleSeek(skipDurationSeconds);
    };
 
    // Calculate elapsed time for display (absolute position)
@@ -757,7 +760,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
 
 
    // Don't render if not visible or no chapter or no playlist URI
-   if (!isVisible || !currentChapterId || !masterPlaylistUri) {
+   if (!isVisible || !currentChapterId) {
       return null;
    }
 
@@ -794,36 +797,6 @@ export const AudioPlayer: React.FC = React.memo(() => {
             }
          ]}
       >
-         {/* Hidden Video component for audio playback - Single instance that persists across minimize/maximize */}
-         {masterPlaylistUri && (
-            <Video
-               ref={videoRef}
-               source={{
-                  uri: masterPlaylistUri,
-                  bufferConfig: {
-                     minBufferMs: 30000,
-                     maxBufferMs: 120000,
-                     bufferForPlaybackMs: 1000,
-                     bufferForPlaybackAfterRebufferMs: 2000,
-                  },
-                  headers,
-               }}
-               paused={!isPlaying}
-               onProgress={handleProgress}
-               onEnd={handleEnd}
-               onLoad={handleLoad}
-               onError={handleError}
-               style={styles.hiddenVideo}
-               ignoreSilentSwitch="ignore"
-               playInBackground={true}
-               playWhenInactive={true}
-               // Enable external playback (lock screen, AirPlay, etc.)
-               allowsExternalPlayback={true}
-            // react-native-video automatically handles media session
-            // when playInBackground is true
-            />
-         )}
-
          {isMinimized ? (
             // Minimized: No SafeAreaView needed for floating PiP window
             <>
@@ -1000,7 +973,19 @@ export const AudioPlayer: React.FC = React.memo(() => {
                         </View>
                      ) : (
                         <View style={styles.controlsRow}>
-                           {/* 10s Backward Button */}
+                           <TouchableOpacity
+                              onPress={() => void skipToPreviousChapter()}
+                              style={styles.chapterButton}
+                              activeOpacity={0.8}
+                              disabled={isLoading}
+                           >
+                              <Ionicons
+                                 name="play-skip-back"
+                                 size={28}
+                                 color={colors.text.dark}
+                              />
+                           </TouchableOpacity>
+
                            <TouchableOpacity
                               onPress={handleBackward}
                               style={styles.seekButton}
@@ -1012,7 +997,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
                                  size={24}
                                  color={colors.text.dark}
                               />
-                              <Text style={styles.seekButtonText}>10s</Text>
+                              <Text style={styles.seekButtonText}>{skipDurationSeconds}s</Text>
                            </TouchableOpacity>
 
                            {/* Play/Pause Button */}
@@ -1039,7 +1024,6 @@ export const AudioPlayer: React.FC = React.memo(() => {
                               )}
                            </TouchableOpacity>
 
-                           {/* 10s Forward Button */}
                            <TouchableOpacity
                               onPress={handleForward}
                               style={styles.seekButton}
@@ -1051,7 +1035,20 @@ export const AudioPlayer: React.FC = React.memo(() => {
                                  size={24}
                                  color={colors.text.dark}
                               />
-                              <Text style={styles.seekButtonText}>10s</Text>
+                              <Text style={styles.seekButtonText}>{skipDurationSeconds}s</Text>
+                           </TouchableOpacity>
+
+                           <TouchableOpacity
+                              onPress={() => void skipToNextChapter()}
+                              style={styles.chapterButton}
+                              activeOpacity={0.8}
+                              disabled={isLoading}
+                           >
+                              <Ionicons
+                                 name="play-skip-forward"
+                                 size={28}
+                                 color={colors.text.dark}
+                              />
                            </TouchableOpacity>
                         </View>
                      )}
@@ -1257,7 +1254,9 @@ const styles = StyleSheet.create({
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: spacing.lg,
+      gap: spacing.sm,
+      flexWrap: 'wrap',
+      paddingHorizontal: spacing.xs,
    },
    playButton: {
       width: 64,
@@ -1266,6 +1265,11 @@ const styles = StyleSheet.create({
       backgroundColor: colors.app.red,
       justifyContent: 'center',
       alignItems: 'center',
+   },
+   chapterButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.xs,
    },
    seekButton: {
       alignItems: 'center',

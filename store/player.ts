@@ -60,10 +60,15 @@ const playerSlice = createSlice({
        */
       setChapter: (
          state,
-         action: PayloadAction<{ chapterId: string; metadata: ChapterMetadata; audiobookId?: string }>
+         action: PayloadAction<{
+            chapterId: string;
+            metadata: ChapterMetadata;
+            audiobookId?: string;
+            resumePosition?: number;
+         }>
       ) => {
          state.currentChapterId = action.payload.chapterId;
-         state.playbackPosition = 0;
+         state.playbackPosition = Math.max(0, action.payload.resumePosition ?? 0);
          state.isVisible = true;
          state.error = null;
          state.chapterMetadata = action.payload.metadata;
@@ -72,11 +77,15 @@ const playerSlice = createSlice({
          }
       },
       /**
-       * Start or resume playback
+       * Start or resume playback. Re-opens player when a chapter is already loaded.
        */
       play: (state) => {
          state.isPlaying = true;
          state.error = null;
+         if (state.currentChapterId) {
+            state.isVisible = true;
+            state.isMinimized = false;
+         }
       },
       /**
        * Pause playback

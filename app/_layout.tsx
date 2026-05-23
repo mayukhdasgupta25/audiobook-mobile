@@ -14,14 +14,13 @@ import { colors } from '@/theme';
 import SplashScreen from '@/components/SplashScreen';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { configureGoogleSignIn } from '@/services/auth';
+import { useTrackPlayerSetup } from '@/hooks/useTrackPlayerSetup';
 import '../global.css';
 
 // Initialize Reactotron in development mode
 if (__DEV__) {
    // eslint-disable-next-line @typescript-eslint/no-require-imports
-   const Reactotron = require('../config/ReactotronConfig').default;
-   // Note: React Query plugin would be configured here if needed
-   // For now, Redux and API monitoring are set up
+   require('../config/ReactotronConfig');
 }
 
 // Create a client for TanStack Query outside component to prevent recreation on every render
@@ -90,6 +89,7 @@ export const queryClient = new QueryClient({
  * Inner layout component that handles auth-based routing
  */
 function InnerLayout() {
+   useTrackPlayerSetup();
    const segments = useSegments();
    // Memoize selectors to prevent unnecessary re-renders
    const isAuthenticated = useSelector(

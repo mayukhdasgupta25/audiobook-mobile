@@ -56,6 +56,11 @@ A modern, high-performance mobile application for streaming and managing audiobo
 - **Expo Secure Store** (~15.0.7) - Secure credential storage
 - **AsyncStorage** (2.2.0) - Async key-value storage
 
+### Audio playback
+
+- **react-native-track-player** — HLS chapter streaming, lock screen and notification controls
+- See [docs/audio-player.md](docs/audio-player.md) for setup, skip duration setting, and native rebuild steps
+
 ## 📋 Prerequisites
 
 Before you begin, ensure you have the following installed:

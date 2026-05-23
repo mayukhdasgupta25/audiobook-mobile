@@ -6,12 +6,11 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSelector, useDispatch } from 'react-redux';
-import { getMasterPlaylist, getPlaylist } from '@/services/streaming';
-import { parseMasterPlaylist, parsePlaylist, findStreamByBitrate, getBitrateInKbps } from '@/utils/m3u8Parser';
 import { ApiError } from '@/services/api';
 import { RootState } from '@/store';
 import { setPlaylist } from '@/store/streaming';
 import { PlaylistData, MasterPlaylistData } from '@/utils/m3u8Parser';
+import { fetchChapterPlaybackSource } from '@/utils/chapterStreamUrl';
 
 /**
  * Combined playlist data including master and detailed playlist info
@@ -53,39 +52,8 @@ export function useStreamingPlaylist(
             throw new Error('Chapter ID and User ID are required');
          }
 
-         // Step 1: Fetch master playlist
-         const masterPlaylistContent = await getMasterPlaylist(chapterId);
-         const masterPlaylist = parseMasterPlaylist(masterPlaylistContent);
-
-         if (masterPlaylist.streams.length === 0) {
-            throw new Error('No streams found in master playlist');
-         }
-
-         // Step 2: Select bitrate (prefer 128k, fallback to first available)
-         let selectedStream = findStreamByBitrate(masterPlaylist.streams, 128);
-         if (!selectedStream) {
-            // Fallback to first available stream
-            selectedStream = masterPlaylist.streams[0];
-         }
-
-         const selectedBitrate = getBitrateInKbps(selectedStream.bandwidth);
-
-         // Step 3: Extract bitrate from playlist path (e.g., "128k" from "bit_transcode/chapterId/128k/playlist.m3u8")
-         // The API expects just the number (e.g., "128"), not "128k"
-         const bitrateMatch = selectedStream.playlistPath.match(/\/(\d+)k\//);
-         const bitrate = bitrateMatch ? bitrateMatch[1] : selectedBitrate.toString();
-
-         // Step 4: Fetch detailed playlist
-         const playlistContent = await getPlaylist(chapterId, bitrate, userId);
-         const playlist = parsePlaylist(playlistContent);
-
-         const playlistData: StreamingPlaylistData = {
-            masterPlaylist,
-            selectedBitrate,
-            playlist,
-         };
-
-         return playlistData;
+         const source = await fetchChapterPlaybackSource(chapterId, userId);
+         return source.playlistData;
       },
       // Only fetch if chapterId and userId are valid, user is authenticated, and auth is initialized
       enabled:

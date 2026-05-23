@@ -1,7 +1,7 @@
 /**
  * Streaming service
  * Handles M3U8 playlist API calls for audio streaming
- * Note: Segment fetching is now handled automatically by react-native-video via native HLS support
+ * Note: Segment fetching is handled automatically by react-native-track-player via native HLS support
  */
 
 import { get, ApiError, API_V1_STREAM_PATH } from './api';
