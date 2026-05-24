@@ -1,5 +1,32 @@
 import { ExpoConfig, ConfigContext } from 'expo/config';
 
+function getGoogleIosUrlScheme(clientId: string): string {
+   if (clientId.startsWith('com.googleusercontent.apps.')) {
+      return clientId;
+   }
+
+   const match = clientId.match(/^([^.]+)\.apps\.googleusercontent\.com$/);
+   if (match) {
+      return `com.googleusercontent.apps.${match[1]}`;
+   }
+
+   throw new Error(
+      'EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID must be a valid iOS OAuth client ID ' +
+         '(e.g. 123456789-abc.apps.googleusercontent.com) or reversed URL scheme ' +
+         '(e.g. com.googleusercontent.apps.123456789-abc). ' +
+         'Get this from Google Cloud Console → APIs & Services → Credentials → iOS client.',
+   );
+}
+
+const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
+const googleSignInPlugin: [string, { iosUrlScheme: string }] | null =
+   googleIosClientId && googleIosClientId !== 'com.googleusercontent.apps'
+      ? [
+           '@react-native-google-signin/google-signin',
+           { iosUrlScheme: getGoogleIosUrlScheme(googleIosClientId) },
+        ]
+      : null;
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
    ...config,
    name: 'AudioBook',
@@ -50,12 +77,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-localization',
       'expo-secure-store',
       './app.plugin.js',
-      [
-         '@react-native-google-signin/google-signin',
-         {
-            iosUrlScheme: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.replace(/:/g, '') || '',
-         },
-      ],
+      ...(googleSignInPlugin ? [googleSignInPlugin] : []),
    ],
    scheme: ['audiobook', 'trackplayer'],
    newArchEnabled: true,
