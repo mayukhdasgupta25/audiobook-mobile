@@ -51,6 +51,12 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>AudioBook connects to your audiobook server on your local network to stream chapters.</string>
+    <key>NSBonjourServices</key>
+    <array>
+      <string>_http._tcp</string>
+    </array>
     <key>NSFaceIDUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
     <key>NSUserActivityTypes</key>

@@ -46,6 +46,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       googleServicesFile: process.env.EXPO_PUBLIC_GOOGLE_SERVICES_IOS || undefined,
       infoPlist: {
          UIBackgroundModes: ['audio'],
+         NSLocalNetworkUsageDescription:
+            'AudioBook connects to your audiobook server on your local network to stream chapters.',
+         // Triggers the Local Network privacy prompt so AVPlayer can reach LAN streaming URLs.
+         NSBonjourServices: ['_http._tcp'],
       },
    },
    android: {
