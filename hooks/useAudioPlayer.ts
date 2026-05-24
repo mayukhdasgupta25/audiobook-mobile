@@ -144,18 +144,31 @@ export function useAudioPlayer() {
 
          await TrackPlayer.reset();
 
+         const playbackUrl = playbackSource.url;
+         if (__DEV__) {
+            console.log('[Audio Player] Loading track', {
+               platform: Platform.OS,
+               url: playbackUrl,
+            });
+         }
+
          await TrackPlayer.add({
             id: currentChapterId,
-            url: playbackSource.url,
+            url: playbackUrl,
             type: TrackType.HLS,
             title: chapterMetadata.title || 'Unknown Chapter',
             artist: 'AudioBook',
             // `album` stores audiobook id for notification tap navigation
             album: audiobookId ?? undefined,
             artwork: buildArtworkUrl(chapterMetadata.coverImage),
-            headers: {
-               Authorization: `Bearer ${accessToken}`,
-            },
+            // iOS plays the public bit_transcode HLS URL; auth headers break AVPlayer sub-requests.
+            ...(Platform.OS === 'android'
+               ? {
+                    headers: {
+                       Authorization: `Bearer ${accessToken}`,
+                    },
+                 }
+               : {}),
          });
 
          // Re-apply options after reset so progress events stay enabled on Android

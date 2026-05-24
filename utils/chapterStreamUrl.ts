@@ -2,20 +2,23 @@
  * Resolve HLS playback URL for a chapter (media playlist with user scope).
  */
 
+import { Platform } from 'react-native';
 import { store } from '@/store';
+import { STREAMING_API_BASE_URL } from '@/services/api';
 import { getMasterPlaylist, getPlaylist } from '@/services/streaming';
 import {
    findStreamByBitrate,
    getBitrateInKbps,
    parseMasterPlaylist,
    parsePlaylist,
+   type StreamInfo,
 } from '@/utils/m3u8Parser';
-import { normalizeM3u8Content } from '@/utils/m3u8Normalize';
+import { normalizeM3u8Content, normalizeMediaUri } from '@/utils/m3u8Normalize';
 import { writePlaybackPlaylistFile } from '@/utils/playlistCacheFile';
 import type { StreamingPlaylistData } from '@/hooks/useStreamingPlaylist';
 
 export interface ChapterPlaybackSource {
-   /** file:// URI to a normalized local M3U8 for native playback */
+   /** Android: file:// normalized M3U8. iOS: remote HTTP playlist (AVPlayer requires HTTP HLS). */
    url: string;
    totalDurationSeconds: number;
    playlistData: StreamingPlaylistData;
@@ -36,7 +39,24 @@ function bitrateFromPlaylistData(playlistData: StreamingPlaylistData): string {
    return playlistData.selectedBitrate.toString();
 }
 
-async function buildPlaybackFileUrl(
+/**
+ * Resolve a master-playlist variant path to an absolute HTTP URL for AVPlayer.
+ * iOS must use the public bit_transcode playlist (no auth); the API playlist returns 401 without a token.
+ */
+export function resolveAbsoluteStreamUrl(pathOrUrl: string): string {
+   const normalized = normalizeMediaUri(pathOrUrl);
+   if (/^https?:\/\//i.test(normalized)) {
+      return normalized;
+   }
+   const base = STREAMING_API_BASE_URL.replace(/\/$/, '');
+   return `${base}/${normalized.replace(/^\//, '')}`;
+}
+
+function buildIosPlaybackUrl(selectedStream: StreamInfo): string {
+   return resolveAbsoluteStreamUrl(selectedStream.playlistPath);
+}
+
+async function buildAndroidPlaybackFileUrl(
    chapterId: string,
    bitrate: string,
    userId: string,
@@ -44,6 +64,26 @@ async function buildPlaybackFileUrl(
 ): Promise<string> {
    const normalized = normalizeM3u8Content(rawPlaylistContent);
    return writePlaybackPlaylistFile(chapterId, bitrate, userId, normalized);
+}
+
+async function buildPlaybackUrl(
+   chapterId: string,
+   bitrate: string,
+   userId: string,
+   rawPlaylistContent: string,
+   selectedStream: StreamInfo
+): Promise<string> {
+   if (Platform.OS === 'ios') {
+      return buildIosPlaybackUrl(selectedStream);
+   }
+   return buildAndroidPlaybackFileUrl(chapterId, bitrate, userId, rawPlaylistContent);
+}
+
+function selectedStreamFromCached(cached: StreamingPlaylistData): StreamInfo {
+   const match = cached.masterPlaylist.streams.find(
+      (s) => getBitrateInKbps(s.bandwidth) === cached.selectedBitrate
+   );
+   return match ?? cached.masterPlaylist.streams[0];
 }
 
 /**
@@ -79,11 +119,12 @@ export async function fetchChapterPlaybackSource(
       playlist,
    };
 
-   const url = await buildPlaybackFileUrl(
+   const url = await buildPlaybackUrl(
       chapterId,
       bitrate,
       userId,
-      rawPlaylistContent
+      rawPlaylistContent,
+      selectedStream
    );
 
    return {
@@ -105,11 +146,13 @@ export async function resolveChapterPlaybackSource(
    if (cached) {
       const bitrate = bitrateFromPlaylistData(cached);
       const rawPlaylistContent = await getPlaylist(chapterId, bitrate, userId);
-      const url = await buildPlaybackFileUrl(
+      const stream = selectedStreamFromCached(cached);
+      const url = await buildPlaybackUrl(
          chapterId,
          bitrate,
          userId,
-         rawPlaylistContent
+         rawPlaylistContent,
+         stream
       );
 
       return {
