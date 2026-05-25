@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
    View,
    Text,
@@ -11,23 +11,55 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
-import { useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '@/theme';
-import { RootState } from '@/store';
 import { ApiError } from '@/services/api';
 import { SubscriptionPlan } from '@/services/subscriptions';
 import { useSubscriptionPlans } from '@/hooks/useSubscriptionPlans';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
+import { useSubscriptionMutation } from '@/hooks/useSubscriptionMutation';
 import { SubscriptionPlanCard } from '@/components/SubscriptionPlanCard';
+import { formatPlanPrice } from '@/utils/format';
+
+function getPlanActionLabel(
+   plan: SubscriptionPlan,
+   currentPlanId: string | undefined,
+   currentTierLevel: number | undefined,
+   hasSubscription: boolean
+): string {
+   if (plan.id === currentPlanId) {
+      return 'Current plan';
+   }
+   if (!hasSubscription) {
+      return 'Subscribe';
+   }
+   if (currentTierLevel !== undefined) {
+      if (plan.tierLevel > currentTierLevel) {
+         return 'Upgrade';
+      }
+      if (plan.tierLevel < currentTierLevel) {
+         return 'Downgrade';
+      }
+   }
+   return 'Change plan';
+}
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+   if (error instanceof ApiError) {
+      const data = error.data as { message?: string } | undefined;
+      return data?.message ?? fallback;
+   }
+   if (error instanceof Error) {
+      return error.message;
+   }
+   return fallback;
+}
 
 /**
  * Subscription Plans screen — catalog of available plans with upgrade actions
  */
 export default function SubscriptionPlansScreen() {
    const insets = useSafeAreaInsets();
-   const userProfile = useSelector((state: RootState) => state.auth.userProfile);
-   const userProfileId = userProfile?.id ?? '';
 
    const {
       plans,
@@ -36,16 +68,88 @@ export default function SubscriptionPlansScreen() {
       refetch,
    } = useSubscriptionPlans();
 
-   const { activeSubscription } = useUserSubscription(userProfileId);
+   const { activeSubscription } = useUserSubscription();
+   const { mutateAsync, isPending } = useSubscriptionMutation();
+
    const currentPlanId = activeSubscription?.planId ?? activeSubscription?.plan?.id;
+   const currentTierLevel = activeSubscription?.plan?.tierLevel;
+   const hasSubscription = activeSubscription !== null;
 
    const handleBackPress = () => {
       router.back();
    };
 
-   const handleUpgradePress = useCallback((plan: SubscriptionPlan) => {
-      Alert.alert('Upgrade Plan', `Upgrade to ${plan.name} — coming soon.`);
-   }, []);
+   const handleUpgradePress = useCallback(
+      (plan: SubscriptionPlan) => {
+         if (plan.id === currentPlanId) {
+            return;
+         }
+
+         const priceLabel =
+            plan.billingInterval === 'MONTHLY'
+               ? `${formatPlanPrice(plan.price, plan.currency)}/month`
+               : formatPlanPrice(plan.price, plan.currency);
+
+         const actionLabel = getPlanActionLabel(
+            plan,
+            currentPlanId,
+            currentTierLevel,
+            hasSubscription
+         );
+
+         Alert.alert(
+            actionLabel === 'Subscribe' ? 'Subscribe' : `${actionLabel} plan`,
+            `${actionLabel} to ${plan.name} (${priceLabel})?`,
+            [
+               { text: 'Cancel', style: 'cancel' },
+               {
+                  text: actionLabel,
+                  onPress: async () => {
+                     try {
+                        const result = await mutateAsync({
+                           planId: plan.id,
+                           activeSubscription,
+                        });
+                        Alert.alert(
+                           'Success',
+                           result.message ||
+                              `You are now on the ${plan.name} plan.`
+                        );
+                     } catch (err) {
+                        Alert.alert(
+                           'Error',
+                           getApiErrorMessage(err, 'Failed to update subscription.')
+                        );
+                     }
+                  },
+               },
+            ]
+         );
+      },
+      [
+         activeSubscription,
+         currentPlanId,
+         currentTierLevel,
+         hasSubscription,
+         mutateAsync,
+      ]
+   );
+
+   const planActionLabels = useMemo(() => {
+      const labels = new Map<string, string>();
+      for (const plan of plans) {
+         labels.set(
+            plan.id,
+            getPlanActionLabel(
+               plan,
+               currentPlanId,
+               currentTierLevel,
+               hasSubscription
+            )
+         );
+      }
+      return labels;
+   }, [plans, currentPlanId, currentTierLevel, hasSubscription]);
 
    return (
       <>
@@ -89,12 +193,10 @@ export default function SubscriptionPlansScreen() {
                ) : error ? (
                   <View style={styles.centered}>
                      <Text style={styles.errorText}>
-                        {error instanceof ApiError
-                           ? (error.data as { message?: string } | undefined)?.message ??
-                             'Failed to load subscription plans.'
-                           : error instanceof Error
-                             ? error.message
-                             : 'Failed to load subscription plans.'}
+                        {getApiErrorMessage(
+                           error,
+                           'Failed to load subscription plans.'
+                        )}
                      </Text>
                      <TouchableOpacity
                         onPress={() => refetch()}
@@ -115,6 +217,8 @@ export default function SubscriptionPlansScreen() {
                            key={plan.id}
                            plan={plan}
                            isCurrentPlan={plan.id === currentPlanId}
+                           actionLabel={planActionLabels.get(plan.id)}
+                           isActionDisabled={isPending}
                            onUpgradePress={handleUpgradePress}
                         />
                      ))}

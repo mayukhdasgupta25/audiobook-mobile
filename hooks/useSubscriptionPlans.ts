@@ -34,9 +34,9 @@ export function useSubscriptionPlans() {
    });
 
    const plans = useMemo(() => {
-      const activePlans = (query.data?.data ?? []).filter((plan) => plan.isActive);
+      const activePlans = (query.data?.plans ?? []).filter((plan) => plan.isActive);
       return [...activePlans].sort((a, b) => a.tierLevel - b.tierLevel);
-   }, [query.data?.data]);
+   }, [query.data?.plans]);
 
    return {
       ...query,

@@ -20,6 +20,7 @@ import {
 } from '@/services/auth';
 import { ApiError } from '@/services/api';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
+import { getPlanFeatureDescriptions } from '@/services/subscriptions';
 import { formatAccountDate, formatPlanPrice } from '@/utils/format';
 import {
    setSkipDurationSeconds,
@@ -57,13 +58,12 @@ export default function AccountScreen() {
       }
    }, [userProfile?.createdAt]);
 
-   const userProfileId = userProfile?.id ?? '';
    const {
       activeSubscription,
       isLoading: isSubscriptionLoading,
       error: subscriptionError,
       refetch: refetchSubscription,
-   } = useUserSubscription(userProfileId);
+   } = useUserSubscription();
 
    const handleBackPress = () => {
       router.back();
@@ -270,10 +270,12 @@ export default function AccountScreen() {
                               </Text>
                            ) : null}
 
-                           {activeSubscription.plan.features.items.length > 0 ? (
+                           {getPlanFeatureDescriptions(activeSubscription.plan).length >
+                           0 ? (
                               <View style={styles.featureList}>
-                                 {activeSubscription.plan.features.items.map(
-                                    (feature, index) => (
+                                 {getPlanFeatureDescriptions(
+                                    activeSubscription.plan
+                                 ).map((feature, index) => (
                                        <View key={index} style={styles.featureItem}>
                                           <Ionicons
                                              name="checkmark-circle"
