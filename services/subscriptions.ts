@@ -1,20 +1,23 @@
 /**
  * Subscriptions service
- * Handles user subscription API calls
+ * Handles user subscription API calls (auth API)
  */
 
-import { get, ApiError, API_V1_PATH } from './api';
+import { get, post, ApiError } from './api';
 import { PaginationInfo } from './audiobooks';
+
+export type AudioQuality = 'base' | 'high' | 'best';
+
+export type AudiobookCatalog = 'selected' | 'curated_wide' | 'all';
 
 /**
  * Plan features from subscription API
  */
 export interface SubscriptionPlanFeatures {
-   items: string[];
-   multiDeviceSync?: boolean;
-   offlineDownload?: boolean;
-   audioBitrateKbps?: number;
-   accessAllAudiobooks?: boolean;
+   maxDevices: number;
+   audioQuality: AudioQuality;
+   audiobookCatalog: AudiobookCatalog;
+   deviceChangesPerMonth: number;
 }
 
 /**
@@ -30,6 +33,7 @@ export interface SubscriptionPlan {
    billingInterval: string;
    trialDays: number;
    features: SubscriptionPlanFeatures;
+   featureDescriptions: string[];
    isActive: boolean;
    createdAt: string;
    updatedAt: string;
@@ -61,77 +65,94 @@ export interface UserSubscription {
  * Subscription plans catalog API response
  */
 export interface SubscriptionPlansResponse {
-   success: boolean;
-   data: SubscriptionPlan[];
    message: string;
-   statusCode: number;
-   timestamp: string;
-   path: string;
+   plans: SubscriptionPlan[];
    pagination: PaginationInfo;
 }
 
 /**
- * User subscriptions API response
+ * Current user's subscription API response
  */
-export interface UserSubscriptionsResponse {
-   success: boolean;
-   data: UserSubscription[];
+export interface MySubscriptionResponse {
    message: string;
-   statusCode: number;
-   timestamp: string;
-   path: string;
-   pagination: PaginationInfo;
+   subscription: UserSubscription | null;
 }
 
 /**
- * Pick the current active subscription from the list
+ * Create subscription request body
  */
-export function getActiveSubscription(
-   subscriptions: UserSubscription[]
-): UserSubscription | null {
-   if (subscriptions.length === 0) {
-      return null;
+export interface CreateSubscriptionRequest {
+   planId: string;
+   autoRenew?: boolean;
+   paymentMethod?: string;
+   startDate?: string;
+   startTrial?: boolean;
+}
+
+/**
+ * Change plan request body
+ */
+export interface ChangePlanRequest {
+   planId: string;
+}
+
+/**
+ * Create or change-plan API response
+ */
+export interface SubscriptionMutationResponse {
+   message: string;
+   subscription: UserSubscription;
+}
+
+/**
+ * Human-readable feature bullets for a plan
+ */
+export function getPlanFeatureDescriptions(plan: SubscriptionPlan): string[] {
+   if (plan.featureDescriptions.length > 0) {
+      return plan.featureDescriptions;
    }
-   return subscriptions.find((s) => s.status === 'ACTIVE') ?? subscriptions[0] ?? null;
+   return [];
 }
 
 /**
- * Get subscriptions for a user profile
- * Calls GET /api/v1/subscriptions/user/:userProfileId with Bearer token
+ * Get the current user's active subscription
+ * Calls GET /auth/subscriptions/me with Bearer token
  */
-export async function getUserSubscriptions(
-   userProfileId: string
-): Promise<UserSubscriptionsResponse> {
+export async function getMySubscription(): Promise<MySubscriptionResponse> {
    try {
-      const response = await get<UserSubscriptionsResponse>(
-         `${API_V1_PATH}/subscriptions/user/${userProfileId}`,
+      const response = await get<MySubscriptionResponse>(
+         '/auth/subscriptions/me',
+         true,
          true
       );
       return response.data;
    } catch (error) {
-      console.warn('[Subscriptions Service] Get user subscriptions error', {
+      if (error instanceof ApiError && error.status === 404) {
+         return { message: 'No active subscription', subscription: null };
+      }
+      console.warn('[Subscriptions Service] Get my subscription error', {
          error,
          errorType: error instanceof Error ? error.constructor.name : typeof error,
          errorMessage: error instanceof Error ? error.message : String(error),
-         userProfileId,
       });
       if (error instanceof ApiError) {
          throw error;
       }
       throw new Error(
-         `Failed to fetch subscriptions: ${error instanceof Error ? error.message : 'Unknown error'}`
+         `Failed to fetch subscription: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
    }
 }
 
 /**
  * Get available subscription plans catalog
- * Calls GET /api/v1/subscription-plans with Bearer token
+ * Calls GET /auth/subscription-plans with Bearer token
  */
 export async function getSubscriptionPlans(): Promise<SubscriptionPlansResponse> {
    try {
       const response = await get<SubscriptionPlansResponse>(
-         `${API_V1_PATH}/subscription-plans`,
+         '/auth/subscription-plans',
+         true,
          true
       );
       return response.data;
@@ -146,6 +167,68 @@ export async function getSubscriptionPlans(): Promise<SubscriptionPlansResponse>
       }
       throw new Error(
          `Failed to fetch subscription plans: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Create a subscription for the current user
+ * Calls POST /auth/subscriptions with Bearer token
+ */
+export async function createSubscription(
+   body: CreateSubscriptionRequest
+): Promise<SubscriptionMutationResponse> {
+   try {
+      const response = await post<SubscriptionMutationResponse>(
+         '/auth/subscriptions',
+         body,
+         true,
+         true
+      );
+      return response.data;
+   } catch (error) {
+      console.warn('[Subscriptions Service] Create subscription error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Failed to create subscription: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Change the plan on an existing subscription (upgrade/downgrade)
+ * Calls POST /auth/subscriptions/:id/change-plan with Bearer token
+ */
+export async function changeSubscriptionPlan(
+   subscriptionId: string,
+   body: ChangePlanRequest
+): Promise<SubscriptionMutationResponse> {
+   try {
+      const response = await post<SubscriptionMutationResponse>(
+         `/auth/subscriptions/${subscriptionId}/change-plan`,
+         body,
+         true,
+         true
+      );
+      return response.data;
+   } catch (error) {
+      console.warn('[Subscriptions Service] Change subscription plan error', {
+         error,
+         errorType: error instanceof Error ? error.constructor.name : typeof error,
+         errorMessage: error instanceof Error ? error.message : String(error),
+         subscriptionId,
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Failed to change subscription plan: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
    }
 }

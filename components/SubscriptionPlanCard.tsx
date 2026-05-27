@@ -8,12 +8,17 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '@/theme';
-import { SubscriptionPlan } from '@/services/subscriptions';
+import {
+   SubscriptionPlan,
+   getPlanFeatureDescriptions,
+} from '@/services/subscriptions';
 import { formatPlanPrice } from '@/utils/format';
 
 interface SubscriptionPlanCardProps {
    plan: SubscriptionPlan;
    isCurrentPlan?: boolean;
+   actionLabel?: string;
+   isActionDisabled?: boolean;
    onUpgradePress: (plan: SubscriptionPlan) => void;
 }
 
@@ -23,6 +28,8 @@ interface SubscriptionPlanCardProps {
 export function SubscriptionPlanCard({
    plan,
    isCurrentPlan = false,
+   actionLabel,
+   isActionDisabled = false,
    onUpgradePress,
 }: SubscriptionPlanCardProps) {
    const priceLabel =
@@ -30,15 +37,20 @@ export function SubscriptionPlanCard({
          ? `${formatPlanPrice(plan.price, plan.currency)}/month`
          : formatPlanPrice(plan.price, plan.currency);
 
+   const featureDescriptions = getPlanFeatureDescriptions(plan);
+   const buttonLabel =
+      actionLabel ?? (isCurrentPlan ? 'Current plan' : 'Upgrade Plan');
+   const buttonDisabled = isCurrentPlan || isActionDisabled;
+
    return (
       <View style={[styles.card, isCurrentPlan && styles.cardCurrent]}>
          <Text style={styles.planName}>{plan.name}</Text>
          <Text style={styles.planDescription}>{plan.description}</Text>
          <Text style={styles.planPrice}>{priceLabel}</Text>
 
-         {plan.features.items.length > 0 ? (
+         {featureDescriptions.length > 0 ? (
             <View style={styles.featureList}>
-               {plan.features.items.map((feature, index) => (
+               {featureDescriptions.map((feature, index) => (
                   <View key={index} style={styles.featureItem}>
                      <Ionicons
                         name="checkmark-circle"
@@ -54,15 +66,13 @@ export function SubscriptionPlanCard({
          <TouchableOpacity
             style={[
                styles.upgradeButton,
-               isCurrentPlan && styles.upgradeButtonDisabled,
+               buttonDisabled && styles.upgradeButtonDisabled,
             ]}
             onPress={() => onUpgradePress(plan)}
             activeOpacity={0.7}
-            disabled={isCurrentPlan}
+            disabled={buttonDisabled}
          >
-            <Text style={styles.upgradeButtonText}>
-               {isCurrentPlan ? 'Current plan' : 'Upgrade Plan'}
-            </Text>
+            <Text style={styles.upgradeButtonText}>{buttonLabel}</Text>
          </TouchableOpacity>
       </View>
    );

@@ -1,21 +1,18 @@
 /**
- * TanStack Query hook for fetching user subscriptions
+ * TanStack Query hook for fetching the current user's subscription
  */
 
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
-import {
-   getUserSubscriptions,
-   getActiveSubscription,
-} from '@/services/subscriptions';
+import { getMySubscription } from '@/services/subscriptions';
 import { ApiError } from '@/services/api';
 import { RootState } from '@/store';
 
 /**
- * Hook to fetch the current user's subscriptions by profile ID
+ * Hook to fetch the current user's active subscription
  */
-export function useUserSubscription(userProfileId: string) {
+export function useUserSubscription() {
    const isAuthenticated = useSelector(
       (state: RootState) => state.auth.isAuthenticated
    );
@@ -24,9 +21,9 @@ export function useUserSubscription(userProfileId: string) {
    );
 
    const query = useQuery({
-      queryKey: ['subscriptions', 'user', userProfileId],
-      queryFn: () => getUserSubscriptions(userProfileId),
-      enabled: !!userProfileId && isAuthenticated && isInitialized,
+      queryKey: ['subscriptions', 'me'],
+      queryFn: () => getMySubscription(),
+      enabled: isAuthenticated && isInitialized,
       retry: (failureCount, error) => {
          if (error instanceof ApiError && error.status === 401) {
             return false;
@@ -37,8 +34,8 @@ export function useUserSubscription(userProfileId: string) {
    });
 
    const activeSubscription = useMemo(
-      () => getActiveSubscription(query.data?.data ?? []),
-      [query.data?.data]
+      () => query.data?.subscription ?? null,
+      [query.data?.subscription]
    );
 
    return {
