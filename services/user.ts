@@ -14,6 +14,7 @@ export interface UserPreferences {
    autoPlay: boolean;
    language: string;
    playbackSpeed: number;
+   favoriteGenreIds?: string[];
 }
 
 /**
@@ -26,6 +27,8 @@ export interface UserProfile {
    firstName: string | null;
    lastName: string | null;
    avatar: string | null;
+   age: number | null;
+   gender: string | null;
    preferences: UserPreferences;
    createdAt: string;
    updatedAt: string;
@@ -70,12 +73,28 @@ export async function getUserProfile(): Promise<UserProfileResponse> {
 }
 
 /**
+ * Geographic location attached to the user profile
+ */
+export interface UserLocation {
+   latitude: number;
+   longitude: number;
+   accuracy?: number | null;
+   altitude?: number | null;
+   /** ISO-8601 timestamp when the reading was taken */
+   timestamp?: string;
+}
+
+/**
  * Update user profile request payload
  */
 export interface UpdateProfileRequest {
    firstName?: string | null;
    lastName?: string | null;
    avatar?: string | null;
+   location?: UserLocation;
+   age?: number;
+   gender?: string;
+   preferences?: Pick<UserPreferences, 'favoriteGenreIds'>;
 }
 
 /**

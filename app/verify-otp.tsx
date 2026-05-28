@@ -103,6 +103,8 @@ export default function VerifyOtpScreen() {
                   accessToken: response.accessToken,
                   refreshToken: response.refreshToken,
                   user: response.user,
+                  authProvider: 'email_registration',
+                  requiresOnboarding: true,
                })
             );
 

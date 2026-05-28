@@ -19,6 +19,7 @@ import { useTrackPlayerSetup } from '@/hooks/useTrackPlayerSetup';
 import * as Linking from 'expo-linking';
 import { usePlaybackNotificationLinking } from '@/hooks/usePlaybackNotificationLinking';
 import { usePlaybackReturnPathTracker } from '@/hooks/usePlaybackReturnPathTracker';
+import { useUserLocationSync } from '@/hooks/useUserLocationSync';
 import { isTrackPlayerNotificationUrl } from '@/utils/playbackNotificationNavigation';
 import { resolvePersistedPlaybackRoute } from '@/utils/playbackReturnPathStorage';
 import '../global.css';
@@ -104,6 +105,9 @@ function InnerLayout() {
    const isInitialized = useSelector(
       (state: RootState) => state.auth.isInitialized
    );
+   const requiresOnboarding = useSelector(
+      (state: RootState) => state.auth.requiresOnboarding
+   );
    const [isAppReady, setIsAppReady] = useState(false);
    const [showSplash, setShowSplash] = useState(true);
    const hasSetInitialRoute = useRef(false);
@@ -111,6 +115,7 @@ function InnerLayout() {
 
    usePlaybackReturnPathTracker();
    usePlaybackNotificationLinking(isAppReady && isInitialized && !showSplash);
+   useUserLocationSync();
 
    useEffect(() => {
       // Initialize auth state on app startup
@@ -172,9 +177,14 @@ function InnerLayout() {
             }
          }
 
+         if (requiresOnboarding) {
+            router.replace('/onboarding/age' as Href);
+            return;
+         }
+
          router.replace('/(tabs)');
       })();
-   }, [isAppReady, isInitialized, isAuthenticated, showSplash]);
+   }, [isAppReady, isInitialized, isAuthenticated, requiresOnboarding, showSplash]);
 
    // Handle route changes after initial load
    useEffect(() => {
@@ -182,6 +192,7 @@ function InnerLayout() {
          return; // Wait for app to initialize and splash to hide
       }
 
+      const inOnboarding = String(segments[0]) === 'onboarding';
       const inAuthGroup =
          segments[0] === '(tabs)' ||
          segments[0] === 'details' ||
@@ -194,19 +205,23 @@ function InnerLayout() {
          segments[0] === 'change-password' ||
          segments[0] === 'change-email' ||
          segments[0] === 'verify-password-otp' ||
-         segments[0] === 'verify-email-otp';
+         segments[0] === 'verify-email-otp' ||
+         inOnboarding;
+
+      const onAuthScreen =
+         segments[0] === 'signin' ||
+         segments[0] === 'signup' ||
+         segments[0] === 'verify-otp';
 
       if (!isAuthenticated && inAuthGroup) {
          // User is not authenticated but trying to access protected route
          router.replace('/signin');
-      } else if (
-         isAuthenticated &&
-         (segments[0] === 'signin' || segments[0] === 'signup' || segments[0] === 'verify-otp')
-      ) {
-         // User is authenticated but on auth pages, redirect to home
+      } else if (isAuthenticated && requiresOnboarding && !inOnboarding) {
+         router.replace('/onboarding/age' as Href);
+      } else if (isAuthenticated && !requiresOnboarding && (onAuthScreen || inOnboarding)) {
          router.replace('/(tabs)');
       }
-   }, [isAuthenticated, isInitialized, isAppReady, segments, showSplash]);
+   }, [isAuthenticated, requiresOnboarding, isInitialized, isAppReady, segments, showSplash]);
 
    // Show splash screen while initializing or during minimum display time
    if (showSplash) {
@@ -341,6 +356,15 @@ function InnerLayout() {
                   contentStyle: {
                      backgroundColor: colors.background.dark,
                   },
+               }}
+            />
+            <Stack.Screen
+               name="onboarding"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+                  gestureEnabled: false,
                }}
             />
          </Stack>

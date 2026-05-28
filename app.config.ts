@@ -45,11 +45,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       jsEngine: 'hermes',
       googleServicesFile: process.env.EXPO_PUBLIC_GOOGLE_SERVICES_IOS || undefined,
       infoPlist: {
-         UIBackgroundModes: ['audio'],
+         UIBackgroundModes: ['audio', 'location'],
          NSLocalNetworkUsageDescription:
             'AudioBook connects to your audiobook server on your local network to stream chapters.',
          // Triggers the Local Network privacy prompt so AVPlayer can reach LAN streaming URLs.
          NSBonjourServices: ['_http._tcp'],
+         NSLocationWhenInUseUsageDescription:
+            'AudioBook uses your location to personalize your experience and improve our service.',
+         NSLocationAlwaysAndWhenInUseUsageDescription:
+            'AudioBook may update your location in the background to keep your profile up to date.',
       },
    },
    android: {
@@ -64,6 +68,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
          'android.permission.FOREGROUND_SERVICE',
          'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
          'android.permission.WAKE_LOCK',
+         'android.permission.ACCESS_COARSE_LOCATION',
+         'android.permission.ACCESS_FINE_LOCATION',
+         'android.permission.ACCESS_BACKGROUND_LOCATION',
       ],
    },
    web: {
@@ -80,6 +87,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-asset',
       'expo-localization',
       'expo-secure-store',
+      [
+         'expo-location',
+         {
+            locationAlwaysAndWhenInUsePermission:
+               'AudioBook may update your location in the background to keep your profile up to date.',
+            locationWhenInUsePermission:
+               'AudioBook uses your location to personalize your experience and improve our service.',
+            isAndroidBackgroundLocationEnabled: true,
+            isAndroidForegroundServiceEnabled: true,
+         },
+      ],
       './app.plugin.js',
       ...(googleSignInPlugin ? [googleSignInPlugin] : []),
    ],
