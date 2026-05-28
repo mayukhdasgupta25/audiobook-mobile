@@ -6,6 +6,23 @@
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Platform } from 'react-native';
 import { post, get, ApiError } from './api';
+import {
+   fetchAndStoreDeviceDetails,
+   type DeviceDetails,
+} from './device';
+
+export type { DeviceDetails } from './device';
+
+/**
+ * How the user authenticated (stored locally for logout handling)
+ */
+export type AuthProvider = 'email' | 'email_registration' | 'google';
+
+const AUTH_PROVIDERS: AuthProvider[] = ['email', 'email_registration', 'google'];
+
+export function isAuthProvider(value: string): value is AuthProvider {
+   return (AUTH_PROVIDERS as string[]).includes(value);
+}
 
 /**
  * User interface matching API response
@@ -18,11 +35,18 @@ export interface User {
 }
 
 /**
- * Login request payload
+ * Login credentials (device is attached automatically in login())
  */
 export interface LoginRequest {
    email: string;
    password: string;
+}
+
+/**
+ * Login API request body sent to the server
+ */
+export interface LoginRequestBody extends LoginRequest {
+   device: DeviceDetails;
 }
 
 /**
@@ -54,11 +78,18 @@ export interface SignupResponse {
 }
 
 /**
- * OTP verification request payload
+ * OTP verification input (device is attached automatically)
  */
 export interface VerifyOtpRequest {
    email: string;
    otp: string;
+}
+
+/**
+ * Registration OTP verification API request body
+ */
+export interface VerifyOtpRequestBody extends VerifyOtpRequest {
+   device: DeviceDetails;
 }
 
 /**
@@ -82,8 +113,11 @@ export async function login(
    credentials: LoginRequest
 ): Promise<LoginResponse> {
    try {
+      const device = await fetchAndStoreDeviceDetails();
+      const body: LoginRequestBody = { ...credentials, device };
+
       // Use auth API (port 8080) for login endpoint
-      const response = await post<LoginResponse>('/auth/login', credentials, false, true);
+      const response = await post<LoginResponse>('/auth/login', body, false, true);
       return response.data;
    } catch (error) {
       console.error('[Auth Service] Login error', {
@@ -140,10 +174,13 @@ export async function verifyRegistrationOtp(
    request: VerifyOtpRequest
 ): Promise<VerifyOtpResponse> {
    try {
+      const device = await fetchAndStoreDeviceDetails();
+      const body: VerifyOtpRequestBody = { ...request, device };
+
       // Use auth API (port 8080) for OTP verification endpoint
       const response = await post<VerifyOtpResponse>(
          '/auth/verify-registration-otp',
-         request,
+         body,
          false,
          true
       );
@@ -507,10 +544,11 @@ export interface LogoutRequest {
 }
 
 /**
- * Google OAuth request payload
+ * Google OAuth API request body (device is attached automatically in googleAuth())
  */
-export interface GoogleAuthRequest {
+export interface GoogleAuthRequestBody {
    token: string;
+   device: DeviceDetails;
 }
 
 /**
@@ -521,6 +559,8 @@ export interface GoogleAuthResponse {
    accessToken: string;
    refreshToken: string;
    user: User;
+   /** True when the Google account was just registered on the server */
+   isNewUser?: boolean;
 }
 
 /**
@@ -528,6 +568,20 @@ export interface GoogleAuthResponse {
  */
 export interface LogoutResponse {
    message: string;
+}
+
+/**
+ * Clears the native Google Sign-In session so the account picker appears on next sign-in.
+ * Does not throw — safe to call during logout.
+ */
+export async function revokeGoogleSignInSession(): Promise<void> {
+   try {
+      configureGoogleSignIn();
+      await GoogleSignin.signOut();
+      await GoogleSignin.revokeAccess();
+   } catch (error) {
+      console.warn('[Auth Service] Failed to revoke Google Sign-In session:', error);
+   }
 }
 
 /**
@@ -584,10 +638,13 @@ export async function googleAuth(): Promise<GoogleAuthResponse> {
          throw new Error('Failed to retrieve Google ID token');
       }
 
-      // Send token to server
+      const device = await fetchAndStoreDeviceDetails();
+      const body: GoogleAuthRequestBody = { token: idToken, device };
+
+      // Send token and device to server
       const response = await post<GoogleAuthResponse>(
          '/auth/google',
-         { token: idToken },
+         body,
          false,
          true
       );

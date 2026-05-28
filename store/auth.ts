@@ -5,8 +5,10 @@
 
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import * as SecureStore from 'expo-secure-store';
-import { User } from '@/services/auth';
+import { User, type AuthProvider, isAuthProvider } from '@/services/auth';
+import { fetchAndStoreDeviceDetails } from '@/services/device';
 import { getUserProfile, UserProfile } from '@/services/user';
+import { useOnboardingStore } from '@/store/onboarding';
 
 /**
  * Auth state interface
@@ -19,6 +21,8 @@ export interface AuthState {
    profileFetched: boolean;
    isAuthenticated: boolean;
    isInitialized: boolean;
+   requiresOnboarding: boolean;
+   authProvider: AuthProvider | null;
 }
 
 /**
@@ -32,6 +36,8 @@ const initialState: AuthState = {
    profileFetched: false,
    isAuthenticated: false,
    isInitialized: false,
+   requiresOnboarding: false,
+   authProvider: null,
 };
 
 /**
@@ -41,6 +47,20 @@ const ACCESS_TOKEN_KEY = 'auth_access_token';
 const REFRESH_TOKEN_KEY = 'auth_refresh_token';
 const USER_KEY = 'auth_user';
 const USER_PROFILE_KEY = 'auth_user_profile';
+const ONBOARDING_PENDING_KEY = 'onboarding_pending';
+export const AUTH_PROVIDER_KEY = 'auth_provider';
+
+function persistOnboardingPending(required: boolean): void {
+   if (required) {
+      SecureStore.setItemAsync(ONBOARDING_PENDING_KEY, 'true').catch((error) =>
+         console.error('[Auth] Error saving onboarding pending flag:', error)
+      );
+   } else {
+      SecureStore.deleteItemAsync(ONBOARDING_PENDING_KEY).catch((error) =>
+         console.error('[Auth] Error clearing onboarding pending flag:', error)
+      );
+   }
+}
 
 /**
  * Async thunk to initialize auth state from secure storage
@@ -53,6 +73,8 @@ export const initializeAuth = createAsyncThunk(
       refreshToken: string | null;
       user: User | null;
       userProfile: UserProfile | null;
+      requiresOnboarding: boolean;
+      authProvider: AuthProvider | null;
    }> => {
       try {
          // Load accessToken from secure store
@@ -69,11 +91,20 @@ export const initializeAuth = createAsyncThunk(
          const profileJson = await SecureStore.getItemAsync(USER_PROFILE_KEY);
          const userProfile = profileJson ? (JSON.parse(profileJson) as UserProfile) : null;
 
+         const onboardingPending = await SecureStore.getItemAsync(ONBOARDING_PENDING_KEY);
+         const requiresOnboarding = onboardingPending === 'true';
+
+         const authProviderRaw = await SecureStore.getItemAsync(AUTH_PROVIDER_KEY);
+         const authProvider =
+            authProviderRaw && isAuthProvider(authProviderRaw) ? authProviderRaw : null;
+
          return {
             accessToken,
             refreshToken,
             user,
             userProfile,
+            requiresOnboarding,
+            authProvider,
          };
       } catch (error) {
          console.error('Error initializing auth:', error);
@@ -82,6 +113,8 @@ export const initializeAuth = createAsyncThunk(
             refreshToken: null,
             user: null,
             userProfile: null,
+            requiresOnboarding: false,
+            authProvider: null,
          };
       }
    }
@@ -118,12 +151,24 @@ const authSlice = createSlice({
        */
       setAuth: (
          state,
-         action: PayloadAction<{ accessToken: string; refreshToken: string; user: User }>
+         action: PayloadAction<{
+            accessToken: string;
+            refreshToken: string;
+            user: User;
+            authProvider: AuthProvider;
+            requiresOnboarding?: boolean;
+         }>
       ) => {
          state.accessToken = action.payload.accessToken;
          state.refreshToken = action.payload.refreshToken;
          state.user = action.payload.user;
+         state.authProvider = action.payload.authProvider;
          state.isAuthenticated = true;
+
+         if (action.payload.requiresOnboarding) {
+            state.requiresOnboarding = true;
+            persistOnboardingPending(true);
+         }
 
          // Clear previous user profile when new account logs in
          // This ensures multiple accounts on same device don't mix profiles
@@ -140,11 +185,19 @@ const authSlice = createSlice({
          SecureStore.setItemAsync(USER_KEY, JSON.stringify(action.payload.user)).catch(
             (error) => console.error('Error saving user data:', error)
          );
+         SecureStore.setItemAsync(AUTH_PROVIDER_KEY, action.payload.authProvider).catch(
+            (error) => console.error('[Auth] Error saving auth provider:', error)
+         );
 
          // Clear previous user profile from SecureStore when new account logs in
          // New profile will be saved when fetchUserProfile completes
          SecureStore.deleteItemAsync(USER_PROFILE_KEY).catch((error) =>
             console.error('[Auth] Error clearing previous user profile from SecureStore:', error)
+         );
+
+         // Fetch device name, platform, and persistent device UUID on login/signup
+         fetchAndStoreDeviceDetails().catch((error) =>
+            console.error('[Auth] Error saving device details:', error)
          );
       },
       /**
@@ -152,6 +205,11 @@ const authSlice = createSlice({
        * Note: We keep userProfile in SecureStore even after logout so we can show
        * "Welcome Back" message for returning users. Profile is non-sensitive data.
        */
+      completeOnboarding: (state) => {
+         state.requiresOnboarding = false;
+         persistOnboardingPending(false);
+         useOnboardingStore.getState().resetOnboarding();
+      },
       clearAuth: (state) => {
          state.accessToken = null;
          state.refreshToken = null;
@@ -159,6 +217,11 @@ const authSlice = createSlice({
          state.userProfile = null;
          state.profileFetched = false;
          state.isAuthenticated = false;
+         state.requiresOnboarding = false;
+         state.authProvider = null;
+
+         persistOnboardingPending(false);
+         useOnboardingStore.getState().resetOnboarding();
 
          // Clear secure store (authentication tokens and user data)
          SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY).catch((error) =>
@@ -169,6 +232,9 @@ const authSlice = createSlice({
          );
          SecureStore.deleteItemAsync(USER_KEY).catch((error) =>
             console.error('Error deleting user data:', error)
+         );
+         SecureStore.deleteItemAsync(AUTH_PROVIDER_KEY).catch((error) =>
+            console.error('[Auth] Error deleting auth provider:', error)
          );
          // Keep userProfile in SecureStore for "Welcome Back" message
          // Only clear it if user explicitly deletes account
@@ -186,6 +252,8 @@ const authSlice = createSlice({
             state.userProfile = action.payload.userProfile;
             state.profileFetched = !!action.payload.userProfile; // Mark as fetched if profile exists
             state.isAuthenticated = !!action.payload.accessToken;
+            state.requiresOnboarding = action.payload.requiresOnboarding;
+            state.authProvider = action.payload.authProvider;
             state.isInitialized = true;
          })
          .addCase(initializeAuth.rejected, (state) => {
@@ -193,6 +261,8 @@ const authSlice = createSlice({
             state.refreshToken = null;
             state.user = null;
             state.isAuthenticated = false;
+            state.requiresOnboarding = false;
+            state.authProvider = null;
             state.isInitialized = true;
          })
          .addCase(fetchUserProfile.pending, () => {
@@ -243,6 +313,19 @@ export async function hasStoredUserProfile(): Promise<boolean> {
    }
 }
 
-export const { setAuth, clearAuth } = authSlice.actions;
+/**
+ * Reads persisted auth provider (e.g. when Redux state is unavailable).
+ */
+export async function getStoredAuthProvider(): Promise<AuthProvider | null> {
+   try {
+      const value = await SecureStore.getItemAsync(AUTH_PROVIDER_KEY);
+      return value && isAuthProvider(value) ? value : null;
+   } catch (error) {
+      console.error('[Auth] Error reading stored auth provider:', error);
+      return null;
+   }
+}
+
+export const { setAuth, clearAuth, completeOnboarding } = authSlice.actions;
 export default authSlice.reducer;
 

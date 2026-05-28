@@ -70,6 +70,7 @@ export default function SignInScreen() {
                accessToken: response.accessToken,
                refreshToken: response.refreshToken,
                user: response.user,
+               authProvider: 'email',
             })
          );
 
@@ -126,14 +127,15 @@ export default function SignInScreen() {
                accessToken: response.accessToken,
                refreshToken: response.refreshToken,
                user: response.user,
+               authProvider: 'google',
+               requiresOnboarding: response.isNewUser === true,
             })
          );
 
-         // Fetch user profile after successful login
+         // Fetch user profile after successful Google sign-in
          try {
             await dispatch(fetchUserProfile()).unwrap();
          } catch (profileError) {
-            // Log error but don't block navigation - profile fetch failure shouldn't prevent login
             console.error('[SignIn] Failed to fetch user profile:', profileError);
          }
 
