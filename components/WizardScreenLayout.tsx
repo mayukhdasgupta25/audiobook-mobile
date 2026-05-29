@@ -25,6 +25,8 @@ interface WizardScreenLayoutProps {
    isLoading?: boolean;
    onBack?: () => void;
    error?: string | null;
+   /** When false, body uses a flex layout (e.g. nested scroll pickers). Default true. */
+   scrollable?: boolean;
 }
 
 /**
@@ -42,7 +44,57 @@ export const WizardScreenLayout: React.FC<WizardScreenLayoutProps> = ({
    isLoading = false,
    onBack,
    error,
+   scrollable = true,
 }) => {
+   const content = (
+      <>
+         <View style={styles.header}>
+            {onBack ? (
+               <TouchableOpacity
+                  onPress={onBack}
+                  style={styles.backButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Go back"
+               >
+                  <Text style={styles.backButtonText}>Back</Text>
+               </TouchableOpacity>
+            ) : (
+               <View style={styles.backPlaceholder} />
+            )}
+            <Text style={styles.stepLabel}>
+               Step {step} of {totalSteps}
+            </Text>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
+         </View>
+
+         <View style={styles.body}>{children}</View>
+
+         {error ? (
+            <View style={styles.errorContainer}>
+               <Text style={styles.errorText}>{error}</Text>
+            </View>
+         ) : null}
+
+         <TouchableOpacity
+            style={[
+               styles.continueButton,
+               (continueDisabled || isLoading) && styles.continueButtonDisabled,
+            ]}
+            onPress={onContinue}
+            disabled={continueDisabled || isLoading}
+            accessibilityRole="button"
+            accessibilityLabel={continueLabel}
+         >
+            {isLoading ? (
+               <ActivityIndicator color={colors.text.dark} />
+            ) : (
+               <Text style={styles.continueButtonText}>{continueLabel}</Text>
+            )}
+         </TouchableOpacity>
+      </>
+   );
+
    return (
       <>
          <Stack.Screen
@@ -57,56 +109,17 @@ export const WizardScreenLayout: React.FC<WizardScreenLayoutProps> = ({
                style={styles.keyboardAvoid}
                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
-               <ScrollView
-                  style={styles.scrollView}
-                  contentContainerStyle={styles.scrollContent}
-                  keyboardShouldPersistTaps="handled"
-               >
-                  <View style={styles.header}>
-                     {onBack ? (
-                        <TouchableOpacity
-                           onPress={onBack}
-                           style={styles.backButton}
-                           accessibilityRole="button"
-                           accessibilityLabel="Go back"
-                        >
-                           <Text style={styles.backButtonText}>Back</Text>
-                        </TouchableOpacity>
-                     ) : (
-                        <View style={styles.backPlaceholder} />
-                     )}
-                     <Text style={styles.stepLabel}>
-                        Step {step} of {totalSteps}
-                     </Text>
-                     <Text style={styles.title}>{title}</Text>
-                     <Text style={styles.subtitle}>{subtitle}</Text>
-                  </View>
-
-                  <View style={styles.body}>{children}</View>
-
-                  {error ? (
-                     <View style={styles.errorContainer}>
-                        <Text style={styles.errorText}>{error}</Text>
-                     </View>
-                  ) : null}
-
-                  <TouchableOpacity
-                     style={[
-                        styles.continueButton,
-                        (continueDisabled || isLoading) && styles.continueButtonDisabled,
-                     ]}
-                     onPress={onContinue}
-                     disabled={continueDisabled || isLoading}
-                     accessibilityRole="button"
-                     accessibilityLabel={continueLabel}
+               {scrollable ? (
+                  <ScrollView
+                     style={styles.scrollView}
+                     contentContainerStyle={styles.scrollContent}
+                     keyboardShouldPersistTaps="handled"
                   >
-                     {isLoading ? (
-                        <ActivityIndicator color={colors.text.dark} />
-                     ) : (
-                        <Text style={styles.continueButtonText}>{continueLabel}</Text>
-                     )}
-                  </TouchableOpacity>
-               </ScrollView>
+                     {content}
+                  </ScrollView>
+               ) : (
+                  <View style={[styles.scrollView, styles.staticContent]}>{content}</View>
+               )}
             </KeyboardAvoidingView>
          </SafeAreaView>
       </>
@@ -129,8 +142,18 @@ const styles = StyleSheet.create({
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.xl,
       paddingBottom: spacing.xl,
+      alignItems: 'stretch',
+   },
+   staticContent: {
+      flex: 1,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.xl,
+      paddingBottom: spacing.xl,
+      alignItems: 'stretch',
    },
    header: {
+      width: '100%',
+      alignSelf: 'stretch',
       marginBottom: spacing.xl,
    },
    backButton: {
@@ -179,6 +202,8 @@ const styles = StyleSheet.create({
    },
    body: {
       flex: 1,
+      width: '100%',
+      alignSelf: 'stretch',
       marginBottom: spacing.lg,
    },
    errorContainer: {

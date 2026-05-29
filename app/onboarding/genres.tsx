@@ -5,11 +5,13 @@ import { useDispatch } from 'react-redux';
 import { WizardScreenLayout } from '@/components/WizardScreenLayout';
 import { SelectableChip } from '@/components/SelectableChip';
 import { useGenres } from '@/hooks/useGenres';
+import { syncUserLocationToProfile } from '@/services/location';
 import { updateUserProfile } from '@/services/user';
 import { completeOnboarding, fetchUserProfile } from '@/store/auth';
 import {
    useOnboardingStore,
    MAX_GENRE_SELECTIONS,
+   formatGenderForApi,
 } from '@/store/onboarding';
 import { AppDispatch } from '@/store';
 import { ApiError } from '@/services/api';
@@ -61,9 +63,11 @@ export default function OnboardingGenresScreen() {
       try {
          await updateUserProfile({
             age,
-            gender,
+            gender: formatGenderForApi(gender),
             preferences: { favoriteGenreIds: genreIds },
          });
+
+         await syncUserLocationToProfile();
 
          try {
             await dispatch(fetchUserProfile()).unwrap();

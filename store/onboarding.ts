@@ -13,6 +13,11 @@ export const GENDER_OPTIONS = [
 
 export type GenderValue = (typeof GENDER_OPTIONS)[number]['value'];
 
+/** API expects gender in uppercase (e.g. MALE, NON_BINARY). */
+export function formatGenderForApi(gender: GenderValue): string {
+   return gender.toUpperCase();
+}
+
 export const MIN_AGE = 13;
 export const MAX_AGE = 120;
 export const MAX_GENRE_SELECTIONS = 3;

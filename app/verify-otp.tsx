@@ -20,8 +20,10 @@ import {
    resendRegistrationOTP,
 } from '@/services/auth';
 import { setAuth, fetchUserProfile } from '@/store/auth';
+import { fetchDeviceLocationInMemory } from '@/services/location';
 import { AppDispatch } from '@/store';
 import { ApiError } from '@/services/api';
+import { isDeviceLimitExceededError } from '@/utils/authApiErrors';
 
 /**
  * OTP verification screen for registration
@@ -116,10 +118,15 @@ export default function VerifyOtpScreen() {
                console.error('[VerifyOtp] Failed to fetch user profile:', profileError);
             }
 
+            void fetchDeviceLocationInMemory();
+
             // Navigation is handled centrally by the auth guard in `app/_layout.tsx`
          } catch (err) {
             // Handle API errors
             if (err instanceof ApiError) {
+               if (isDeviceLimitExceededError(err.data)) {
+                  return;
+               }
                if (err.status === 400) {
                   const errorData = err.data as { message?: string } | undefined;
                   setError(errorData?.message || 'Invalid OTP. Please try again.');

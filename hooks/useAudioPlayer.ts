@@ -36,6 +36,8 @@ import {
 } from '@/hooks/useTrackPlayerSetup';
 import { registerChapterReload } from '@/services/playbackReload';
 import { ensureMediaNotificationPermission } from '@/utils/ensureMediaNotificationPermission';
+import { isActivePlaybackSession } from '@/utils/playbackSession';
+import { teardownTrackPlayerPlayback } from '@/services/playbackTeardown';
 import { Platform } from 'react-native';
 
 const LOAD_TIMEOUT_MS = 30_000;
@@ -91,6 +93,10 @@ export function useAudioPlayer() {
    );
 
    const loadChapter = useCallback(async () => {
+      if (!isActivePlaybackSession()) {
+         return;
+      }
+
       if (!currentChapterId || !chapterMetadata || !accessToken || !user?.id) {
          return;
       }
@@ -109,6 +115,9 @@ export function useAudioPlayer() {
       dispatch(setError(null));
 
       loadTimeoutRef.current = setTimeout(() => {
+         if (!isActivePlaybackSession()) {
+            return;
+         }
          const playerState = store.getState().player;
          if (playerState.isLoading && playerState.currentChapterId === currentChapterId) {
             console.warn('[Audio Player] Load timed out');
@@ -136,6 +145,11 @@ export function useAudioPlayer() {
                   playlistData: playbackSource.playlistData,
                })
             );
+         }
+
+         if (!isActivePlaybackSession()) {
+            clearLoadTimeout();
+            return;
          }
 
          if (playbackSource.totalDurationSeconds > 0) {
@@ -184,16 +198,20 @@ export function useAudioPlayer() {
             await TrackPlayer.play();
          }
 
-         dispatch(setLoading(false));
+         if (isActivePlaybackSession()) {
+            dispatch(setLoading(false));
+         }
          clearLoadTimeout();
       } catch (error: unknown) {
          console.error('[Audio Player] Failed to load chapter:', error);
-         dispatch(
-            setError(
-               error instanceof Error ? error.message : 'Failed to load audio'
-            )
-         );
-         dispatch(setLoading(false));
+         if (isActivePlaybackSession()) {
+            dispatch(
+               setError(
+                  error instanceof Error ? error.message : 'Failed to load audio'
+               )
+            );
+            dispatch(setLoading(false));
+         }
          clearLoadTimeout();
       }
    }, [
@@ -213,6 +231,9 @@ export function useAudioPlayer() {
    useEffect(() => {
       const subs = [
          TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (event) => {
+            if (!isActivePlaybackSession()) {
+               return;
+            }
             if (isDraggingRef.current || getIsDragging()) {
                return;
             }
@@ -242,6 +263,9 @@ export function useAudioPlayer() {
          }),
 
          TrackPlayer.addEventListener(Event.PlaybackError, (event) => {
+            if (!isActivePlaybackSession()) {
+               return;
+            }
             console.error('[Audio Player] Playback error:', event);
             const message =
                'message' in event && typeof event.message === 'string'
@@ -253,6 +277,10 @@ export function useAudioPlayer() {
          }),
 
          TrackPlayer.addEventListener(Event.PlaybackState, async (event) => {
+            if (!isActivePlaybackSession()) {
+               return;
+            }
+
             const playbackState =
                typeof event === 'object' && event !== null && 'state' in event
                   ? (event as { state: State }).state
@@ -322,6 +350,10 @@ export function useAudioPlayer() {
       let mounted = true;
 
       const syncProgress = async () => {
+         if (!isActivePlaybackSession()) {
+            return;
+         }
+
          if (
             !mounted ||
             lastLoadedChapterRef.current !== currentChapterId ||
@@ -357,6 +389,10 @@ export function useAudioPlayer() {
                dispatch(pause());
             }
 
+            if (!isActivePlaybackSession()) {
+               return;
+            }
+
             dispatch(setPosition(position));
             if (duration > 0) {
                dispatch(setTotalDuration(duration));
@@ -380,7 +416,11 @@ export function useAudioPlayer() {
    }, [currentChapterId, dispatch, clearLoadTimeout]);
 
    useEffect(() => {
-      if (!currentChapterId || lastLoadedChapterRef.current !== currentChapterId) {
+      if (
+         !isActivePlaybackSession() ||
+         !currentChapterId ||
+         lastLoadedChapterRef.current !== currentChapterId
+      ) {
          return;
       }
 
@@ -498,12 +538,9 @@ export function useAudioPlayer() {
 
    const resetPlayer = useCallback(async () => {
       lastLoadedChapterRef.current = null;
+      lastInitializedChapterRef.current = null;
       clearLoadTimeout();
-      try {
-         await TrackPlayer.reset();
-      } catch {
-         // Player may not be initialized
-      }
+      await teardownTrackPlayerPlayback();
    }, [clearLoadTimeout]);
 
    const reloadChapter = useCallback(() => {

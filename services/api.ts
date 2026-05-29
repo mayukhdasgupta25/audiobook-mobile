@@ -484,6 +484,17 @@ export async function apiRequest<T>(
             }
          }
 
+         // Device limit exceeded during auth — redirect to manage-devices screen
+         if (useAuthApi && response.status === 403) {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const { isDeviceLimitExceededError } = require('@/utils/authApiErrors');
+            if (isDeviceLimitExceededError(errorData)) {
+               // eslint-disable-next-line @typescript-eslint/no-require-imports
+               const { handleDeviceLimitExceeded } = require('@/utils/deviceLimitHandler');
+               handleDeviceLimitExceeded(errorData);
+            }
+         }
+
          throw apiError;
       }
 
@@ -675,17 +686,20 @@ export async function put<T>(
  * @param useAuth - Whether to include Bearer token in headers (default: false)
  * @param useAuthApi - Whether to use auth API URL (port 8080) instead of main API URL (default: false)
  * @param useStreamingApi - Whether to use streaming API URL instead of main API URL (default: false)
+ * @param body - Optional JSON request body
  */
 export async function del<T>(
    endpoint: string,
    useAuth = false,
    useAuthApi = false,
-   useStreamingApi = false
+   useStreamingApi = false,
+   body?: unknown
 ): Promise<ApiResponse<T>> {
    return apiRequest<T>(
       endpoint,
       {
          method: 'DELETE',
+         body: body ? JSON.stringify(body) : undefined,
       },
       useAuth,
       useAuthApi,

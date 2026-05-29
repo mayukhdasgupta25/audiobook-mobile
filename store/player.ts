@@ -97,13 +97,18 @@ const playerSlice = createSlice({
          state.isPlaying = false;
       },
       /**
-       * Stop playback and reset
+       * Stop playback and reset position (keeps loaded chapter for resume)
        */
       stop: (state) => {
          state.isPlaying = false;
          state.playbackPosition = 0;
          state.error = null;
+         state.isLoading = false;
       },
+      /**
+       * Clears loaded chapter and UI state (close player, logout)
+       */
+      releasePlayback: () => initialState,
       /**
        * Update playback position
        */
@@ -143,9 +148,10 @@ const playerSlice = createSlice({
        */
       setVisible: (state, action: PayloadAction<boolean>) => {
          state.isVisible = action.payload;
-         // Reset minimized state when hiding player
          if (!action.payload) {
             state.isMinimized = false;
+            state.isPlaying = false;
+            state.isLoading = false;
          }
       },
       /**
@@ -165,6 +171,7 @@ export const {
    play,
    pause,
    stop,
+   releasePlayback,
    setPosition,
    seek,
    setTotalDuration,

@@ -145,8 +145,7 @@ export default function AccountScreen() {
    }, []);
 
    const handleAccessDevicesPress = () => {
-      console.log('Access and devices pressed');
-      // TODO: Navigate to access and devices screen
+      router.push('/manage-devices');
    };
 
    const handleDownloadDevicesPress = () => {
@@ -214,10 +213,10 @@ export default function AccountScreen() {
                            <Text style={styles.membershipErrorText}>
                               {subscriptionError instanceof ApiError
                                  ? (subscriptionError.data as { message?: string } | undefined)
-                                      ?.message ?? 'Failed to load membership details.'
+                                    ?.message ?? 'Failed to load membership details.'
                                  : subscriptionError instanceof Error
-                                   ? subscriptionError.message
-                                   : 'Failed to load membership details.'}
+                                    ? subscriptionError.message
+                                    : 'Failed to load membership details.'}
                            </Text>
                            <TouchableOpacity
                               onPress={() => refetchSubscription()}
@@ -239,7 +238,7 @@ export default function AccountScreen() {
                                  style={[
                                     styles.statusBadge,
                                     activeSubscription.status === 'ACTIVE' &&
-                                       styles.statusBadgeActive,
+                                    styles.statusBadgeActive,
                                  ]}
                               >
                                  <Text style={styles.statusBadgeText}>
@@ -271,20 +270,20 @@ export default function AccountScreen() {
                            ) : null}
 
                            {getPlanFeatureDescriptions(activeSubscription.plan).length >
-                           0 ? (
+                              0 ? (
                               <View style={styles.featureList}>
                                  {getPlanFeatureDescriptions(
                                     activeSubscription.plan
                                  ).map((feature, index) => (
-                                       <View key={index} style={styles.featureItem}>
-                                          <Ionicons
-                                             name="checkmark-circle"
-                                             size={18}
-                                             color={colors.success}
-                                          />
-                                          <Text style={styles.featureText}>{feature}</Text>
-                                       </View>
-                                    )
+                                    <View key={index} style={styles.featureItem}>
+                                       <Ionicons
+                                          name="checkmark-circle"
+                                          size={18}
+                                          color={colors.success}
+                                       />
+                                       <Text style={styles.featureText}>{feature}</Text>
+                                    </View>
+                                 )
                                  )}
                               </View>
                            ) : null}
