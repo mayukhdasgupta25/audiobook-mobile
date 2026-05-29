@@ -28,7 +28,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store';
-import { setVisible, setMinimized } from '@/store/player';
+import { setMinimized, releasePlayback } from '@/store/player';
 import { useAudioPlayerControls } from '@/contexts/AudioPlaybackContext';
 import { usePlaybackSync } from '@/hooks/usePlaybackSync';
 import { syncPlayback, initializePlaybackSession } from '@/services/audiobooks';
@@ -100,6 +100,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
       skipToNextChapter,
       skipToPreviousChapter,
       setDragging,
+      resetPlayer,
    } = useAudioPlayerControls();
 
    // Use playback sync hook to automatically sync every 5 seconds during playback
@@ -463,10 +464,13 @@ export const AudioPlayer: React.FC = React.memo(() => {
    ]);
 
    const handleClose = () => {
-      if (isPlaying) {
-         void pausePlayback();
-      }
-      dispatch(setVisible(false));
+      void (async () => {
+         if (isPlaying) {
+            await pausePlayback();
+         }
+         await resetPlayer();
+         dispatch(releasePlayback());
+      })();
    };
 
    // Handle expand (when clicking on minimized player)

@@ -19,6 +19,7 @@ import { useTrackPlayerSetup } from '@/hooks/useTrackPlayerSetup';
 import * as Linking from 'expo-linking';
 import { usePlaybackNotificationLinking } from '@/hooks/usePlaybackNotificationLinking';
 import { usePlaybackReturnPathTracker } from '@/hooks/usePlaybackReturnPathTracker';
+import { useDeviceLocationOnAppLoad } from '@/hooks/useDeviceLocationOnAppLoad';
 import { useUserLocationSync } from '@/hooks/useUserLocationSync';
 import { isTrackPlayerNotificationUrl } from '@/utils/playbackNotificationNavigation';
 import { resolvePersistedPlaybackRoute } from '@/utils/playbackReturnPathStorage';
@@ -108,6 +109,9 @@ function InnerLayout() {
    const requiresOnboarding = useSelector(
       (state: RootState) => state.auth.requiresOnboarding
    );
+   const profileFetched = useSelector(
+      (state: RootState) => state.auth.profileFetched
+   );
    const [isAppReady, setIsAppReady] = useState(false);
    const [showSplash, setShowSplash] = useState(true);
    const hasSetInitialRoute = useRef(false);
@@ -115,6 +119,7 @@ function InnerLayout() {
 
    usePlaybackReturnPathTracker();
    usePlaybackNotificationLinking(isAppReady && isInitialized && !showSplash);
+   useDeviceLocationOnAppLoad(isAppReady);
    useUserLocationSync();
 
    useEffect(() => {
@@ -219,9 +224,21 @@ function InnerLayout() {
       } else if (isAuthenticated && requiresOnboarding && !inOnboarding) {
          router.replace('/onboarding/age' as Href);
       } else if (isAuthenticated && !requiresOnboarding && (onAuthScreen || inOnboarding)) {
+         // Wait for profile after OAuth so incomplete profiles can trigger onboarding first
+         if (onAuthScreen && !profileFetched) {
+            return;
+         }
          router.replace('/(tabs)');
       }
-   }, [isAuthenticated, requiresOnboarding, isInitialized, isAppReady, segments, showSplash]);
+   }, [
+      isAuthenticated,
+      requiresOnboarding,
+      profileFetched,
+      isInitialized,
+      isAppReady,
+      segments,
+      showSplash,
+   ]);
 
    // Show splash screen while initializing or during minimum display time
    if (showSplash) {
@@ -352,6 +369,22 @@ function InnerLayout() {
             />
             <Stack.Screen
                name="subscription-plans"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="manage-devices"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.dark,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="verify-device-removal-otp"
                options={{
                   contentStyle: {
                      backgroundColor: colors.background.dark,

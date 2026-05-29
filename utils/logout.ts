@@ -1,15 +1,17 @@
 /**
  * Logout utility
  * Calls logout API and clears all Redux reducers and TanStack Query caches
- * Should be used whenever user logs out (manual logout or 401 error)
+ * Should be used whenever user logs out (manual logout, 401 error, or profile 404)
  * Only clears state if logout API returns 200 (success)
  */
 
 import { store } from '@/store';
 import { clearAuth, getStoredAuthProvider } from '@/store/auth';
 import { clearAudiobooks } from '@/store/audiobooks';
-import { stop, setVisible } from '@/store/player';
+import { releasePlayback } from '@/store/player';
+import { teardownTrackPlayerPlayback } from '@/services/playbackTeardown';
 import { logout as logoutApi, revokeGoogleSignInSession } from '@/services/auth';
+import { clearDeviceLocationCache } from '@/services/location';
 import { router } from 'expo-router';
 import { queryClient } from '@/app/_layout';
 
@@ -33,8 +35,9 @@ export async function logout(skipRedirect = false): Promise<void> {
    // If no refreshToken, cannot call logout API - still revoke Google if applicable
    if (!refreshToken) {
       console.warn('[Logout] No refresh token found, skipping logout API call');
-      store.dispatch(stop());
-      store.dispatch(setVisible(false));
+      store.dispatch(releasePlayback());
+      clearDeviceLocationCache();
+      await teardownTrackPlayerPlayback();
       await revokeGoogleSessionIfNeeded(authProvider);
       return;
    }
@@ -47,13 +50,14 @@ export async function logout(skipRedirect = false): Promise<void> {
       await revokeGoogleSessionIfNeeded(authProvider);
 
       // Only proceed with cleanup if API call was successful
-      store.dispatch(stop());
-      store.dispatch(setVisible(false));
+      store.dispatch(releasePlayback());
+      await teardownTrackPlayerPlayback();
 
       queryClient.clear();
 
       store.dispatch(clearAuth());
       store.dispatch(clearAudiobooks());
+      clearDeviceLocationCache();
 
       // Redirect to signin (unless explicitly skipped, e.g., for login/signup endpoints)
       if (!skipRedirect) {

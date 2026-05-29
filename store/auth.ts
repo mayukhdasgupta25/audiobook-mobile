@@ -9,6 +9,20 @@ import { User, type AuthProvider, isAuthProvider } from '@/services/auth';
 import { fetchAndStoreDeviceDetails } from '@/services/device';
 import { getUserProfile, UserProfile } from '@/services/user';
 import { useOnboardingStore } from '@/store/onboarding';
+import { isOnboardingProfileIncomplete } from '@/utils/onboardingProfile';
+
+function applyOnboardingRequirementFromProfile(
+   state: { requiresOnboarding: boolean },
+   profile: UserProfile
+): void {
+   if (isOnboardingProfileIncomplete(profile)) {
+      state.requiresOnboarding = true;
+      persistOnboardingPending(true);
+   } else {
+      state.requiresOnboarding = false;
+      persistOnboardingPending(false);
+   }
+}
 
 /**
  * Auth state interface
@@ -92,7 +106,9 @@ export const initializeAuth = createAsyncThunk(
          const userProfile = profileJson ? (JSON.parse(profileJson) as UserProfile) : null;
 
          const onboardingPending = await SecureStore.getItemAsync(ONBOARDING_PENDING_KEY);
-         const requiresOnboarding = onboardingPending === 'true';
+         const requiresOnboarding =
+            onboardingPending === 'true' ||
+            isOnboardingProfileIncomplete(userProfile);
 
          const authProviderRaw = await SecureStore.getItemAsync(AUTH_PROVIDER_KEY);
          const authProvider =
@@ -164,9 +180,8 @@ const authSlice = createSlice({
          state.user = action.payload.user;
          state.authProvider = action.payload.authProvider;
          state.isAuthenticated = true;
-
-         if (action.payload.requiresOnboarding) {
-            state.requiresOnboarding = true;
+         state.requiresOnboarding = action.payload.requiresOnboarding === true;
+         if (state.requiresOnboarding) {
             persistOnboardingPending(true);
          }
 
@@ -271,6 +286,7 @@ const authSlice = createSlice({
          .addCase(fetchUserProfile.fulfilled, (state, action) => {
             state.userProfile = action.payload;
             state.profileFetched = true;
+            applyOnboardingRequirementFromProfile(state, action.payload);
             // Persist user profile to secure store
             const profileJson = JSON.stringify(action.payload);
             SecureStore.setItemAsync(USER_PROFILE_KEY, profileJson).catch((error) => {

@@ -1,48 +1,29 @@
 /**
- * Device location — permissions, current position, and profile sync.
+ * Device location — permissions, in-memory cache, and profile sync.
  */
 
 import * as Location from 'expo-location';
-import { Platform } from 'react-native';
+import {
+   clearDeviceLocationCache,
+   getCachedDeviceLocation,
+   isLocationCacheFresh,
+   useDeviceLocationStore,
+} from '@/store/deviceLocation';
 import { updateUserProfile, type UserLocation } from './user';
 
 const LOCATION_PERMISSION_MESSAGE =
    'AudioBook uses your location to personalize your experience and improve our service.';
 
-/**
- * Location payload sent with PUT /user/profile
- */
 export type { UserLocation } from './user';
+export { clearDeviceLocationCache };
 
 /**
- * Requests foreground location permission, then background on Android when applicable.
- * @returns true when at least foreground access is granted
+ * Requests while-in-use location permission (sufficient for profile sync on login).
+ * @returns true when foreground access is granted
  */
 export async function requestLocationPermissions(): Promise<boolean> {
    const foreground = await Location.requestForegroundPermissionsAsync();
-   if (foreground.status !== Location.PermissionStatus.GRANTED) {
-      return false;
-   }
-
-   if (Platform.OS === 'android') {
-      const background = await Location.requestBackgroundPermissionsAsync();
-      if (background.status !== Location.PermissionStatus.GRANTED) {
-         console.warn(
-            '[Location] Background location not granted; will sync when app is in use.'
-         );
-      }
-   }
-
-   if (Platform.OS === 'ios') {
-      const background = await Location.requestBackgroundPermissionsAsync();
-      if (background.status !== Location.PermissionStatus.GRANTED) {
-         console.warn(
-            '[Location] Always-on location not granted; will sync when app is in use.'
-         );
-      }
-   }
-
-   return true;
+   return foreground.status === Location.PermissionStatus.GRANTED;
 }
 
 /**
@@ -54,7 +35,6 @@ export async function isLocationServicesEnabled(): Promise<boolean> {
 
 /**
  * Fetches the device's current coordinates (requests permission if needed).
- * Runs without blocking the UI — call from a fire-and-forget task.
  */
 export async function getCurrentDeviceLocation(): Promise<UserLocation | null> {
    const servicesEnabled = await isLocationServicesEnabled();
@@ -82,20 +62,76 @@ export async function getCurrentDeviceLocation(): Promise<UserLocation | null> {
    };
 }
 
+let memoryFetchInFlight: Promise<UserLocation | null> | null = null;
 let locationSyncInFlight: Promise<void> | null = null;
 
 /**
- * Fetches current location and updates the user profile via API.
+ * Fetches GPS and stores coordinates in memory (no API call).
  * Safe to call multiple times — concurrent calls share one in-flight request.
  */
-export async function syncUserLocationToProfile(): Promise<void> {
+export async function fetchDeviceLocationInMemory(): Promise<UserLocation | null> {
+   if (memoryFetchInFlight) {
+      return memoryFetchInFlight;
+   }
+
+   const { isFetching } = useDeviceLocationStore.getState();
+   if (isFetching) {
+      return memoryFetchInFlight ?? Promise.resolve(getCachedDeviceLocation());
+   }
+
+   useDeviceLocationStore.getState().setFetching(true);
+
+   memoryFetchInFlight = (async () => {
+      try {
+         const location = await getCurrentDeviceLocation();
+         if (location) {
+            useDeviceLocationStore.getState().setLocation(location);
+         } else {
+            useDeviceLocationStore.getState().setFetching(false);
+         }
+         return location;
+      } catch (error) {
+         useDeviceLocationStore.getState().setFetching(false);
+         console.warn('[Location] Failed to fetch device location:', error);
+         return null;
+      } finally {
+         memoryFetchInFlight = null;
+      }
+   })();
+
+   return memoryFetchInFlight;
+}
+
+export interface SyncUserLocationOptions {
+   /** When true, always GPS-fetch before PUT even if cache is fresh. */
+   forceRefresh?: boolean;
+}
+
+/**
+ * Updates the user profile with device location via PUT /user/profile.
+ * Uses in-memory cache when fresh unless forceRefresh is set.
+ */
+export async function syncUserLocationToProfile(
+   options: SyncUserLocationOptions = {}
+): Promise<void> {
    if (locationSyncInFlight) {
       return locationSyncInFlight;
    }
 
+   const { forceRefresh = false } = options;
+
    locationSyncInFlight = (async () => {
       try {
-         const location = await getCurrentDeviceLocation();
+         let location: UserLocation | null = null;
+
+         if (!forceRefresh && isLocationCacheFresh()) {
+            location = getCachedDeviceLocation();
+         }
+
+         if (!location) {
+            location = await fetchDeviceLocationInMemory();
+         }
+
          if (!location) {
             return;
          }

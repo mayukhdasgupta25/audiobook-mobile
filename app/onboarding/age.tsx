@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { router, type Href } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
-import { TextInput } from '@/components/TextInput';
+import { AgeNumberPicker } from '@/components/AgeNumberPicker';
 import { WizardScreenLayout } from '@/components/WizardScreenLayout';
 import { fetchUserProfile } from '@/store/auth';
 import { useOnboardingStore, MIN_AGE, MAX_AGE } from '@/store/onboarding';
@@ -10,9 +10,27 @@ import { AppDispatch, RootState } from '@/store';
 import { spacing } from '@/theme';
 
 const TOTAL_STEPS = 3;
+const DEFAULT_AGE = 25;
+
+function clampAge(age: number): number {
+   return Math.min(MAX_AGE, Math.max(MIN_AGE, age));
+}
+
+function resolveInitialAge(
+   storedAge: number | null,
+   profileAge: number | null | undefined
+): number {
+   if (storedAge !== null) {
+      return clampAge(storedAge);
+   }
+   if (profileAge != null && profileAge > 0) {
+      return clampAge(profileAge);
+   }
+   return DEFAULT_AGE;
+}
 
 /**
- * Onboarding step 1: collect user age and load profile for pre-fill
+ * Onboarding step 1: select age via scroll wheel and load profile for pre-fill
  */
 export default function OnboardingAgeScreen() {
    const dispatch = useDispatch<AppDispatch>();
@@ -22,10 +40,9 @@ export default function OnboardingAgeScreen() {
    const storedAge = useOnboardingStore((s) => s.age);
    const setStoredAge = useOnboardingStore((s) => s.setAge);
 
-   const [ageInput, setAgeInput] = useState(
-      storedAge !== null ? String(storedAge) : ''
+   const [selectedAge, setSelectedAge] = useState(() =>
+      resolveInitialAge(storedAge, userProfile?.age)
    );
-   const [error, setError] = useState<string | null>(null);
    const [isLoadingProfile, setIsLoadingProfile] = useState(!profileFetched);
 
    useEffect(() => {
@@ -48,29 +65,28 @@ export default function OnboardingAgeScreen() {
 
    useEffect(() => {
       if (storedAge !== null) {
-         setAgeInput(String(storedAge));
+         setSelectedAge(clampAge(storedAge));
          return;
       }
       if (userProfile?.age != null && userProfile.age > 0) {
-         setStoredAge(userProfile.age);
-         setAgeInput(String(userProfile.age));
+         const fromProfile = clampAge(userProfile.age);
+         setStoredAge(fromProfile);
+         setSelectedAge(fromProfile);
       }
    }, [userProfile?.age, storedAge, setStoredAge]);
 
+   const handleAgeChange = useCallback(
+      (age: number) => {
+         setSelectedAge(age);
+         setStoredAge(age);
+      },
+      [setStoredAge]
+   );
+
    const handleContinue = useCallback(() => {
-      setError(null);
-      const parsed = parseInt(ageInput.trim(), 10);
-      if (Number.isNaN(parsed)) {
-         setError('Please enter a valid age');
-         return;
-      }
-      if (parsed < MIN_AGE || parsed > MAX_AGE) {
-         setError(`Age must be between ${MIN_AGE} and ${MAX_AGE}`);
-         return;
-      }
-      setStoredAge(parsed);
+      setStoredAge(selectedAge);
       router.push('/onboarding/gender' as Href);
-   }, [ageInput, setStoredAge]);
+   }, [selectedAge, setStoredAge]);
 
    return (
       <WizardScreenLayout
@@ -79,21 +95,20 @@ export default function OnboardingAgeScreen() {
          title="How old are you?"
          subtitle="This helps us personalize your listening experience."
          onContinue={handleContinue}
-         continueDisabled={isLoadingProfile || !ageInput.trim()}
-         error={error}
+         continueDisabled={isLoadingProfile}
+         scrollable={false}
       >
          {isLoadingProfile ? (
             <View style={styles.loading}>
                <ActivityIndicator size="large" />
             </View>
          ) : (
-            <TextInput
-               label="Age"
-               value={ageInput}
-               onChangeText={(text) => setAgeInput(text.replace(/\D/g, '').slice(0, 3))}
-               keyboardType="numeric"
-               placeholder="Enter your age"
-               testID="onboarding-age-input"
+            <AgeNumberPicker
+               value={selectedAge}
+               onValueChange={handleAgeChange}
+               minAge={MIN_AGE}
+               maxAge={MAX_AGE}
+               testID="onboarding-age-picker"
             />
          )}
       </WizardScreenLayout>

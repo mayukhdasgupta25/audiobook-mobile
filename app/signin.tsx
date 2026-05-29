@@ -17,9 +17,15 @@ import { useDispatch } from 'react-redux';
 import { TextInput } from '@/components/TextInput';
 import { colors, spacing, typography, borderRadius } from '@/theme';
 import { login, googleAuth } from '@/services/auth';
+import { parseIsNewUserFlag } from '@/utils/onboardingProfile';
+import {
+   fetchDeviceLocationInMemory,
+   syncUserLocationToProfile,
+} from '@/services/location';
 import { setAuth, fetchUserProfile, hasStoredUserProfile } from '@/store/auth';
 import { AppDispatch } from '@/store';
 import { ApiError } from '@/services/api';
+import { getAuthApiErrorMessage, isDeviceLimitExceededError } from '@/utils/authApiErrors';
 
 /**
  * Sign in screen with email/password inputs, Google login, and navigation links
@@ -82,17 +88,26 @@ export default function SignInScreen() {
             console.error('[SignIn] Failed to fetch user profile:', profileError);
          }
 
+         void fetchDeviceLocationInMemory().then(() => syncUserLocationToProfile());
+
          // Navigation is handled centrally by the auth guard in `app/_layout.tsx`
       } catch (err) {
          // Handle API errors
          if (err instanceof ApiError) {
+            if (isDeviceLimitExceededError(err.data)) {
+               return;
+            }
             if (err.status === 401) {
                setError('Invalid email or password');
             } else if (err.status === 400) {
                setError('Please check your email and password');
             } else {
-               const errorData = err.data as { message?: string } | undefined;
-               setError(errorData?.message || 'Login failed. Please try again.');
+               const errorData = err.data;
+               setError(
+                  getAuthApiErrorMessage(errorData) ||
+                     (errorData as { message?: string } | undefined)?.message ||
+                     'Login failed. Please try again.'
+               );
             }
          } else {
             const errorMessage =
@@ -120,6 +135,9 @@ export default function SignInScreen() {
       try {
          // Call Google OAuth API
          const response = await googleAuth();
+         const requiresOnboarding = parseIsNewUserFlag(
+            response as unknown as Record<string, unknown>
+         );
 
          // Store auth state in Redux
          dispatch(
@@ -128,7 +146,7 @@ export default function SignInScreen() {
                refreshToken: response.refreshToken,
                user: response.user,
                authProvider: 'google',
-               requiresOnboarding: response.isNewUser === true,
+               requiresOnboarding,
             })
          );
 
@@ -139,17 +157,26 @@ export default function SignInScreen() {
             console.error('[SignIn] Failed to fetch user profile:', profileError);
          }
 
+         void fetchDeviceLocationInMemory().then(() => syncUserLocationToProfile());
+
          // Navigation is handled centrally by the auth guard in `app/_layout.tsx`
       } catch (err) {
          // Handle API errors
          if (err instanceof ApiError) {
+            if (isDeviceLimitExceededError(err.data)) {
+               return;
+            }
             if (err.status === 401) {
                setError('Google authentication failed. Please try again.');
             } else if (err.status === 400) {
                setError('Invalid Google token. Please try again.');
             } else {
-               const errorData = err.data as { message?: string } | undefined;
-               setError(errorData?.message || 'Google login failed. Please try again.');
+               const errorData = err.data;
+               setError(
+                  getAuthApiErrorMessage(errorData) ||
+                     (errorData as { message?: string } | undefined)?.message ||
+                     'Google login failed. Please try again.'
+               );
             }
          } else {
             const errorMessage =

@@ -82,9 +82,14 @@ export const TextInput: React.FC<TextInputProps> = ({
 
 const styles = StyleSheet.create({
    container: {
+      width: '100%',
+      alignSelf: 'stretch',
       marginBottom: spacing.md,
    },
    label: {
+      width: '100%',
+      alignSelf: 'stretch',
+      textAlign: 'left',
       fontSize: typography.fontSize.sm,
       fontWeight: '500',
       color: colors.text.dark,
@@ -96,10 +101,13 @@ const styles = StyleSheet.create({
          },
          android: {
             fontFamily: 'sans-serif-medium',
+            includeFontPadding: false,
          },
       }),
    },
    inputContainer: {
+      width: '100%',
+      alignSelf: 'stretch',
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: colors.background.darkGrayLight,

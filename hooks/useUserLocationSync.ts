@@ -1,5 +1,6 @@
 /**
- * Syncs device location to the user profile in the background after authentication.
+ * Syncs cached or fresh device location to the user profile for restored sessions.
+ * Fresh login/signup flows trigger sync explicitly in their screens.
  */
 
 import { useEffect, useRef } from 'react';
@@ -8,7 +9,7 @@ import { RootState } from '@/store';
 import { syncUserLocationToProfile } from '@/services/location';
 
 /**
- * When the user is authenticated, requests location permission and updates profile.
+ * When the user is already authenticated on app launch, sync location to profile once.
  * Does not block navigation or UI.
  */
 export function useUserLocationSync(): void {
