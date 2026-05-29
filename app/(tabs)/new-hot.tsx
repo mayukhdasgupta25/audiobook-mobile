@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
 import { colors, typography } from '@/theme';
+import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 
 /**
  * New & Hot tab screen content
@@ -13,10 +14,7 @@ function NewHotScreenContent() {
    const insets = useSafeAreaInsets();
 
    // Calculate dynamic padding for content
-   const contentPadding = React.useMemo(() => {
-      const tabBarBaseHeight = Platform.OS === 'ios' ? 90 : 70;
-      return tabBarBaseHeight + (insets?.bottom || 0) + 20; // Extra 20px for spacing
-   }, [insets]);
+   const contentPadding = getTabScreenPaddingBottom(insets.bottom);
 
    return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -31,7 +29,7 @@ function NewHotScreenContent() {
 const styles = StyleSheet.create({
    container: {
       flex: 1,
-      backgroundColor: colors.background.dark,
+      backgroundColor: colors.background.screen,
    },
    content: {
       flex: 1,

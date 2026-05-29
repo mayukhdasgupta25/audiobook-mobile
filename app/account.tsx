@@ -585,7 +585,9 @@ const styles = StyleSheet.create({
    },
    memberSinceBadge: {
       alignSelf: 'flex-start',
-      backgroundColor: '#8B5CF6', // Purple color similar to Netflix
+      backgroundColor: colors.background.highlight,
+      borderWidth: 1,
+      borderColor: colors.accent.primary,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
       borderRadius: borderRadius.full,
@@ -594,7 +596,7 @@ const styles = StyleSheet.create({
    memberSinceText: {
       fontSize: typography.fontSize.sm,
       fontWeight: '600',
-      color: colors.text.dark,
+      color: colors.accent.primary,
       ...Platform.select({
          ios: {
             fontFamily: 'System',
@@ -775,22 +777,24 @@ const styles = StyleSheet.create({
       flex: 1,
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.sm,
-      borderRadius: borderRadius.md,
-      borderWidth: 1,
-      borderColor: colors.text.secondaryDark,
+      borderRadius: borderRadius.lg,
+      borderWidth: 1.5,
+      borderColor: colors.border.light,
+      backgroundColor: colors.background.screen,
       alignItems: 'center',
    },
    skipDurationOptionSelected: {
-      borderColor: colors.primary[400],
-      backgroundColor: colors.primary[900],
+      borderColor: colors.accent.primary,
+      backgroundColor: colors.background.highlight,
    },
    skipDurationOptionText: {
       fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      fontWeight: '500',
+      color: colors.accent.primary,
+      fontWeight: '600',
    },
    skipDurationOptionTextSelected: {
-      color: colors.primary[400],
+      color: colors.accent.primaryDark,
+      fontWeight: '700',
    },
    menuItem: {
       flexDirection: 'row',

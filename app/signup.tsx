@@ -8,13 +8,13 @@ import {
    Platform,
    KeyboardAvoidingView,
    Keyboard,
-   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { useDispatch } from 'react-redux';
 import { TextInput } from '@/components/TextInput';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { SecondaryButton } from '@/components/SecondaryButton';
+import { colors, spacing, typography } from '@/theme';
 import { signup } from '@/services/auth';
 import { AppDispatch } from '@/store';
 import { ApiError } from '@/services/api';
@@ -178,19 +178,14 @@ export default function SignUpScreen() {
                      )}
 
                      {/* Sign Up Button */}
-                     <TouchableOpacity
-                        style={[styles.signUpButton, isLoading && styles.signUpButtonDisabled]}
+                     <SecondaryButton
+                        title="Sign Up"
                         onPress={handleSignUp}
-                        activeOpacity={0.8}
+                        loading={isLoading}
                         disabled={isLoading}
+                        style={styles.authButton}
                         testID="signup-button"
-                     >
-                        {isLoading ? (
-                           <ActivityIndicator color={colors.text.dark} />
-                        ) : (
-                           <Text style={styles.signUpButtonText}>Sign Up</Text>
-                        )}
-                     </TouchableOpacity>
+                     />
 
                      {/* Sign In Link */}
                      <View style={styles.signInLinkContainer}>
@@ -285,31 +280,9 @@ const styles = StyleSheet.create({
          },
       }),
    },
-   signUpButtonDisabled: {
-      opacity: 0.6,
-   },
-   signUpButton: {
-      backgroundColor: colors.app.red,
-      borderRadius: borderRadius.md,
-      height: 48,
-      justifyContent: 'center',
-      alignItems: 'center',
+   authButton: {
       marginTop: spacing.md,
       marginBottom: spacing.lg,
-   },
-   signUpButtonText: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
    },
    signInLinkContainer: {
       flexDirection: 'row',

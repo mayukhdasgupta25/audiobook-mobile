@@ -49,7 +49,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
          <Ionicons
             name="search"
             size={20}
-            color={colors.text.secondaryDark}
+            color={colors.text.muted}
             style={styles.searchIcon}
          />
 
@@ -60,8 +60,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             value={value}
             onChangeText={onChangeText}
             placeholder={placeholder}
-            placeholderTextColor={colors.text.secondaryDark}
-            keyboardAppearance="dark"
+            placeholderTextColor={colors.text.muted}
+            keyboardAppearance="light"
             returnKeyType="search"
             autoCorrect={false}
             autoCapitalize="none"
@@ -82,7 +82,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                <Ionicons
                   name="close-circle"
                   size={20}
-                  color={colors.text.secondaryDark}
+                  color={colors.text.muted}
                />
             </TouchableOpacity>
          )}
@@ -94,8 +94,8 @@ const styles = StyleSheet.create({
    container: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.background.darkGrayLight,
-      borderRadius: borderRadius.full,
+      backgroundColor: colors.background.input,
+      borderRadius: borderRadius.lg,
       paddingHorizontal: spacing.md,
       height: 48,
       flex: 1,

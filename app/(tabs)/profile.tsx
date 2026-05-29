@@ -10,6 +10,7 @@ import { ContentRow, ContentItem } from '@/components/ContentRow';
 import { DrawerMenu } from '@/components/DrawerMenu';
 import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
 import { colors, spacing, typography } from '@/theme';
+import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { logout } from '@/utils/logout';
 import { RootState } from '@/store';
 
@@ -188,10 +189,7 @@ function ProfileScreenContent() {
    }, []);
 
    // Calculate dynamic padding for scroll content
-   const scrollContentPadding = useMemo(() => {
-      const tabBarBaseHeight = Platform.OS === 'ios' ? 90 : 70;
-      return tabBarBaseHeight + (insets?.bottom || 0) + 20; // Extra 20px for spacing
-   }, [insets]);
+   const scrollContentPadding = getTabScreenPaddingBottom(insets.bottom);
 
    return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -282,7 +280,7 @@ function ProfileScreenContent() {
 const styles = StyleSheet.create({
    container: {
       flex: 1,
-      backgroundColor: colors.background.dark,
+      backgroundColor: colors.background.screen,
    },
    scrollView: {
       flex: 1,
@@ -292,7 +290,7 @@ const styles = StyleSheet.create({
    },
    section: {
       marginBottom: spacing.lg,
-      backgroundColor: colors.background.dark,
+      backgroundColor: colors.background.screen,
    },
    sectionTitle: {
       fontSize: typography.fontSize.lg,

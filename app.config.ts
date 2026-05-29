@@ -33,15 +33,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
    slug: 'audiobook-mobile',
    version: '1.0.0',
    orientation: 'portrait',
+   icon: './assets/icon.png',
    userInterfaceStyle: 'automatic',
    splash: {
       resizeMode: 'contain',
-      backgroundColor: '#000000',
+      backgroundColor: '#E8DCC4',
    },
    assetBundlePatterns: ['**/*'],
    ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.audiobook.mobile',
+      icon: './assets/icon.png',
       jsEngine: 'hermes',
       googleServicesFile: process.env.EXPO_PUBLIC_GOOGLE_SERVICES_IOS || undefined,
       infoPlist: {
@@ -55,8 +57,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
    },
    android: {
+      icon: './assets/icon.png',
       adaptiveIcon: {
-         backgroundColor: '#000000',
+         foregroundImage: './assets/adaptive-icon.png',
+         backgroundColor: '#E8DCC4',
       },
       package: 'com.audiobook.mobile',
       jsEngine: 'hermes',

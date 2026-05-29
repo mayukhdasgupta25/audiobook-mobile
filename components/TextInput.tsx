@@ -68,7 +68,7 @@ export const TextInput: React.FC<TextInputProps> = ({
                placeholderTextColor={colors.text.secondaryDark}
                secureTextEntry={secureTextEntry}
                keyboardType={keyboardType}
-               keyboardAppearance="dark"
+               keyboardAppearance="light"
                autoCapitalize={autoCapitalize}
                autoCorrect={autoCorrect}
                editable={editable}
@@ -110,8 +110,8 @@ const styles = StyleSheet.create({
       alignSelf: 'stretch',
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.background.darkGrayLight,
-      borderRadius: borderRadius.md,
+      backgroundColor: colors.background.input,
+      borderRadius: borderRadius.lg,
       paddingHorizontal: spacing.md,
       height: 48,
       borderWidth: 1,

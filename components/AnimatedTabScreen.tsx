@@ -293,7 +293,7 @@ export const AnimatedTabScreenMemo = React.memo(AnimatedTabScreen);
 const styles = StyleSheet.create({
    container: {
       flex: 1,
-      backgroundColor: colors.background.dark,
+      backgroundColor: colors.background.screen,
       width: '100%',
    },
 });

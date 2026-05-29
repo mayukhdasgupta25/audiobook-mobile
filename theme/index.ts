@@ -1,58 +1,75 @@
 /**
- * Design tokens for the application
- * Centralized theme configuration for colors, spacing, typography, etc.
+ * Design tokens — light cream/brown audiobook theme
  */
 
 export const colors = {
-   // App brand colors
    app: {
-      red: '#E50914',
-      darkRed: '#B20710',
+      /** @deprecated Use accent.primary */
+      red: '#6F431B',
+      /** @deprecated Use accent.primaryDark */
+      darkRed: '#4B2C20',
    },
-   // Primary colors
+   accent: {
+      primary: '#6F431B',
+      primaryDark: '#4B2C20',
+   },
    primary: {
-      50: '#f0f9ff',
-      100: '#e0f2fe',
-      200: '#bae6fd',
-      300: '#7dd3fc',
-      400: '#38bdf8',
-      500: '#0ea5e9',
-      600: '#0284c7',
-      700: '#0369a1',
-      800: '#075985',
-      900: '#0c4a6e',
+      50: '#FAF6F1',
+      100: '#F0E6D8',
+      200: '#E0CCB0',
+      300: '#C9A882',
+      400: '#A67C52',
+      500: '#6F431B',
+      600: '#5C3817',
+      700: '#4B2C20',
+      800: '#3D2319',
+      900: '#2A1810',
    },
-   // Neutral colors
    neutral: {
-      50: '#fafafa',
-      100: '#f5f5f5',
-      200: '#e5e5e5',
-      300: '#d4d4d4',
-      400: '#a3a3a3',
-      500: '#737373',
-      600: '#525252',
-      700: '#404040',
-      800: '#262626',
-      900: '#171717',
+      50: '#FAFAFA',
+      100: '#F3F4F6',
+      200: '#E5E7EB',
+      300: '#D1D5DB',
+      400: '#9CA3AF',
+      500: '#6B7280',
+      600: '#4B5563',
+      700: '#374151',
+      800: '#1F2937',
+      900: '#111827',
    },
-   // Semantic colors
    success: '#10b981',
-   error: '#ef4444',
+   error: '#EF4444',
    warning: '#f59e0b',
    info: '#3b82f6',
-   // Background colors
+   like: '#EF4444',
    background: {
-      light: '#ffffff',
-      dark: '#000000',
-      darkGray: '#141414',
-      darkGrayLight: '#1a1a1a',
+      screen: '#FFFFFF',
+      player: '#FDF8F2',
+      input: '#F3F4F6',
+      card: '#FFFFFF',
+      highlight: '#F5F0E8',
+      /** Legacy: maps to screen */
+      light: '#FFFFFF',
+      /** Legacy: maps to screen */
+      dark: '#FFFFFF',
+      /** Legacy: maps to card / tab bar */
+      darkGray: '#FFFFFF',
+      /** Legacy: maps to input */
+      darkGrayLight: '#F3F4F6',
    },
-   // Text colors
    text: {
-      light: '#000000',
-      dark: '#ffffff',
-      secondary: '#666666',
-      secondaryDark: '#a3a3a3',
+      primary: '#111111',
+      secondary: '#6B7280',
+      muted: '#9CA3AF',
+      /** Legacy: maps to primary */
+      dark: '#111111',
+      /** Legacy */
+      light: '#111111',
+      secondaryDark: '#9CA3AF',
+   },
+   border: {
+      light: '#E5E7EB',
+      medium: '#D1D5DB',
    },
 } as const;
 
@@ -63,32 +80,36 @@ export const spacing = {
    lg: 24,
    xl: 32,
    xxl: 48,
+   /** Gap between scroll content and bottom tab bar */
+   tabBarGap: 12,
+   /** Horizontal inset for floating tab bar pill */
+   tabBarFloatHorizontal: 16,
+   /** Bottom inset below floating tab bar pill (above home indicator) */
+   tabBarFloatBottom: 10,
 } as const;
 
 export const typography = {
    fontFamily: {
-      // Professional font families - platform specific
       regular: 'System',
       medium: 'System',
       semiBold: 'System',
       bold: 'System',
    },
    fontSize: {
-      xs: 10,      // Reduced from 12
-      sm: 12,      // Reduced from 14
-      base: 14,    // Reduced from 16
-      lg: 16,      // Reduced from 18
-      xl: 18,      // Reduced from 20
-      '2xl': 20,   // Reduced from 24
-      '3xl': 24,   // Reduced from 30
-      '4xl': 28,   // Reduced from 36
+      xs: 10,
+      sm: 12,
+      base: 14,
+      lg: 16,
+      xl: 18,
+      '2xl': 20,
+      '3xl': 24,
+      '4xl': 28,
    },
    lineHeight: {
       tight: 1.25,
       normal: 1.5,
       relaxed: 1.75,
    },
-   // Font weight mapping for consistent usage
    fontWeight: {
       regular: '400',
       medium: '500',
@@ -118,40 +139,26 @@ export const shadows = {
    md: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 3,
    },
    lg: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      elevation: 6,
+   },
+   tabBar: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.06,
       shadowRadius: 8,
-      elevation: 4,
+      elevation: 8,
    },
 } as const;
 
-// Dark mode theme
-export const darkTheme = {
-   colors: {
-      ...colors,
-      background: {
-         light: '#1a1a1a',
-         dark: '#000000',
-      },
-      text: {
-         light: '#ffffff',
-         dark: '#000000',
-         secondary: '#a3a3a3',
-      },
-   },
-   spacing,
-   typography,
-   borderRadius,
-   shadows,
-} as const;
-
-// Light mode theme
 export const lightTheme = {
    colors,
    spacing,
@@ -160,5 +167,6 @@ export const lightTheme = {
    shadows,
 } as const;
 
-export type Theme = typeof lightTheme;
+export const darkTheme = lightTheme;
 
+export type Theme = typeof lightTheme;

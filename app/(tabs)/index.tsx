@@ -1,126 +1,145 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useMemo, useCallback, useRef, useState } from 'react';
 import {
    View,
    StyleSheet,
    ScrollView,
-   Platform,
    Text,
    ActivityIndicator,
+   TouchableOpacity,
+   Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router, usePathname } from 'expo-router';
+import { router } from 'expo-router';
 import { useSelector } from 'react-redux';
-import { Header } from '@/components/Header';
-import { NavigationPills } from '@/components/NavigationPills';
-import { HeroSection } from '@/components/HeroSection';
-import { ContentRow, ContentItem } from '@/components/ContentRow';
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
-import { colors, spacing, typography } from '@/theme';
+import { ContinueListeningCard } from '@/components/ContinueListeningCard';
+import { MoodChip } from '@/components/MoodChip';
+import { ContentRow, ContentItem } from '@/components/ContentRow';
+import { DrawerMenu } from '@/components/DrawerMenu';
+import { colors, spacing, typography, borderRadius, shadows } from '@/theme';
+import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { useHomeContent } from '@/hooks/useHomeContent';
+import { useTimeOfDay } from '@/hooks/useTimeOfDay';
+import { useAudiobook } from '@/hooks/useAudiobook';
 import { apiConfig } from '@/services/api';
 import { RootState } from '@/store';
 
-// Memoized section components to prevent re-renders when other sections update
-const MemoizedHeader = React.memo<{
-   userName: string;
-   onDownloadPress: () => void;
-   onSearchPress: () => void;
-   onNotificationPress: () => void;
-}>(({ userName, onDownloadPress, onSearchPress, onNotificationPress }) => (
-   <Header
-      userName={userName}
-      onDownloadPress={onDownloadPress}
-      onSearchPress={onSearchPress}
-      onNotificationPress={onNotificationPress}
-   />
-));
-MemoizedHeader.displayName = 'MemoizedHeader';
+const MOOD_CHIPS = [
+   { label: 'Motivation', icon: 'flame-outline' as const },
+   { label: 'Focus', icon: 'eye-outline' as const },
+   { label: 'Calm', icon: 'leaf-outline' as const },
+   { label: 'Growth', icon: 'trending-up-outline' as const },
+];
 
-const MemoizedNavigationPills = React.memo<{
-   selectedTab: 'shows' | 'movies' | 'categories';
-   onTabChange: (tab: 'shows' | 'movies' | 'categories') => void;
-}>(({ selectedTab, onTabChange }) => (
-   <NavigationPills selectedTab={selectedTab} onTabChange={onTabChange} />
-));
-MemoizedNavigationPills.displayName = 'MemoizedNavigationPills';
-
-const MemoizedHeroSection = React.memo<{
-   carouselItems?: Array<{ id: string; title: string; author: string; posterUri?: string }>;
-   autoRotateInterval?: number;
-   paused?: boolean;
-   onPlayPress: () => void;
-   onMyListPress: () => void;
-   onIndexChange?: (index: number) => void;
-}>(({ carouselItems, autoRotateInterval, paused, onPlayPress, onMyListPress, onIndexChange }) => (
-   <HeroSection
-      carouselItems={carouselItems}
-      autoRotateInterval={autoRotateInterval}
-      paused={paused}
-      onPlayPress={onPlayPress}
-      onMyListPress={onMyListPress}
-      onIndexChange={onIndexChange}
-   />
-));
-MemoizedHeroSection.displayName = 'MemoizedHeroSection';
-
-const MemoizedContentRow = React.memo<{
-   title: string;
-   items: ContentItem[];
-   onItemPress: (item: ContentItem) => void;
-   onEndReached?: () => void;
-}>(({ title, items, onItemPress, onEndReached }) => (
-   <ContentRow
-      title={title}
-      items={items}
-      onItemPress={onItemPress}
-      onEndReached={onEndReached}
-   />
-));
-MemoizedContentRow.displayName = 'MemoizedContentRow';
-
-
-/**
- * Home screen with modern app layout
- * Features personalized header, hero section, and horizontal content rows
- */
 function HomeScreenContent() {
-   const [selectedTab, setSelectedTab] = useState<'shows' | 'movies' | 'categories'>('shows');
    const paginationTriggeredRef = useRef<Record<string, boolean>>({});
    const insets = useSafeAreaInsets();
-   const pathname = usePathname();
+   const [drawerVisible, setDrawerVisible] = useState(false);
+   const { greeting, subtitle: timeOfDaySubtitle } = useTimeOfDay();
 
-   // Get user profile from Redux
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
+   const playerAudiobookId = useSelector((state: RootState) => state.player.audiobookId);
+   const chapterMetadata = useSelector((state: RootState) => state.player.chapterMetadata);
+   const playbackPosition = useSelector((state: RootState) => state.player.playbackPosition);
+   const totalDuration = useSelector((state: RootState) => state.player.totalDuration);
 
-   // Compute display name from user profile - use firstName only
    const displayName = useMemo(() => {
-      if (userProfile?.firstName) {
-         return userProfile.firstName;
-      }
-      return 'Mayukh'; // Fallback if profile not loaded yet or firstName not available
+      if (userProfile?.firstName) return userProfile.firstName;
+      return 'there';
    }, [userProfile]);
 
-   // Check if home screen is focused (pathname matches home route)
-   const isHomeFocused = useMemo(() => {
-      return pathname === '/(tabs)' || pathname === '/(tabs)/index' || pathname === '/(tabs)/';
-   }, [pathname]);
-
-   // Fetch content using new hook
    const { contentRows, isLoading, error, loadNextPage, heroCarouselItems } = useHomeContent();
 
-   // Handle pagination when user scrolls near end of a specific row
+   const continueAudiobookId = playerAudiobookId ?? heroCarouselItems[0]?.id ?? null;
+   const { data: continueAudiobookData } = useAudiobook(continueAudiobookId ?? '');
+   const continueAudiobook = continueAudiobookData?.data;
+
+   const continueListening = useMemo(() => {
+      const book = continueAudiobook ?? heroCarouselItems[0];
+      if (!book) return null;
+
+      const coverPath = book.coverImage || book.contentCardCoverImage;
+      const coverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
+      const progress =
+         totalDuration > 0 && playerAudiobookId === book.id
+            ? playbackPosition / totalDuration
+            : 0;
+
+      return {
+         id: book.id,
+         title: book.title,
+         author: book.author,
+         coverUri,
+         chapterTitle: chapterMetadata?.title,
+         progress,
+         elapsedSeconds: playerAudiobookId === book.id ? playbackPosition : 0,
+         totalSeconds: playerAudiobookId === book.id ? totalDuration : book.duration ?? 0,
+      };
+   }, [
+      continueAudiobook,
+      heroCarouselItems,
+      chapterMetadata,
+      playbackPosition,
+      totalDuration,
+      playerAudiobookId,
+   ]);
+
+   const yourPicksRow = useMemo(() => {
+      return contentRows.find((row) => row.items.length > 0) ?? null;
+   }, [contentRows]);
+
+   const trendingItems = useMemo(() => {
+      const trendingRow = contentRows.find((row) =>
+         row.title.toLowerCase().includes('trending')
+      );
+      const booksById = new Map(heroCarouselItems.map((book) => [book.id, book]));
+
+      const mapBook = (id: string, title: string, imageUri?: string) => {
+         const book = booksById.get(id);
+         const coverPath = book?.coverImage || book?.contentCardCoverImage;
+         return {
+            id,
+            title,
+            author: book?.author ?? 'Unknown author',
+            imageUri:
+               imageUri ??
+               (coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined),
+         };
+      };
+
+      if (trendingRow?.items.length) {
+         return trendingRow.items.map((item) =>
+            mapBook(item.id, item.title, item.imageUri)
+         );
+      }
+
+      return heroCarouselItems.map((book) =>
+         mapBook(
+            book.id,
+            book.title,
+            book.coverImage ? `${apiConfig.baseURL}${book.coverImage}` : undefined
+         )
+      );
+   }, [contentRows, heroCarouselItems]);
+
+   const scrollPadding = getTabScreenPaddingBottom(insets.bottom);
+
+   const handleItemPress = useCallback((item: ContentItem) => {
+      router.push(`/details/${item.id}`);
+   }, []);
+
    const handleEndReached = useCallback(
       (rowId: string) => {
          const row = contentRows.find((r) => r.id === rowId);
          if (
-            row &&
-            row.pagination?.hasNextPage &&
+            row?.pagination?.hasNextPage &&
             !paginationTriggeredRef.current[rowId] &&
             !row.isLoading
          ) {
             paginationTriggeredRef.current[rowId] = true;
             loadNextPage(rowId);
-            // Reset flag after a delay to allow next pagination
             setTimeout(() => {
                paginationTriggeredRef.current[rowId] = false;
             }, 1000);
@@ -129,193 +148,216 @@ function HomeScreenContent() {
       [contentRows, loadNextPage]
    );
 
-   // Memoize handlers to prevent unnecessary re-renders of child components
-   const handleItemPress = useCallback((item: ContentItem) => {
-      // Navigate to details screen with audiobook ID
-      router.push(`/details/${item.id}`);
-   }, []);
-
-   const handleSearchPress = useCallback(() => {
-      router.push('/search');
-   }, []);
-
-   const handleTabChange = useCallback((tab: 'shows' | 'movies' | 'categories') => {
-      setSelectedTab(tab);
-   }, []);
-
-   // Memoize other handlers
-   const handleDownloadPress = useCallback(() => {
-      console.log('Download pressed');
-   }, []);
-
-   const handleNotificationPress = useCallback(() => {
-      console.log('Notification pressed');
-   }, []);
-
-   // Track current hero carousel index for Play button
-   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
-
-   const handleMyListPress = useCallback(() => {
-      console.log('My List pressed');
-   }, []);
-
-   // Memoize hero carousel items - convert audiobooks to carousel format
-   const heroCarouselData = useMemo(() => {
-      return heroCarouselItems.map((audiobook) => {
-         // Use API images - prioritize homeHeroCoverImage, fallback to coverImage
-         const imagePath = audiobook.homeHeroCoverImage || audiobook.coverImage;
-         const posterUri = imagePath ? `${apiConfig.baseURL}${imagePath}` : undefined;
-
-         return {
-            id: audiobook.id,
-            title: audiobook.title,
-            author: audiobook.author,
-            posterUri,
-         };
-      });
-   }, [heroCarouselItems]);
-
-   // Handle Play button press - navigate to details and auto-play first chapter
-   const handlePlayPress = useCallback(() => {
-      // Get current carousel item based on index
-      const currentItem = heroCarouselData[currentHeroIndex];
-      if (currentItem?.id) {
-         // Navigate to details screen with autoPlay query parameter
-         router.push(`/details/${currentItem.id}?autoPlay=true`);
+   const handleContinuePress = useCallback(() => {
+      if (continueListening?.id) {
+         router.push(`/details/${continueListening.id}`);
       }
-   }, [currentHeroIndex, heroCarouselData]);
+   }, [continueListening?.id]);
 
-   // Calculate dynamic padding for scroll content
-   const scrollContentPadding = useMemo(() => {
-      const tabBarBaseHeight = Platform.OS === 'ios' ? 90 : 70;
-      return tabBarBaseHeight + (insets?.bottom || 0) + 20; // Extra 20px for spacing
-   }, [insets]);
+   const handleContinuePlay = useCallback(() => {
+      if (continueListening?.id) {
+         router.push(`/details/${continueListening.id}?autoPlay=true`);
+      }
+   }, [continueListening?.id]);
 
    return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
          <ScrollView
             style={styles.scrollView}
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollContentPadding }]}
+            contentContainerStyle={[
+               styles.scrollContent,
+               { paddingBottom: scrollPadding },
+            ]}
             showsVerticalScrollIndicator={false}
-            bounces={true}
-            removeClippedSubviews={true} // Optimize scrolling performance
-            scrollEventThrottle={16} // Optimize scroll event handling
          >
-            {/* Header with greeting and icons - Memoized to prevent re-renders */}
-            <MemoizedHeader
-               userName={displayName}
-               onDownloadPress={handleDownloadPress}
-               onSearchPress={handleSearchPress}
-               onNotificationPress={handleNotificationPress}
-            />
+            {/* Top bar */}
+            <View style={styles.topBar}>
+               <TouchableOpacity
+                  onPress={() => setDrawerVisible(true)}
+                  style={styles.iconButton}
+                  activeOpacity={0.7}
+               >
+                  <Ionicons name="grid-outline" size={24} color={colors.text.primary} />
+               </TouchableOpacity>
+               <TouchableOpacity
+                  onPress={() => router.push('/(tabs)/profile')}
+                  style={styles.avatarButton}
+                  activeOpacity={0.7}
+               >
+                  {userProfile?.avatar ? (
+                     <Image
+                        source={{ uri: userProfile.avatar }}
+                        style={styles.avatar}
+                        contentFit="cover"
+                     />
+                  ) : (
+                     <Ionicons name="person" size={20} color={colors.accent.primary} />
+                  )}
+               </TouchableOpacity>
+            </View>
 
-            {/* Navigation pills - Memoized to prevent re-renders */}
-            <MemoizedNavigationPills
-               selectedTab={selectedTab}
-               onTabChange={handleTabChange}
-            />
+            {/* Greeting */}
+            <View style={styles.greetingSection}>
+               <Text style={styles.greeting}>
+                  {greeting}, {displayName}
+               </Text>
+               <Text style={styles.greetingSubtitle}>{timeOfDaySubtitle}</Text>
+            </View>
 
-            {/* Hero section - Memoized to prevent re-renders */}
-            {heroCarouselData.length > 0 && (
-               <MemoizedHeroSection
-                  carouselItems={heroCarouselData}
-                  autoRotateInterval={5000}
-                  paused={!isHomeFocused}
-                  onPlayPress={handlePlayPress}
-                  onMyListPress={handleMyListPress}
-                  onIndexChange={setCurrentHeroIndex}
-               />
+            {/* Search */}
+            <TouchableOpacity
+               style={styles.searchBar}
+               onPress={() => router.push('/search')}
+               activeOpacity={0.8}
+            >
+               <Ionicons name="search" size={20} color={colors.text.muted} />
+               <Text style={styles.searchPlaceholder}>Search stories, authors, genres...</Text>
+            </TouchableOpacity>
+
+            {/* Continue Listening */}
+            {continueListening && (
+               <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Continue Listening</Text>
+                  <ContinueListeningCard
+                     title={continueListening.title}
+                     author={continueListening.author}
+                     coverUri={continueListening.coverUri}
+                     chapterTitle={continueListening.chapterTitle}
+                     progress={continueListening.progress}
+                     elapsedSeconds={continueListening.elapsedSeconds}
+                     totalSeconds={continueListening.totalSeconds}
+                     onPress={handleContinuePress}
+                     onPlayPress={handleContinuePlay}
+                  />
+               </View>
             )}
 
-            {/* Content rows - Tags first, then Genres */}
-            <View style={styles.contentSection}>
-               {isLoading && contentRows.length === 0 ? (
-                  <View style={styles.loadingContainer}>
-                     <ActivityIndicator size="large" color={colors.app.red} />
-                     <Text style={styles.loadingText}>Loading audiobooks...</Text>
+            {/* Your Picks */}
+            {yourPicksRow && yourPicksRow.items.length > 0 && (
+               <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                     <Text style={styles.sectionTitle}>Your Picks</Text>
+                     <TouchableOpacity activeOpacity={0.7}>
+                        <Text style={styles.viewAll}>View all</Text>
+                     </TouchableOpacity>
                   </View>
-               ) : error ? (
-                  <View style={styles.errorContainer}>
-                     <Text style={styles.errorText}>
-                        {typeof error === 'string' ? error : 'An error occurred'}
-                     </Text>
-                  </View>
-               ) : contentRows.length === 0 ? (
-                  <View style={styles.emptyContainer}>
-                     <Text style={styles.emptyText}>No audiobooks available</Text>
-                  </View>
-               ) : (
-                  contentRows
-                     .filter((row) => row.items && row.items.length > 0)
-                     .map((row) => (
-                        <MemoizedContentRow
-                           key={row.id}
-                           title={row.title}
-                           items={row.items}
-                           onItemPress={handleItemPress}
-                           onEndReached={() => handleEndReached(row.id)}
-                        />
-                     ))
-               )}
+                  <ContentRow
+                     title=""
+                     items={yourPicksRow.items}
+                     onItemPress={handleItemPress}
+                     onEndReached={() => handleEndReached(yourPicksRow.id)}
+                  />
+               </View>
+            )}
+
+            {/* Explore By Mood */}
+            <View style={styles.section}>
+               <Text style={[styles.sectionTitle, styles.sectionTitlePadded]}>
+                  Explore By Mood
+               </Text>
+               <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.moodRow}
+               >
+                  {MOOD_CHIPS.map((mood) => (
+                     <MoodChip
+                        key={mood.label}
+                        label={mood.label}
+                        icon={mood.icon}
+                        onPress={() => router.push('/(tabs)/discover' as never)}
+                     />
+                  ))}
+               </ScrollView>
             </View>
+
+            {/* New and Trending */}
+            <View style={styles.trendingSection}>
+               <Text style={[styles.sectionTitle, styles.sectionTitlePadded]}>
+                  New and Trending
+               </Text>
+               <View style={styles.trendingList}>
+                  {trendingItems.map((item, index) => (
+                     <TouchableOpacity
+                        key={item.id}
+                        style={[
+                           styles.trendingCard,
+                           index === trendingItems.length - 1 && styles.trendingCardLast,
+                        ]}
+                        onPress={() => router.push(`/details/${item.id}`)}
+                        activeOpacity={0.85}
+                     >
+                        {item.imageUri ? (
+                           <Image
+                              source={{ uri: item.imageUri }}
+                              style={styles.trendingCardCover}
+                              contentFit="cover"
+                           />
+                        ) : (
+                           <View
+                              style={[
+                                 styles.trendingCardCover,
+                                 styles.trendingCoverPlaceholder,
+                              ]}
+                           >
+                              <Text style={styles.trendingCoverLetter}>
+                                 {item.title.charAt(0)}
+                              </Text>
+                           </View>
+                        )}
+                        <View style={styles.trendingCardBody}>
+                           <Text style={styles.trendingTitle} numberOfLines={2}>
+                              {item.title}
+                           </Text>
+                           <Text style={styles.trendingAuthor} numberOfLines={1}>
+                              {item.author}
+                           </Text>
+                        </View>
+                        <TouchableOpacity
+                           style={styles.trendingPlay}
+                           onPress={() =>
+                              router.push(`/details/${item.id}?autoPlay=true`)
+                           }
+                           activeOpacity={0.8}
+                        >
+                           <Ionicons name="play" size={18} color={colors.accent.primary} />
+                        </TouchableOpacity>
+                     </TouchableOpacity>
+                  ))}
+               </View>
+            </View>
+
+            {isLoading && contentRows.length === 0 && (
+               <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.accent.primary} />
+                  <Text style={styles.loadingText}>Loading audiobooks...</Text>
+               </View>
+            )}
+            {error && (
+               <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>
+                     {typeof error === 'string' ? error : 'An error occurred'}
+                  </Text>
+               </View>
+            )}
          </ScrollView>
+
+         <DrawerMenu
+            visible={drawerVisible}
+            onClose={() => setDrawerVisible(false)}
+            onAccountPress={() => {
+               setDrawerVisible(false);
+               router.push('/account');
+            }}
+            onAppSettingsPress={() => {
+               setDrawerVisible(false);
+               router.push('/account');
+            }}
+         />
       </SafeAreaView>
    );
 }
 
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.dark,
-   },
-   scrollView: {
-      flex: 1,
-   },
-   scrollContent: {
-      // Base style - paddingBottom will be set dynamically
-   },
-   contentSection: {
-      backgroundColor: colors.background.dark,
-   },
-   loadingContainer: {
-      padding: spacing.xl,
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 200,
-   },
-   loadingText: {
-      marginTop: spacing.md,
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-   },
-   errorContainer: {
-      padding: spacing.xl,
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 200,
-   },
-   errorText: {
-      fontSize: typography.fontSize.base,
-      color: colors.app.red,
-      textAlign: 'center',
-   },
-   emptyContainer: {
-      padding: spacing.xl,
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 200,
-   },
-   emptyText: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      textAlign: 'center',
-   },
-});
-
-/**
- * Home screen wrapper with animation
- * Always transitions from left to right
- */
 export default function HomeScreen() {
    return (
       <AnimatedTabScreen direction="left" currentRoute="index">
@@ -323,3 +365,185 @@ export default function HomeScreen() {
       </AnimatedTabScreen>
    );
 }
+
+const styles = StyleSheet.create({
+   container: {
+      flex: 1,
+      backgroundColor: colors.background.screen,
+   },
+   scrollView: {
+      flex: 1,
+   },
+   scrollContent: {
+      paddingTop: spacing.xs,
+   },
+   topBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+   },
+   iconButton: {
+      padding: spacing.xs,
+   },
+   avatarButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.background.highlight,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+   },
+   avatar: {
+      width: 36,
+      height: 36,
+   },
+   greetingSection: {
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.md,
+   },
+   greeting: {
+      fontSize: typography.fontSize['2xl'],
+      fontWeight: '700',
+      color: colors.text.primary,
+      ...Platform.select({
+         ios: { fontFamily: 'System', fontWeight: '700' },
+         android: { fontFamily: 'sans-serif-medium' },
+      }),
+   },
+   greetingSubtitle: {
+      fontSize: typography.fontSize.base,
+      color: colors.text.secondary,
+      marginTop: spacing.xs,
+   },
+   searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background.input,
+      borderRadius: borderRadius.lg,
+      marginHorizontal: spacing.md,
+      marginBottom: spacing.lg,
+      paddingHorizontal: spacing.md,
+      height: 48,
+      gap: spacing.sm,
+   },
+   searchPlaceholder: {
+      fontSize: typography.fontSize.base,
+      color: colors.text.muted,
+      flex: 1,
+   },
+   section: {
+      marginBottom: spacing.lg,
+   },
+   sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.sm,
+   },
+   sectionTitle: {
+      fontSize: typography.fontSize.lg,
+      fontWeight: '600',
+      color: colors.text.primary,
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.sm,
+      ...Platform.select({
+         ios: { fontFamily: 'System', fontWeight: '600' },
+         android: { fontFamily: 'sans-serif-medium' },
+      }),
+   },
+   sectionTitlePadded: {
+      marginBottom: spacing.sm,
+   },
+   viewAll: {
+      fontSize: typography.fontSize.sm,
+      color: colors.accent.primary,
+      fontWeight: '500',
+   },
+   moodRow: {
+      paddingHorizontal: spacing.md,
+   },
+   trendingSection: {
+      marginBottom: 0,
+   },
+   trendingList: {
+      paddingHorizontal: spacing.md,
+   },
+   trendingCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      minHeight: 112,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      borderRadius: borderRadius.xl,
+      borderWidth: 1,
+      borderColor: colors.border.light,
+      backgroundColor: colors.background.card,
+      ...shadows.sm,
+   },
+   trendingCardLast: {
+      marginBottom: 0,
+   },
+   trendingCardCover: {
+      width: 72,
+      height: 96,
+      borderRadius: borderRadius.lg,
+      marginRight: spacing.md,
+   },
+   trendingCardBody: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingVertical: spacing.xs,
+      marginRight: spacing.sm,
+   },
+   trendingCoverPlaceholder: {
+      backgroundColor: colors.background.highlight,
+      alignItems: 'center',
+      justifyContent: 'center',
+   },
+   trendingCoverLetter: {
+      fontSize: typography.fontSize.lg,
+      fontWeight: '700',
+      color: colors.accent.primary,
+   },
+   trendingTitle: {
+      fontSize: typography.fontSize.lg,
+      fontWeight: '600',
+      color: colors.text.primary,
+      lineHeight: typography.fontSize.lg * 1.3,
+   },
+   trendingAuthor: {
+      fontSize: typography.fontSize.sm,
+      color: colors.text.secondary,
+      marginTop: spacing.xs,
+   },
+   trendingPlay: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      borderWidth: 1.5,
+      borderColor: colors.accent.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      alignSelf: 'center',
+   },
+   loadingContainer: {
+      padding: spacing.xl,
+      alignItems: 'center',
+   },
+   loadingText: {
+      marginTop: spacing.md,
+      color: colors.text.secondary,
+   },
+   errorContainer: {
+      padding: spacing.xl,
+      alignItems: 'center',
+   },
+   errorText: {
+      color: colors.error,
+      textAlign: 'center',
+   },
+});

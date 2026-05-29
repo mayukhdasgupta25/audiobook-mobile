@@ -136,7 +136,7 @@ export const ContentRow = React.memo(ContentRowComponent);
 const styles = StyleSheet.create({
    container: {
       marginBottom: spacing.lg,
-      backgroundColor: colors.background.dark,
+      backgroundColor: colors.background.screen,
    },
    header: {
       flexDirection: 'row',
