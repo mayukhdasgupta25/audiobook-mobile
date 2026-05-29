@@ -1,6 +1,5 @@
 /**
- * Chapter list item component
- * Displays a chapter with cover image, title, description, and duration
+ * Chapter list item — compact row with number, play/download actions
  */
 
 import React from 'react';
@@ -11,107 +10,86 @@ import {
    TouchableOpacity,
    Platform,
 } from 'react-native';
-import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { Chapter } from '@/services/audiobooks';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { colors, spacing, typography } from '@/theme';
 import { formatDuration } from '@/utils/duration';
-import { apiConfig } from '@/services/api';
 
 interface ChapterListItemProps {
    chapter: Chapter;
    onPress: (chapter: Chapter) => void;
    isCurrentlyPlaying?: boolean;
-   /** Saved or live position in seconds */
+   isActive?: boolean;
    progressSeconds?: number;
    showResumeBadge?: boolean;
+   onDownloadPress?: (chapter: Chapter) => void;
+   onCommentsPress?: (chapter: Chapter) => void;
 }
 
-/**
- * Chapter list item component
- * Displays a horizontal card with chapter cover, title, description, and duration
- */
 export const ChapterListItem: React.FC<ChapterListItemProps> = React.memo(
    ({
       chapter,
       onPress,
       isCurrentlyPlaying = false,
-      progressSeconds = 0,
-      showResumeBadge = false,
+      isActive = false,
+      onDownloadPress,
    }) => {
-      // Build full image URL using chapterCardCoverImage, fallback to coverImage
-      const imagePath = chapter.chapterCardCoverImage || chapter.coverImage;
-      const imageUri = imagePath
-         ? `${apiConfig.baseURL}${imagePath}`
-         : undefined;
-
       const formattedDuration = formatDuration(chapter.duration);
-      const progressRatio =
-         chapter.duration > 0
-            ? Math.min(1, Math.max(0, progressSeconds / chapter.duration))
-            : 0;
+      const isHighlighted = isActive || isCurrentlyPlaying;
 
       return (
          <TouchableOpacity
-            style={styles.container}
+            style={[styles.container, isHighlighted && styles.containerActive]}
             onPress={() => onPress(chapter)}
             activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={`${chapter.title} - ${formattedDuration}`}
          >
-            {showResumeBadge && (
-               <View style={styles.resumeBadge}>
-                  <Text style={styles.resumeBadgeText}>Resume</Text>
-               </View>
-            )}
+            {isHighlighted && <View style={styles.activeBar} />}
 
-            {/* Now Playing Badge - Top Right of Card */}
-            {isCurrentlyPlaying && (
-               <View style={styles.nowPlayingBadge}>
-                  <Text style={styles.nowPlayingText}>Now Playing</Text>
-               </View>
-            )}
+            <Text style={styles.chapterNumber}>{chapter.chapterNumber}</Text>
 
-            {/* Chapter Cover */}
-            <View style={styles.imageContainer}>
-               {imageUri ? (
-                  <Image
-                     source={{ uri: imageUri }}
-                     style={styles.image}
-                     contentFit="cover"
-                     transition={200}
-                     cachePolicy="memory-disk"
-                  />
-               ) : (
-                  <View style={[styles.image, styles.placeholder]}>
-                     <Text style={styles.placeholderText}>
-                        {chapter.title.charAt(0)}
-                     </Text>
-                  </View>
-               )}
-            </View>
-
-            {/* Chapter Info */}
             <View style={styles.infoContainer}>
-               <Text style={styles.title} numberOfLines={2}>
+               <Text
+                  style={[styles.title, isHighlighted && styles.titleActive]}
+                  numberOfLines={1}
+               >
                   {chapter.title}
                </Text>
-               {chapter.description ? (
-                  <Text style={styles.description} numberOfLines={2}>
-                     {chapter.description}
-                  </Text>
-               ) : null}
-               <Text style={styles.duration} numberOfLines={1}>
-                  {formattedDuration}
-               </Text>
+               <Text style={styles.duration}>{formattedDuration}</Text>
             </View>
 
-            {progressRatio > 0 && (
-               <View style={styles.progressTrack} accessibilityElementsHidden>
-                  <View
-                     style={[styles.progressFill, { width: `${progressRatio * 100}%` }]}
+            <View style={styles.actions}>
+               {onDownloadPress && (
+                  <TouchableOpacity
+                     style={styles.actionButton}
+                     onPress={(e) => {
+                        e.stopPropagation?.();
+                        onDownloadPress(chapter);
+                     }}
+                     activeOpacity={0.7}
+                  >
+                     <Ionicons
+                        name="download-outline"
+                        size={20}
+                        color={colors.accent.primary}
+                     />
+                  </TouchableOpacity>
+               )}
+               <TouchableOpacity
+                  style={styles.playButton}
+                  onPress={(e) => {
+                     e.stopPropagation?.();
+                     onPress(chapter);
+                  }}
+                  activeOpacity={0.8}
+               >
+                  <Ionicons
+                     name={isCurrentlyPlaying ? 'pause' : 'play'}
+                     size={14}
+                     color="#FFFFFF"
+                     style={!isCurrentlyPlaying ? styles.playIconOffset : undefined}
                   />
-               </View>
-            )}
+               </TouchableOpacity>
+            </View>
          </TouchableOpacity>
       );
    }
@@ -125,148 +103,71 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.md,
+      paddingLeft: spacing.md + 4,
       borderBottomWidth: 1,
-      borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-      backgroundColor: colors.background.dark,
+      borderBottomColor: colors.border.light,
+      backgroundColor: colors.background.screen,
       position: 'relative',
    },
-   imageContainer: {
-      marginRight: spacing.md,
+   containerActive: {
+      backgroundColor: colors.background.highlight,
    },
-   image: {
-      width: 80,
-      height: 120,
-      borderRadius: borderRadius.md,
-   },
-   resumeBadge: {
+   activeBar: {
       position: 'absolute',
+      left: 0,
       top: spacing.sm,
-      left: spacing.sm,
-      backgroundColor: colors.background.darkGray,
-      borderWidth: 1,
-      borderColor: colors.app.red,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs / 2,
-      borderRadius: borderRadius.sm,
-      zIndex: 10,
+      bottom: spacing.sm,
+      width: 3,
+      backgroundColor: colors.accent.primary,
+      borderRadius: 2,
    },
-   resumeBadgeText: {
-      fontSize: typography.fontSize.xs,
-      color: colors.app.red,
+   chapterNumber: {
+      width: 28,
+      fontSize: typography.fontSize.sm,
       fontWeight: '600',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   nowPlayingBadge: {
-      position: 'absolute',
-      top: spacing.sm,
-      right: spacing.sm,
-      backgroundColor: colors.app.red,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs / 2,
-      borderRadius: borderRadius.sm,
-      zIndex: 10,
-      ...Platform.select({
-         ios: {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.3,
-            shadowRadius: 3,
-         },
-         android: {
-            elevation: 5,
-         },
-      }),
-   },
-   nowPlayingText: {
-      fontSize: typography.fontSize.xs,
-      color: colors.text.dark,
-      fontWeight: '600',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   placeholder: {
-      backgroundColor: colors.background.darkGray,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   placeholderText: {
-      fontSize: typography.fontSize.xl,
-      color: colors.text.secondaryDark,
-      fontWeight: '700',
+      color: colors.text.muted,
+      textAlign: 'center',
+      marginRight: spacing.sm,
    },
    infoContainer: {
       flex: 1,
-      justifyContent: 'center',
+      marginRight: spacing.sm,
    },
    title: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.dark,
-      marginBottom: spacing.xs,
-      letterSpacing: -0.2,
+      fontSize: typography.fontSize.base,
+      fontWeight: '500',
+      color: colors.text.primary,
+      marginBottom: 2,
       ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
+         ios: { fontFamily: 'System', fontWeight: '500' },
+         android: { fontFamily: 'sans-serif-medium' },
       }),
    },
-   description: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      marginBottom: spacing.xs / 2,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
+   titleActive: {
+      fontWeight: '600',
+      color: colors.accent.primaryDark,
    },
    duration: {
       fontSize: typography.fontSize.xs,
-      color: colors.text.secondaryDark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
+      color: colors.text.secondary,
    },
-   progressTrack: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      height: 3,
-      backgroundColor: 'rgba(255, 255, 255, 0.12)',
+   actions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
    },
-   progressFill: {
-      height: '100%',
-      backgroundColor: colors.app.red,
+   actionButton: {
+      padding: spacing.xs,
+   },
+   playButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.accent.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+   },
+   playIconOffset: {
+      marginLeft: 2,
    },
 });
-

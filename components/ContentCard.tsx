@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
       aspectRatio: 0.7, // Portrait aspect ratio
       borderRadius: borderRadius.md,
       overflow: 'hidden',
-      backgroundColor: colors.background.darkGray,
+      backgroundColor: colors.background.highlight,
    },
    image: {
       width: '100%',
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
       resizeMode: 'cover',
    },
    placeholder: {
-      backgroundColor: colors.background.darkGray,
+      backgroundColor: colors.background.highlight,
       justifyContent: 'center',
       alignItems: 'center',
    },
@@ -94,13 +94,13 @@ const styles = StyleSheet.create({
       position: 'absolute',
       top: spacing.xs,
       right: spacing.xs,
-      backgroundColor: colors.app.red,
+      backgroundColor: colors.accent.primary,
       paddingHorizontal: spacing.xs,
       paddingVertical: 2,
       borderRadius: borderRadius.sm,
    },
    badgeText: {
-      color: colors.text.dark,
+      color: '#FFFFFF',
       fontSize: typography.fontSize.xs,
       fontWeight: '700',
       ...Platform.select({
@@ -117,16 +117,11 @@ const styles = StyleSheet.create({
    title: {
       marginTop: spacing.xs,
       fontSize: typography.fontSize.sm,
-      color: colors.text.dark,
+      color: colors.text.primary,
       fontWeight: '500',
       ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '500',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
+         ios: { fontFamily: 'System', fontWeight: '500' },
+         android: { fontFamily: 'sans-serif' },
       }),
    },
 });

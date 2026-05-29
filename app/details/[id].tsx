@@ -5,9 +5,9 @@ import {
    StyleSheet,
    Platform,
    FlatList,
+   ScrollView,
    ActivityIndicator,
    TouchableOpacity,
-   Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -21,6 +21,10 @@ import { Chapter, getChapters, initializePlaybackSession } from '@/services/audi
 import { useAudiobook } from '@/hooks/useAudiobook';
 import { useStreamingPlaylist } from '@/hooks/useStreamingPlaylist';
 import { ChapterListItem } from '@/components/ChapterListItem';
+import { PrimaryButton } from '@/components/PrimaryButton';
+import { SecondaryButton } from '@/components/SecondaryButton';
+import { TabUnderline } from '@/components/TabUnderline';
+import { TabSlideView } from '@/components/TabSlideView';
 import { formatDuration } from '@/utils/duration';
 import { apiConfig } from '@/services/api';
 import { useDispatch } from 'react-redux';
@@ -28,6 +32,7 @@ import { setTotalDuration, play } from '@/store/player';
 import { useChaptersProgress } from '@/hooks/useChaptersProgress';
 import { openChapterForPlayback } from '@/utils/openChapterForPlayback';
 import { requestChapterReload } from '@/services/playbackReload';
+import { getMinimizedPlayerScrollPadding } from '@/theme/tabLayout';
 
 export default function DetailsScreen() {
    const { id, autoPlay } = useLocalSearchParams<{ id: string; autoPlay?: string }>();
@@ -42,8 +47,8 @@ export default function DetailsScreen() {
    const paginationLoadingRef = useRef(false);
    const clickedChapterIdRef = useRef<string | null>(null);
    const dispatch = useDispatch();
-   const [isMetaExpanded, setIsMetaExpanded] = useState(false);
-   const metaAnimationHeight = useRef(new Animated.Value(0)).current;
+   const [detailTab, setDetailTab] = useState<'chapters' | 'about'>('chapters');
+   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
    const isAuthenticated = useSelector(
       (state: RootState) => state.auth.isAuthenticated
@@ -57,24 +62,17 @@ export default function DetailsScreen() {
       (state: RootState) => state.player.isVisible
    );
 
-   // Calculate scroll content padding based on player visibility and safe area insets
+   // Scroll padding: details has no tab bar; add space only for minimized player when visible
    const scrollContentStyle = useMemo(() => {
-      // Account for: bottom nav bar (90/70) + minimized player (~70) + safe area + extra spacing
-      // When player is visible, add extra padding for minimized player height
-      const basePadding = isPlayerVisible
-         ? Platform.OS === 'ios' ? 170 : 150 // Tab bar + minimized player + spacing
-         : Platform.OS === 'ios' ? 100 : 80; // Just tab bar when player not visible
+      const paddingBottom = isPlayerVisible
+         ? getMinimizedPlayerScrollPadding(insets.bottom)
+         : insets.bottom + spacing.lg;
 
-      // Add safe area bottom inset to ensure content is accessible
-      const paddingBottom = basePadding + (insets?.bottom || 0) + 20; // Extra 20px for spacing
-
-      return {
-         paddingBottom,
-      };
-   }, [isPlayerVisible, insets]);
+      return { paddingBottom };
+   }, [isPlayerVisible, insets.bottom]);
 
    // Fetch audiobook data
-   const { data: audiobookData, isLoading: audiobookLoading } = useAudiobook(id || '');
+   const { data: audiobookData } = useAudiobook(id || '');
 
    const audiobook = audiobookData?.data;
 
@@ -221,9 +219,6 @@ export default function DetailsScreen() {
    const isPlaying = useSelector(
       (state: RootState) => state.player.isPlaying
    );
-   const playbackPosition = useSelector(
-      (state: RootState) => state.player.playbackPosition
-   );
    const audiobookId = useSelector(
       (state: RootState) => state.player.audiobookId
    );
@@ -233,7 +228,7 @@ export default function DetailsScreen() {
       () => allChapters.map((chapter) => chapter.id),
       [allChapters]
    );
-   const progressByChapterId = useChaptersProgress(
+   useChaptersProgress(
       chapterIds,
       shouldFetchChapters && allChapters.length > 0
    );
@@ -320,6 +315,21 @@ export default function DetailsScreen() {
       }
    }, [shouldFetchChapters, pagination, isLoadingChapters, currentPage]);
 
+   const handleCommentsPress = useCallback(
+      (chapter: Chapter) => {
+         router.push({
+            pathname: '/chapter-comments',
+            params: {
+               audiobookId: id ?? '',
+               chapterId: chapter.id,
+               chapterTitle: chapter.title,
+               chapterNumber: String(chapter.chapterNumber),
+            },
+         } as never);
+      },
+      [id]
+   );
+
    // Handle back button press
    const handleBack = useCallback(() => {
       router.back();
@@ -346,6 +356,7 @@ export default function DetailsScreen() {
             chapter,
             dispatch,
             totalDurationSeconds,
+            totalChapters: allChapters.length,
             autoPlay: !!playlistData,
          });
 
@@ -376,6 +387,13 @@ export default function DetailsScreen() {
       },
       [dispatch, playlistsByChapterId, user?.id]
    );
+
+   const handlePlayAll = useCallback(() => {
+      if (allChapters.length > 0) {
+         const sorted = [...allChapters].sort((a, b) => a.chapterNumber - b.chapterNumber);
+         void handleChapterPress(sorted[0]);
+      }
+   }, [allChapters, handleChapterPress]);
 
    // Track if auto-play has been triggered to prevent multiple triggers
    const autoPlayTriggeredRef = useRef(false);
@@ -446,14 +464,6 @@ export default function DetailsScreen() {
       }
    }, [autoPlay, isLoadingChapters, allChapters, firstChapterId, playlistsByChapterId, handleChapterPress]);
 
-   // Build full image URL for audiobook cover - use chaptersHeroCoverImage if available, fallback to coverImage
-   const audiobookCoverUri = useMemo(() => {
-      if (!audiobook) return undefined;
-      const imagePath = audiobook.chaptersHeroCoverImage || audiobook.coverImage;
-      if (!imagePath) return undefined;
-      return `${apiConfig.baseURL}${imagePath}`;
-   }, [audiobook]);
-
    // Format audiobook duration
    const formattedDuration = useMemo(() => {
       if (!audiobook?.duration) return '';
@@ -464,12 +474,6 @@ export default function DetailsScreen() {
    const renderChapterItem = useCallback(
       ({ item }: { item: Chapter }) => {
          const isActiveChapter = item.id === currentPlayingChapterId;
-         const useLiveProgress =
-            isActiveChapter && (isPlaying || isPlayerVisible);
-         const apiProgress = progressByChapterId[item.id] ?? 0;
-         const progressSeconds = useLiveProgress ? playbackPosition : apiProgress;
-         const showResume =
-            progressSeconds > 0 && !(isActiveChapter && isPlaying);
 
          return (
             <ChapterListItem
@@ -482,8 +486,8 @@ export default function DetailsScreen() {
                   item.id === currentPlayingChapterId &&
                   isPlaying
                }
-               progressSeconds={progressSeconds}
-               showResumeBadge={showResume}
+               isActive={isActiveChapter}
+               onDownloadPress={() => {}}
             />
          );
       },
@@ -492,8 +496,6 @@ export default function DetailsScreen() {
          currentPlayingChapterId,
          isPlaying,
          isPlayerVisible,
-         playbackPosition,
-         progressByChapterId,
       ]
    );
 
@@ -543,292 +545,202 @@ export default function DetailsScreen() {
       );
    }, [isAccessRestricted, isLoadingChapters, chaptersError]);
 
-   // Toggle meta expansion
-   const toggleMetaExpansion = useCallback(() => {
-      const toValue = isMetaExpanded ? 0 : 1;
-      setIsMetaExpanded(!isMetaExpanded);
+   const handleDetailTabPress = useCallback((key: string) => {
+      setDetailTab(key as 'chapters' | 'about');
+   }, []);
 
-      Animated.parallel([
-         Animated.timing(metaAnimationHeight, {
-            toValue,
-            duration: 300,
-            useNativeDriver: false,
-         }),
-      ]).start();
-   }, [isMetaExpanded, metaAnimationHeight]);
+   const renderAboutContent = useCallback(() => {
+      if (!audiobook) {
+         return null;
+      }
 
-   // Calculate meta content height for animation
-   const metaContentHeight = useMemo(() => {
-      if (!audiobook?.meta) return 0;
-      const entries = Object.entries(audiobook.meta);
-      // More accurate height calculation: each entry ~40px + padding
-      return entries.length * 40 + spacing.md * 2;
-   }, [audiobook?.meta]);
+      return (
+         <View style={styles.aboutSection}>
+            {audiobook.narrators?.length ? (
+               <Text style={styles.aboutText}>
+                  Narrators: {audiobook.narrators.join(', ')}
+               </Text>
+            ) : null}
+            {audiobook.genres?.map((genre, index) => (
+               <Text key={index} style={styles.aboutText}>
+                  {genre.name}
+               </Text>
+            ))}
+            {audiobook.description ? (
+               <Text style={styles.aboutDescription}>{audiobook.description}</Text>
+            ) : null}
+         </View>
+      );
+   }, [audiobook]);
 
-   // Render header with audiobook info
-   const renderHeader = useCallback(() => {
-      const hasMeta = audiobook?.meta && Object.keys(audiobook.meta).length > 0;
-      const metaEntries = hasMeta && audiobook.meta ? Object.entries(audiobook.meta) : [];
+   const renderUpgradeSection = useCallback(() => {
+      if (!isAccessRestricted) {
+         return null;
+      }
+
+      return (
+         <View style={styles.upgradeSection}>
+            <TouchableOpacity
+               style={styles.upgradeBadge}
+               onPress={handleUpgradePlanPress}
+               activeOpacity={0.7}
+            >
+               <Ionicons name="lock-closed" size={16} color={colors.accent.primary} />
+               <Text style={styles.upgradeBadgeText}>Upgrade your plan</Text>
+            </TouchableOpacity>
+            {upgradeMessage ? (
+               <Text style={styles.upgradeMessage}>{upgradeMessage}</Text>
+            ) : null}
+         </View>
+      );
+   }, [isAccessRestricted, upgradeMessage, handleUpgradePlanPress]);
+
+   // Render book header (above tab slide panels)
+   const renderBookHeader = useCallback(() => {
+      const coverPath = audiobook?.coverImage || audiobook?.chaptersHeroCoverImage;
+      const smallCoverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
+      const chapterCount = allChapters.length;
+      const description = audiobook?.description ?? '';
+      const shortDescription =
+         description.length > 120 && !descriptionExpanded
+            ? `${description.slice(0, 120)}...`
+            : description;
 
       return (
          <>
-            {/* Audiobook Cover Image */}
-            {audiobookCoverUri ? (
-               <View style={styles.coverContainer}>
-                  <Image
-                     source={{ uri: audiobookCoverUri }}
-                     style={styles.coverImage}
-                     contentFit="cover"
-                     transition={200}
-                     cachePolicy="memory-disk"
-                  />
+            {/* Top actions */}
+            <View style={styles.topActions}>
+               <TouchableOpacity onPress={handleBack} style={styles.topIconButton} activeOpacity={0.7}>
+                  <Ionicons name="chevron-back" size={24} color={colors.text.primary} />
+               </TouchableOpacity>
+               <View style={styles.topActionsRight}>
+                  <TouchableOpacity style={styles.topIconButton} activeOpacity={0.7}>
+                     <Ionicons name="bookmark-outline" size={22} color={colors.text.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                     style={styles.topIconButton}
+                     activeOpacity={0.7}
+                     onPress={() => {
+                        const chapter = allChapters.find((c) => c.id === currentPlayingChapterId) ?? allChapters[0];
+                        if (chapter) handleCommentsPress(chapter);
+                     }}
+                  >
+                     <Ionicons name="ellipsis-horizontal" size={22} color={colors.text.primary} />
+                  </TouchableOpacity>
                </View>
-            ) : audiobookLoading ? (
-               <View style={styles.coverContainer}>
-                  <View style={[styles.coverImage, styles.coverPlaceholder]}>
-                     <ActivityIndicator size="large" color={colors.app.red} />
+            </View>
+
+            {/* Book row */}
+            <View style={styles.bookRow}>
+               {smallCoverUri ? (
+                  <Image source={{ uri: smallCoverUri }} style={styles.bookCover} contentFit="cover" />
+               ) : (
+                  <View style={[styles.bookCover, styles.bookCoverPlaceholder]}>
+                     <ActivityIndicator color={colors.accent.primary} />
                   </View>
+               )}
+               <View style={styles.bookInfo}>
+                  <Text style={styles.audiobookTitle} numberOfLines={2}>
+                     {audiobook?.title ?? 'Loading...'}
+                  </Text>
+                  {audiobook?.author && (
+                     <Text style={styles.bookAuthor}>{audiobook.author}</Text>
+                  )}
+                  <View style={styles.ratingRow}>
+                     {[1, 2, 3, 4, 5].map((star) => (
+                        <Ionicons
+                           key={star}
+                           name="star"
+                           size={14}
+                           color={colors.accent.primary}
+                        />
+                     ))}
+                  </View>
+                  <Text style={styles.bookMeta}>
+                     {formattedDuration}
+                     {chapterCount > 0 ? ` · ${chapterCount} chapters` : ''}
+                  </Text>
+               </View>
+            </View>
+
+            {/* Play / Download */}
+            {!isAccessRestricted && (
+               <View style={styles.actionButtons}>
+                  <PrimaryButton title="Play" onPress={handlePlayAll} style={styles.playBtn} />
+                  <SecondaryButton title="Download" onPress={() => {}} style={styles.downloadBtn} />
+               </View>
+            )}
+
+            {/* Description */}
+            {description ? (
+               <View style={styles.descriptionSection}>
+                  <Text style={styles.description}>{shortDescription}</Text>
+                  {description.length > 120 && (
+                     <TouchableOpacity onPress={() => setDescriptionExpanded(!descriptionExpanded)}>
+                        <Text style={styles.moreLink}>
+                           {descriptionExpanded ? 'Less' : 'More'}
+                        </Text>
+                     </TouchableOpacity>
+                  )}
                </View>
             ) : null}
 
-            {/* Audiobook Info Section */}
-            <View style={styles.infoSection}>
-               {/* Title */}
-               {audiobook?.title && (
-                  <Text style={styles.audiobookTitle} numberOfLines={2}>
-                     {audiobook.title}
-                  </Text>
-               )}
+            <TabUnderline
+               tabs={[
+                  { key: 'chapters', label: 'Chapters' },
+                  { key: 'about', label: 'About' },
+               ]}
+               activeKey={detailTab}
+               onTabPress={handleDetailTabPress}
+            />
 
-               {/* Genres Array - Below Title */}
-               {audiobook?.genres && audiobook.genres.length > 0 && (
-                  <View style={styles.genresContainer}>
-                     {audiobook.genres.map((genre, index) => (
-                        <View key={index} style={styles.genreChip}>
-                           <Text style={styles.genreChipText}>{genre.name}</Text>
-                        </View>
-                     ))}
-                  </View>
-               )}
-
-               {/* Author and Duration - Second Row */}
-               <View style={styles.metaContainer}>
-                  {audiobook?.author && (
-                     <View style={styles.metaItem}>
-                        <Text style={styles.metaLabel}>Author:</Text>
-                        <Text style={styles.metaValue}>{audiobook.author}</Text>
-                     </View>
-                  )}
-                  {formattedDuration && (
-                     <View style={styles.metaItem}>
-                        <Text style={styles.metaLabel}>Duration:</Text>
-                        <Text style={styles.metaValue}>{formattedDuration}</Text>
-                     </View>
-                  )}
-               </View>
-
-               {/* Narrators - Above Description */}
-               {audiobook?.narrators && audiobook.narrators.length > 0 && (
-                  <Text style={styles.narrators}>
-                     Narrators: {audiobook.narrators.join(', ')}
-                  </Text>
-               )}
-
-               {/* Description */}
-               {audiobook?.description && (
-                  <Text style={styles.description}>{audiobook.description}</Text>
-               )}
-
-               {/* Meta Dropdown */}
-               {hasMeta && (
-                  <View style={styles.metaDropdownContainer}>
-                     <TouchableOpacity
-                        onPress={toggleMetaExpansion}
-                        style={styles.metaDropdownButton}
-                        activeOpacity={0.7}
-                     >
-                        <Text style={styles.metaDropdownButtonText}>See More</Text>
-                        <Ionicons
-                           name={isMetaExpanded ? 'chevron-up' : 'chevron-down'}
-                           size={20}
-                           color={colors.text.dark}
-                        />
-                     </TouchableOpacity>
-                     <Animated.View
-                        style={[
-                           styles.metaContent,
-                           {
-                              maxHeight: metaAnimationHeight.interpolate({
-                                 inputRange: [0, 1],
-                                 outputRange: [0, metaContentHeight],
-                              }),
-                              opacity: metaAnimationHeight.interpolate({
-                                 inputRange: [0, 0.5, 1],
-                                 outputRange: [0, 0.5, 1],
-                              }),
-                              transform: [
-                                 {
-                                    translateY: metaAnimationHeight.interpolate({
-                                       inputRange: [0, 1],
-                                       outputRange: [-10, 0],
-                                    }),
-                                 },
-                              ],
-                           },
-                        ]}
-                     >
-                        {metaEntries.map(([key, value], index) => (
-                           <View key={index} style={styles.metaEntry}>
-                              <Text style={styles.metaKey}>{key}:</Text>
-                              <Text style={styles.metaValueText}>{String(value)}</Text>
-                           </View>
-                        ))}
-                     </Animated.View>
-                  </View>
-               )}
-            </View>
-
-            {/* Chapters or upgrade prompt */}
-            <View style={styles.chaptersSection}>
-               {isAccessRestricted ? (
-                  <View style={styles.upgradeSection}>
-                     <TouchableOpacity
-                        style={styles.upgradeBadge}
-                        onPress={handleUpgradePlanPress}
-                        activeOpacity={0.7}
-                        accessibilityLabel="Upgrade your plan"
-                        accessibilityRole="button"
-                     >
-                        <Ionicons name="lock-closed" size={16} color={colors.text.dark} />
-                        <Text style={styles.upgradeBadgeText}>Upgrade your plan</Text>
-                     </TouchableOpacity>
-                     {upgradeMessage ? (
-                        <Text style={styles.upgradeMessage}>{upgradeMessage}</Text>
-                     ) : null}
-                  </View>
-               ) : (
-                  <Text style={styles.chaptersTitle}>Chapters</Text>
-               )}
-            </View>
+            {renderUpgradeSection()}
          </>
       );
    }, [
-      audiobookCoverUri,
-      audiobookLoading,
-      audiobook?.title,
-      audiobook?.genres,
-      audiobook?.description,
-      audiobook?.author,
-      audiobook?.narrators,
-      audiobook?.meta,
+      audiobook,
+      allChapters,
       formattedDuration,
-      isMetaExpanded,
-      metaAnimationHeight,
-      metaContentHeight,
-      toggleMetaExpansion,
+      descriptionExpanded,
+      detailTab,
+      handleBack,
+      handlePlayAll,
+      handleCommentsPress,
+      currentPlayingChapterId,
+      handleDetailTabPress,
+      renderUpgradeSection,
       isAccessRestricted,
-      upgradeMessage,
-      handleUpgradePlanPress,
    ]);
-
-   // Handle navigation to tabs
-   const handleTabNavigation = useCallback((route: string) => {
-      if (route === 'home') {
-         router.push('/(tabs)');
-      } else if (route === 'new-hot') {
-         router.push('/(tabs)/new-hot');
-      } else if (route === 'profile') {
-         router.push('/(tabs)/profile');
-      }
-   }, []);
 
    return (
       <>
          <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-            {/* Back Button - Fixed at top, overlaying content */}
-            <View style={styles.backButtonContainer}>
-               <TouchableOpacity
-                  onPress={handleBack}
-                  style={styles.backButton}
-                  activeOpacity={0.7}
-                  accessibilityLabel="Go back"
-                  accessibilityRole="button"
+            <View style={styles.bookHeaderWrapper}>{renderBookHeader()}</View>
+            <TabSlideView
+               activeKey={detailTab}
+               tabKeys={['chapters', 'about']}
+               onTabChange={handleDetailTabPress}
+               style={styles.tabSlideContainer}
+            >
+               <FlatList
+                  data={isAccessRestricted ? [] : allChapters}
+                  renderItem={renderChapterItem}
+                  keyExtractor={(item) => item.id}
+                  ListEmptyComponent={renderEmpty}
+                  ListFooterComponent={renderFooter}
+                  onEndReached={loadNextPage}
+                  onEndReachedThreshold={0.5}
+                  removeClippedSubviews={true}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={[styles.scrollContent, scrollContentStyle]}
+               />
+               <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={[styles.scrollContent, scrollContentStyle]}
                >
-                  <Ionicons
-                     name="chevron-back"
-                     size={28}
-                     color={colors.text.dark}
-                  />
-               </TouchableOpacity>
-            </View>
-
-            <FlatList
-               data={isAccessRestricted ? [] : allChapters}
-               renderItem={renderChapterItem}
-               keyExtractor={(item) => item.id}
-               ListHeaderComponent={renderHeader}
-               ListEmptyComponent={renderEmpty}
-               ListFooterComponent={renderFooter}
-               onEndReached={loadNextPage}
-               onEndReachedThreshold={0.5}
-               removeClippedSubviews={true}
-               showsVerticalScrollIndicator={false}
-               contentContainerStyle={[styles.scrollContent, scrollContentStyle]}
-            />
-
-            {/* Bottom Navigation Bar */}
-            <View style={[
-               styles.bottomNavBar,
-               {
-                  paddingBottom: (Platform.OS === 'ios' ? 30 : 10) + (insets?.bottom || 0),
-                  height: (Platform.OS === 'ios' ? 90 : 70) + (insets?.bottom || 0),
-               }
-            ]}>
-               <TouchableOpacity
-                  style={styles.navItem}
-                  onPress={() => handleTabNavigation('home')}
-                  activeOpacity={0.7}
-                  accessibilityLabel="Home"
-                  accessibilityRole="button"
-               >
-                  <Ionicons
-                     name="home"
-                     size={24}
-                     color={colors.text.secondaryDark}
-                  />
-                  <Text style={styles.navLabel}>Home</Text>
-               </TouchableOpacity>
-
-               <TouchableOpacity
-                  style={styles.navItem}
-                  onPress={() => handleTabNavigation('new-hot')}
-                  activeOpacity={0.7}
-                  accessibilityLabel="New & Hot"
-                  accessibilityRole="button"
-               >
-                  <Ionicons
-                     name="flash"
-                     size={24}
-                     color={colors.text.secondaryDark}
-                  />
-                  <Text style={styles.navLabel}>New & Hot</Text>
-               </TouchableOpacity>
-
-               <TouchableOpacity
-                  style={styles.navItem}
-                  onPress={() => handleTabNavigation('profile')}
-                  activeOpacity={0.7}
-                  accessibilityLabel="My AudioBook"
-                  accessibilityRole="button"
-               >
-                  <Ionicons
-                     name="person-circle-outline"
-                     size={24}
-                     color={colors.text.secondaryDark}
-                  />
-                  <Text style={styles.navLabel}>My AudioBook</Text>
-               </TouchableOpacity>
-            </View>
+                  {renderAboutContent()}
+               </ScrollView>
+            </TabSlideView>
          </SafeAreaView>
       </>
    );
@@ -837,7 +749,99 @@ export default function DetailsScreen() {
 const styles = StyleSheet.create({
    container: {
       flex: 1,
-      backgroundColor: colors.background.dark,
+      backgroundColor: colors.background.screen,
+   },
+   bookHeaderWrapper: {
+      flexShrink: 0,
+   },
+   tabSlideContainer: {
+      flex: 1,
+   },
+   topActions: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+   },
+   topActionsRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+   },
+   topIconButton: {
+      padding: spacing.xs,
+      marginLeft: spacing.xs,
+   },
+   bookRow: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+   },
+   bookCover: {
+      width: 88,
+      height: 88,
+      borderRadius: borderRadius.lg,
+      marginRight: spacing.md,
+   },
+   bookCoverPlaceholder: {
+      backgroundColor: colors.background.highlight,
+      alignItems: 'center',
+      justifyContent: 'center',
+   },
+   bookInfo: {
+      flex: 1,
+      justifyContent: 'center',
+   },
+   bookAuthor: {
+      fontSize: typography.fontSize.sm,
+      color: colors.text.secondary,
+      marginTop: spacing.xs,
+   },
+   ratingRow: {
+      flexDirection: 'row',
+      marginTop: spacing.xs,
+      gap: 2,
+   },
+   bookMeta: {
+      fontSize: typography.fontSize.xs,
+      color: colors.text.muted,
+      marginTop: spacing.xs,
+   },
+   actionButtons: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.md,
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+   },
+   playBtn: {
+      flex: 1,
+   },
+   downloadBtn: {
+      flex: 1,
+   },
+   descriptionSection: {
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.md,
+   },
+   moreLink: {
+      fontSize: typography.fontSize.sm,
+      color: colors.accent.primary,
+      fontWeight: '600',
+      marginTop: spacing.xs,
+   },
+   aboutSection: {
+      padding: spacing.md,
+   },
+   aboutText: {
+      fontSize: typography.fontSize.sm,
+      color: colors.text.secondary,
+      marginBottom: spacing.xs,
+   },
+   aboutDescription: {
+      fontSize: typography.fontSize.base,
+      color: colors.text.primary,
+      lineHeight: 22,
+      marginTop: spacing.md,
    },
    scrollContent: {
       // Base padding - will be overridden by dynamic padding based on player visibility
@@ -896,11 +900,9 @@ const styles = StyleSheet.create({
       gap: spacing.md,
    },
    audiobookTitle: {
-      flex: 1,
-      fontSize: typography.fontSize.xl,
-      color: colors.text.dark,
+      fontSize: typography.fontSize.lg,
+      color: colors.text.primary,
       fontWeight: '600',
-      marginRight: spacing.sm,
       ...Platform.select({
          ios: {
             fontFamily: 'System',
@@ -1053,10 +1055,9 @@ const styles = StyleSheet.create({
       }),
    },
    description: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.dark,
-      lineHeight: typography.lineHeight.relaxed * typography.fontSize.base,
-      marginTop: spacing.md,
+      fontSize: typography.fontSize.sm,
+      color: colors.text.secondary,
+      lineHeight: 20,
       ...Platform.select({
          ios: {
             fontFamily: 'System',

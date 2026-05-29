@@ -13,12 +13,14 @@ import {
    ActivityIndicator,
    Dimensions,
    PanResponder,
+   ScrollView,
 } from 'react-native';
 import Animated, {
    useAnimatedStyle,
    useSharedValue,
    withTiming,
    withSpring,
+   cancelAnimation,
    Easing,
    useAnimatedReaction,
    runOnJS,
@@ -26,15 +28,23 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { router, useSegments } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store';
-import { setMinimized, releasePlayback } from '@/store/player';
+import { setMinimized, setUiSuppressed, releasePlayback } from '@/store/player';
 import { useAudioPlayerControls } from '@/contexts/AudioPlaybackContext';
 import { usePlaybackSync } from '@/hooks/usePlaybackSync';
 import { syncPlayback, initializePlaybackSession } from '@/services/audiobooks';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { colors, spacing, typography, borderRadius, shadows } from '@/theme';
+import {
+   getTabBarHeight,
+   getTabBarFloatHorizontal,
+   getMinimizedPlayerBottom,
+   MINIMIZED_PLAYER_BAR_HEIGHT,
+} from '@/theme/tabLayout';
 import { formatDuration } from '@/utils/duration';
 import { apiConfig } from '@/services/api';
+import { PLAYER_BOTTOM_SPRING } from '@/theme/tabAnimation';
 
 /**
  * Audio Player component
@@ -42,9 +52,58 @@ import { apiConfig } from '@/services/api';
  */
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+/** Proportional sizing for full player internals (~1.25× compact layout) */
+const FP = {
+   paddingHorizontal: spacing.lg,
+   paddingTop: spacing.md,
+   paddingBottom: spacing.lg,
+   coverSize: 240,
+   headerChevronSize: 34,
+   headerMenuIconSize: 28,
+   chapterLabelSize: typography.fontSize.base,
+   chapterTitleSize: typography.fontSize['2xl'],
+   playButtonSize: 72,
+   playIconSize: 40,
+   chapterSkipIconSize: 34,
+   seekIconSize: 30,
+   bottomActionIconSize: 28,
+   progressBarHeight: 5,
+   progressHandleSize: 20,
+   progressBarHorizontalPadding: 10,
+   progressTouchMinHeight: 52,
+   dragHandlerWidth: 48,
+   dragHandlerHeight: 5,
+   dragHandlerMinHeight: 36,
+   headerMarginBottom: spacing.md,
+   coverMarginBottom: spacing.md,
+   progressMarginBottom: spacing.md,
+   secondaryMarginBottom: spacing.sm,
+   controlsMarginBottom: spacing.sm,
+   bottomActionsPaddingTop: spacing.md,
+   secondaryGap: spacing.xl,
+   bottomActionTextSize: typography.fontSize.sm,
+   seekButtonTextSize: typography.fontSize.sm,
+   timeTextSize: typography.fontSize.base,
+   secondaryButtonTextSize: typography.fontSize.base,
+} as const;
+
+const PROGRESS_BAR_INSET = FP.progressBarHorizontalPadding * 2;
+const PROGRESS_HANDLE_CENTER_OFFSET = FP.progressHandleSize / 2;
+const PROGRESS_HANDLE_TOP =
+   -(PROGRESS_HANDLE_CENTER_OFFSET - FP.progressBarHeight / 2);
+
+/** Minimized bar — horizontal layout above tab bar or screen bottom */
+const MINIMIZED_BAR = {
+   height: MINIMIZED_PLAYER_BAR_HEIGHT,
+   coverSize: 56,
+   playIconSize: 28,
+} as const;
+
 export const AudioPlayer: React.FC = React.memo(() => {
    const dispatch = useDispatch();
    const insets = useSafeAreaInsets();
+   const segments = useSegments();
+   const hasBottomTabBar = segments[0] === '(tabs)';
    const {
       isPlaying,
       currentChapterId,
@@ -54,6 +113,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
       error,
       isVisible,
       isMinimized,
+      isUiSuppressed,
       chapterMetadata,
       audiobookId,
    } = useSelector((state: RootState) => state.player);
@@ -70,7 +130,9 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const opacity = useSharedValue(0);
    const fullPlayerOpacity = useSharedValue(0);
    const minimizedOpacity = useSharedValue(0);
+   const containerBottom = useSharedValue(0);
    const isMountedRef = useRef(false);
+   const hasInitializedBottomRef = useRef(false);
    const previousVisibleRef = useRef(false);
    const previousMinimizedRef = useRef(false);
 
@@ -78,6 +140,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const dragY = useSharedValue(0);
    const isDraggingDown = useRef(false);
    const dragStartY = useRef(0);
+   const isMinimizedRef = useRef(isMinimized);
    const progressBarWidthRef = useRef(0);
    const progressBarWrapperRef = useRef<View | null>(null);
    const wrapperXRef = useRef(0);
@@ -136,8 +199,8 @@ export const AudioPlayer: React.FC = React.memo(() => {
       // The wrapper includes padding, so we need to subtract it to get the actual progress bar width
       const wrapperWidth = event.nativeEvent.layout.width;
       wrapperWidthRef.current = wrapperWidth;
-      // Subtract horizontal padding (8px on each side = 16px total)
-      progressBarWidthRef.current = wrapperWidth - 16;
+      // Subtract horizontal padding on each side
+      progressBarWidthRef.current = wrapperWidth - PROGRESS_BAR_INSET;
 
       // Measure position in window for drag calculations (use setTimeout to ensure layout is complete)
       setTimeout(() => {
@@ -233,7 +296,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
                if (progressBarWrapperRef.current) {
                   try {
                      progressBarWrapperRef.current.measure((_x, _y, measuredWidth) => {
-                        const barWidth = Math.max(0, measuredWidth - 16);
+                        const barWidth = Math.max(0, measuredWidth - PROGRESS_BAR_INSET);
                         progressBarWidthRef.current = barWidth;
                         width = barWidth;
                      });
@@ -386,7 +449,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
       const clampedProgress = Math.max(0, Math.min(1, progress));
       return {
          left: `${clampedProgress * 100}%`,
-         transform: [{ translateX: -8 }], // Center the handle (half of 16px width)
+         transform: [{ translateX: -PROGRESS_HANDLE_CENTER_OFFSET }],
       };
    });
 
@@ -463,43 +526,76 @@ export const AudioPlayer: React.FC = React.memo(() => {
       pausePlayback,
    ]);
 
-   const handleClose = () => {
-      void (async () => {
-         if (isPlaying) {
-            await pausePlayback();
-         }
-         await resetPlayer();
-         dispatch(releasePlayback());
-      })();
-   };
-
    // Handle expand (when clicking on minimized player)
    const handleExpand = () => {
       dispatch(setMinimized(false));
    };
 
-   // Pan responder for drag-to-minimize functionality
+   const handleClose = useCallback(() => {
+      void (async () => {
+         if (isPlaying && audiobookId && currentChapterId) {
+            await syncPlayback({
+               audiobookId,
+               chapterId: currentChapterId,
+               action: 'pause',
+               position: playbackPosition,
+            }).catch((error: unknown) => {
+               console.error('[Audio Player] Failed to sync playback on close:', error);
+            });
+            await pausePlayback();
+         }
+         await resetPlayer();
+         dispatch(releasePlayback());
+      })();
+   }, [
+      isPlaying,
+      audiobookId,
+      currentChapterId,
+      playbackPosition,
+      pausePlayback,
+      resetPlayer,
+      dispatch,
+   ]);
+
+   useEffect(() => {
+      isMinimizedRef.current = isMinimized;
+   }, [isMinimized]);
+
+   const handleNotesPress = useCallback(() => {
+      if (!audiobookId || !currentChapterId) return;
+      dispatch(setUiSuppressed(true));
+      dispatch(setMinimized(true));
+      router.push({
+         pathname: '/chapter-comments',
+         params: {
+            audiobookId,
+            chapterId: currentChapterId,
+            chapterTitle: chapterMetadata?.title ?? 'Chapter',
+            ...(chapterMetadata?.chapterNumber != null
+               ? { chapterNumber: String(chapterMetadata.chapterNumber) }
+               : {}),
+         },
+      } as never);
+   }, [audiobookId, currentChapterId, chapterMetadata?.title, chapterMetadata?.chapterNumber, dispatch]);
+
+   // Pan responder for drag-to-minimize on the top handle / header zone
    const panResponder = useRef(
       PanResponder.create({
          onStartShouldSetPanResponder: () => false,
          onStartShouldSetPanResponderCapture: () => false,
          onMoveShouldSetPanResponder: (_evt, gestureState) => {
-            // Only respond to downward drags when player is maximized
-            // Lower threshold to make it more responsive
-            if (!isMinimized && gestureState.dy > 3 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)) {
-               return true;
-            }
-            return false;
+            if (isMinimizedRef.current) return false;
+            return (
+               gestureState.dy > 6 &&
+               gestureState.dy > Math.abs(gestureState.dx)
+            );
          },
          onMoveShouldSetPanResponderCapture: (_evt, gestureState) => {
-            // Only capture vertical downward drags
-            // Explicitly allow horizontal touches (dx > dy) to pass through to child (seek bar)
-            if (!isMinimized &&
-               Math.abs(gestureState.dx) <= Math.abs(gestureState.dy) &&
-               gestureState.dy > 3) {
-               return true;
-            }
-            return false;
+            if (isMinimizedRef.current) return false;
+            return (
+               gestureState.dy > 6 &&
+               gestureState.dy > Math.abs(gestureState.dx)
+            );
          },
          onPanResponderGrant: (evt) => {
             isDraggingDown.current = true;
@@ -508,22 +604,18 @@ export const AudioPlayer: React.FC = React.memo(() => {
          },
          onPanResponderMove: (_evt, gestureState) => {
             if (isDraggingDown.current && gestureState.dy > 0) {
-               // Only allow downward dragging
                dragY.value = Math.max(0, gestureState.dy);
             }
          },
          onPanResponderRelease: (_evt, gestureState) => {
             isDraggingDown.current = false;
-            // If dragged down more than 80px, minimize the player
             if (gestureState.dy > 80) {
                dispatch(setMinimized(true));
-               // Don't reset immediately - let the minimize animation handle it
                dragY.value = withSpring(0, {
                   damping: 20,
                   stiffness: 200,
                });
             } else {
-               // Reset drag position if not enough drag
                dragY.value = withSpring(0, {
                   damping: 15,
                   stiffness: 150,
@@ -565,11 +657,60 @@ export const AudioPlayer: React.FC = React.memo(() => {
       return Math.floor(totalDuration);
    }, [totalDuration]);
 
+   const minimizedProgress = useMemo(() => {
+      if (totalDuration <= 0) return 0;
+      return Math.min(1, Math.max(0, playbackPosition / totalDuration));
+   }, [playbackPosition, totalDuration]);
+
+   const minimizedChapterLabel = useMemo(() => {
+      if (!chapterMetadata?.chapterNumber) {
+         return 'Chapter';
+      }
+      if (chapterMetadata.totalChapters) {
+         return `Chapter ${chapterMetadata.chapterNumber} of ${chapterMetadata.totalChapters}`;
+      }
+      return `Chapter ${chapterMetadata.chapterNumber}`;
+   }, [chapterMetadata]);
+
+   const minimizedElapsed = useMemo(() => Math.floor(playbackPosition), [playbackPosition]);
+
    // Calculate dynamic tab bar height with safe area insets (needed for animations)
    const tabBarHeight = getTabBarHeight(insets.bottom);
+   const playerFloatHorizontal = getTabBarFloatHorizontal();
+   /** Full player sits near the screen bottom with a small margin above the safe area */
+   const maximizedBottomPosition = insets.bottom + spacing.sm;
 
-   // Calculate bottom position for minimized PiP window (accounting for tab bar and safe area)
-   const minimizedBottomPosition = tabBarHeight + spacing.md;
+   /** Keep the card within the safe area (top inset + bottom anchor) */
+   const fullPlayerLayout = useMemo(() => {
+      const topMargin = spacing.sm;
+      const maxHeight = SCREEN_HEIGHT - maximizedBottomPosition - insets.top - topMargin;
+      const coverSize = Math.min(FP.coverSize, Math.max(152, Math.round(maxHeight * 0.24)));
+      return {
+         maxHeight: Math.max(300, maxHeight),
+         coverSize,
+      };
+   }, [maximizedBottomPosition, insets.top]);
+
+   // Minimized bar: above tab bar on tab screens, near bottom on stack screens (e.g. details)
+   const minimizedBottomPosition = useMemo(
+      () => getMinimizedPlayerBottom(hasBottomTabBar, insets.bottom),
+      [hasBottomTabBar, insets.bottom]
+   );
+
+   const targetContainerBottom = isMinimized
+      ? minimizedBottomPosition
+      : maximizedBottomPosition;
+
+   // Smooth spring when bottom offset changes (route change or minimize/maximize)
+   useEffect(() => {
+      cancelAnimation(containerBottom);
+      if (!hasInitializedBottomRef.current) {
+         containerBottom.value = targetContainerBottom;
+         hasInitializedBottomRef.current = true;
+         return;
+      }
+      containerBottom.value = withSpring(targetContainerBottom, PLAYER_BOTTOM_SPRING);
+   }, [targetContainerBottom, containerBottom]);
 
    // Re-measure wrapper position when player becomes visible
    useEffect(() => {
@@ -607,10 +748,8 @@ export const AudioPlayer: React.FC = React.memo(() => {
                minimizedOpacity.value = 0;
             }
          } else {
-            // Calculate translateY based on container height instead of SCREEN_HEIGHT
-            // Since container is positioned with bottom: tabBarHeight, we need to translate
-            // by the container's height to hide it below the screen
-            const containerHeight = SCREEN_HEIGHT - tabBarHeight;
+            const bottomOffset = isMinimized ? minimizedBottomPosition : maximizedBottomPosition;
+            const containerHeight = SCREEN_HEIGHT - bottomOffset;
             translateY.value = containerHeight;
             opacity.value = 0;
          }
@@ -662,9 +801,8 @@ export const AudioPlayer: React.FC = React.memo(() => {
                easing: Easing.out(Easing.ease),
             });
          } else {
-            // Closing animation - animate to container height (not SCREEN_HEIGHT)
-            // Calculate container height: screen height minus tab bar height
-            const containerHeight = SCREEN_HEIGHT - tabBarHeight;
+            const bottomOffset = isMinimized ? minimizedBottomPosition : maximizedBottomPosition;
+            const containerHeight = SCREEN_HEIGHT - bottomOffset;
             translateY.value = withTiming(containerHeight, {
                duration: 300,
                easing: Easing.in(Easing.ease),
@@ -740,11 +878,12 @@ export const AudioPlayer: React.FC = React.memo(() => {
             minimizedOpacity.value = 0;
          }
       }
-   }, [isVisible, isMinimized, translateY, opacity, fullPlayerOpacity, minimizedOpacity, dragY, tabBarHeight, insets.bottom]);
+   }, [isVisible, isMinimized, translateY, opacity, fullPlayerOpacity, minimizedOpacity, dragY, tabBarHeight, insets.bottom, maximizedBottomPosition, minimizedBottomPosition, hasBottomTabBar]);
 
    // Animated styles - must be called before early return (Rules of Hooks)
    const containerAnimatedStyle = useAnimatedStyle(() => {
       return {
+         bottom: containerBottom.value,
          transform: [{ translateY: translateY.value }],
          opacity: opacity.value,
       };
@@ -764,7 +903,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
 
 
    // Don't render if not visible or no chapter or no playlist URI
-   if (!isVisible || !currentChapterId) {
+   if (!isVisible || !currentChapterId || isUiSuppressed) {
       return null;
    }
 
@@ -774,157 +913,182 @@ export const AudioPlayer: React.FC = React.memo(() => {
             styles.container,
             containerAnimatedStyle,
             {
-               // When minimized: floating PiP window in bottom-right
-               // When maximized: full width, positioned above tab bar
-               bottom: isMinimized ? minimizedBottomPosition : tabBarHeight,
+               // When minimized: floating bar; when maximized: full-width card
                ...(isMinimized
                   ? {
-                     // Minimized: floating PiP window
-                     // Don't set left - let it be undefined to override base style
-                     right: spacing.md,
-                     width: 140, // Fixed width for PiP
-                     height: 140, // Fixed height for PiP
+                     left: playerFloatHorizontal,
+                     right: playerFloatHorizontal,
                      backgroundColor: 'transparent',
-                     // Ensure container is visible for debugging
-                     // Remove this after confirming visibility
                   }
                   : {
-                     // Maximized: sheet wraps content; background is on playerContainer
-                     left: 0,
-                     right: 0,
-                     width: '100%',
+                     // Maximized: floating card anchored near screen bottom
+                     left: playerFloatHorizontal,
+                     right: playerFloatHorizontal,
                      backgroundColor: 'transparent',
                   }
                ),
-               zIndex: isMinimized ? 250 : 100,
-               elevation: isMinimized ? 250 : 100,
+               zIndex: 250,
+               elevation: 250,
             }
          ]}
       >
          {isMinimized ? (
-            // Minimized: No SafeAreaView needed for floating PiP window
-            <>
-               {/* Minimized Player - Picture-in-Picture Style */}
-               <Animated.View
-                  style={[minimizedAnimatedStyle, styles.minimizedPiPContainer]}
-                  pointerEvents="auto"
+            <Animated.View
+               style={[minimizedAnimatedStyle, styles.minimizedBarOuter]}
+               pointerEvents="auto"
+            >
+               <TouchableOpacity
+                  style={styles.minimizedBar}
+                  onPress={handleExpand}
+                  activeOpacity={0.92}
                >
-                  <TouchableOpacity
-                     style={styles.minimizedContainer}
-                     onPress={handleExpand}
-                     activeOpacity={0.9}
-                  >
-                     {/* Cover Image Background */}
+                  <View style={styles.minimizedCoverWrap}>
                      {chapterCoverUri ? (
                         <Image
                            source={{ uri: chapterCoverUri }}
-                           style={styles.minimizedCover}
+                           style={styles.minimizedCoverImage}
                            contentFit="cover"
                         />
                      ) : (
-                        <View style={[styles.minimizedCover, styles.minimizedCoverPlaceholder]}>
-                           <Ionicons name="musical-notes" size={32} color={colors.text.secondaryDark} />
+                        <View style={[styles.minimizedCoverImage, styles.minimizedCoverPlaceholder]}>
+                           <Ionicons name="musical-notes" size={22} color={colors.text.secondary} />
                         </View>
                      )}
+                  </View>
 
-                     {/* Semi-transparent Overlay for Button Visibility */}
-                     <View style={styles.minimizedOverlay} />
-
-                     {/* Centered Play/Pause Button */}
-                     <View style={styles.minimizedPlayButtonContainer}>
-                        <TouchableOpacity
-                           onPress={(e) => {
-                              e.stopPropagation();
-                              handlePlayPause();
-                           }}
-                           style={styles.minimizedPlayButton}
-                           activeOpacity={0.8}
-                           disabled={isLoading}
-                        >
-                           {isLoading ? (
-                              <ActivityIndicator
-                                 size="small"
-                                 color={colors.background.dark}
-                              />
-                           ) : (
-                              <Ionicons
-                                 name={isPlaying ? 'pause' : 'play'}
-                                 size={32}
-                                 color={colors.background.dark}
-                                 style={!isPlaying ? styles.playIconOffset : undefined}
-                              />
-                           )}
-                        </TouchableOpacity>
+                  <View style={styles.minimizedInfo}>
+                     <Text style={styles.minimizedTitle} numberOfLines={1}>
+                        {chapterMetadata?.title || 'Loading...'}
+                     </Text>
+                     <Text style={styles.minimizedChapterMeta} numberOfLines={1}>
+                        {minimizedChapterLabel}
+                     </Text>
+                     <Text style={styles.minimizedTimeText}>
+                        {formatDuration(minimizedElapsed)} / {formatDuration(totalTime)}
+                     </Text>
+                     <View style={styles.minimizedProgressTrack}>
+                        <View
+                           style={[
+                              styles.minimizedProgressFill,
+                              { width: `${minimizedProgress * 100}%` },
+                           ]}
+                        />
                      </View>
+                  </View>
 
-                     {/* Close Button - Top Right */}
+                  <View style={styles.minimizedTrailingControls}>
+                     <TouchableOpacity
+                        onPress={(e) => {
+                           e.stopPropagation();
+                           handlePlayPause();
+                        }}
+                        style={styles.minimizedPlayControl}
+                        activeOpacity={0.8}
+                        disabled={isLoading}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                     >
+                        {isLoading ? (
+                           <ActivityIndicator size="small" color={colors.accent.primaryDark} />
+                        ) : (
+                           <Ionicons
+                              name={isPlaying ? 'pause' : 'play'}
+                              size={MINIMIZED_BAR.playIconSize}
+                              color={colors.accent.primaryDark}
+                              style={!isPlaying ? styles.playIconOffset : undefined}
+                           />
+                        )}
+                     </TouchableOpacity>
                      <TouchableOpacity
                         onPress={(e) => {
                            e.stopPropagation();
                            handleClose();
                         }}
-                        style={styles.minimizedCloseButton}
+                        style={styles.minimizedCloseControl}
                         activeOpacity={0.7}
+                        accessibilityLabel="Close player"
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                      >
-                        <View style={styles.minimizedCloseButtonBackground}>
-                           <Ionicons
-                              name="close"
-                              size={18}
-                              color={colors.text.dark}
-                           />
-                        </View>
+                        <Ionicons
+                           name="close"
+                           size={22}
+                           color={colors.accent.primaryDark}
+                        />
                      </TouchableOpacity>
-                  </TouchableOpacity>
-               </Animated.View>
-            </>
+                  </View>
+               </TouchableOpacity>
+            </Animated.View>
          ) : (
             <View style={styles.playerSheet}>
                <Animated.View
                   style={[
                      styles.playerContainer,
+                     { height: fullPlayerLayout.maxHeight },
                      fullPlayerAnimatedStyle,
                      dragAnimatedStyle,
-                     { paddingBottom: spacing.lg + insets.bottom },
                   ]}
-                  {...panResponder.panHandlers}
                >
-                  {/* Drag Handler Indicator */}
+                  {/* Top zone: drag handle + header — not inside ScrollView so pull-down works */}
                   <View
-                     style={styles.dragHandlerContainer}
-                     pointerEvents="box-none"
+                     style={styles.dragMinimizeZone}
+                     {...panResponder.panHandlers}
+                     collapsable={false}
                   >
-                     <View style={styles.dragHandler} />
-                  </View>
+                     <View
+                        style={styles.dragHandlerContainer}
+                        pointerEvents="box-none"
+                     >
+                        <View style={styles.dragHandler} />
+                     </View>
 
-                  {/* Header with close button */}
-                  <View style={styles.header}>
-                     <Text style={styles.title} numberOfLines={1}>
-                        {chapterMetadata?.title || 'Loading...'}
-                     </Text>
-                     <View style={styles.headerButtons}>
+                     <View style={styles.header}>
                         <TouchableOpacity
                            onPress={handleClose}
                            style={styles.closeButton}
                            activeOpacity={0.7}
+                           accessibilityLabel="Close player"
                         >
-                           <Ionicons name="close" size={24} color={colors.text.dark} />
+                           <Ionicons name="close" size={FP.headerMenuIconSize} color={colors.accent.primaryDark} />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.closeButton} activeOpacity={0.7}>
+                           <Ionicons name="ellipsis-horizontal" size={FP.headerMenuIconSize} color={colors.accent.primaryDark} />
                         </TouchableOpacity>
                      </View>
                   </View>
 
-                  {/* Cover Image */}
-                  {chapterCoverUri && (
-                     <View style={styles.coverContainer}>
-                        <Image
-                           source={{ uri: chapterCoverUri }}
-                           style={styles.coverImage}
-                           contentFit="cover"
-                        />
-                     </View>
-                  )}
+                  <ScrollView
+                     style={styles.playerScrollContent}
+                     contentContainerStyle={styles.playerScrollContentContainer}
+                     showsVerticalScrollIndicator={false}
+                     bounces={false}
+                     nestedScrollEnabled
+                  >
+                     {/* Cover + chapter info */}
+                     {chapterCoverUri && (
+                        <View
+                           style={[
+                              styles.coverContainer,
+                              {
+                                 width: fullPlayerLayout.coverSize,
+                                 height: fullPlayerLayout.coverSize,
+                              },
+                           ]}
+                        >
+                           <Image
+                              source={{ uri: chapterCoverUri }}
+                              style={styles.coverImage}
+                              contentFit="cover"
+                           />
+                        </View>
+                     )}
+                     <Text style={styles.chapterLabel}>Chapter</Text>
+                     <Text style={styles.chapterTitle} numberOfLines={2}>
+                        {chapterMetadata?.title || 'Loading...'}
+                     </Text>
+                  </ScrollView>
 
-                  {/* Progress Bar */}
-                  <View style={styles.progressContainer}>
+                  <View style={styles.playerFixedFooter}>
+                     {/* Progress Bar */}
+                     <View style={styles.progressContainer}>
                      <View
                         ref={progressBarWrapperRef}
                         style={styles.progressBarWrapper}
@@ -963,11 +1127,24 @@ export const AudioPlayer: React.FC = React.memo(() => {
                         <Text style={styles.timeText}>
                            {formatDuration(totalTime)}
                         </Text>
+                        <Text style={styles.timeText}>
+                           -{formatDuration(Math.max(0, totalTime - (displayedTime > 0 ? displayedTime : elapsedTime)))}
+                        </Text>
                      </View>
-                  </View>
+                     </View>
 
-                  {/* Controls */}
-                  <View style={styles.controlsContainer}>
+                     {/* Secondary controls */}
+                     <View style={styles.secondaryControls}>
+                     <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.7}>
+                        <Text style={styles.secondaryButtonText}>Speed (1.0x)</Text>
+                     </TouchableOpacity>
+                     <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.7}>
+                        <Text style={styles.secondaryButtonText}>Timer</Text>
+                     </TouchableOpacity>
+                     </View>
+
+                     {/* Controls */}
+                     <View style={styles.controlsContainer}>
                      {error ? (
                         <View style={styles.errorContainer}>
                            <Text style={styles.errorText}>{error}</Text>
@@ -988,8 +1165,8 @@ export const AudioPlayer: React.FC = React.memo(() => {
                            >
                               <Ionicons
                                  name="play-skip-back"
-                                 size={28}
-                                 color={colors.text.dark}
+                                 size={FP.chapterSkipIconSize}
+                                 color={colors.accent.primaryDark}
                               />
                            </TouchableOpacity>
 
@@ -1001,8 +1178,8 @@ export const AudioPlayer: React.FC = React.memo(() => {
                            >
                               <Ionicons
                                  name="play-back-circle"
-                                 size={24}
-                                 color={colors.text.dark}
+                                 size={FP.seekIconSize}
+                                 color={colors.accent.primaryDark}
                               />
                               <Text style={styles.seekButtonText}>{skipDurationSeconds}s</Text>
                            </TouchableOpacity>
@@ -1017,14 +1194,14 @@ export const AudioPlayer: React.FC = React.memo(() => {
                               {isLoading ? (
                                  <ActivityIndicator
                                     size="large"
-                                    color={colors.text.dark}
+                                    color={colors.accent.primaryDark}
                                  />
                               ) : (
                                  <View style={styles.iconWrapper}>
                                     <Ionicons
                                        name={isPlaying ? 'pause' : 'play'}
-                                       size={32}
-                                       color={colors.text.dark}
+                                       size={FP.playIconSize}
+                                       color="#FFFFFF"
                                        style={!isPlaying ? styles.playIconOffset : undefined}
                                     />
                                  </View>
@@ -1039,8 +1216,8 @@ export const AudioPlayer: React.FC = React.memo(() => {
                            >
                               <Ionicons
                                  name="play-forward-circle"
-                                 size={24}
-                                 color={colors.text.dark}
+                                 size={FP.seekIconSize}
+                                 color={colors.accent.primaryDark}
                               />
                               <Text style={styles.seekButtonText}>{skipDurationSeconds}s</Text>
                            </TouchableOpacity>
@@ -1053,12 +1230,33 @@ export const AudioPlayer: React.FC = React.memo(() => {
                            >
                               <Ionicons
                                  name="play-skip-forward"
-                                 size={28}
-                                 color={colors.text.dark}
+                                 size={FP.chapterSkipIconSize}
+                                 color={colors.accent.primaryDark}
                               />
                            </TouchableOpacity>
                         </View>
                      )}
+                     </View>
+
+                     {/* Bottom action row */}
+                     <View style={styles.bottomActions}>
+                     <TouchableOpacity style={styles.bottomAction} activeOpacity={0.7}>
+                        <Ionicons name="bookmark-outline" size={FP.bottomActionIconSize} color={colors.accent.primaryDark} />
+                        <Text style={styles.bottomActionText}>Bookmark</Text>
+                     </TouchableOpacity>
+                     <TouchableOpacity style={styles.bottomAction} activeOpacity={0.7}>
+                        <Ionicons name="list-outline" size={FP.bottomActionIconSize} color={colors.accent.primaryDark} />
+                        <Text style={styles.bottomActionText}>Chapters</Text>
+                     </TouchableOpacity>
+                     <TouchableOpacity style={styles.bottomAction} onPress={handleNotesPress} activeOpacity={0.7}>
+                        <Ionicons name="chatbubble-outline" size={FP.bottomActionIconSize} color={colors.accent.primaryDark} />
+                        <Text style={styles.bottomActionText}>Notes</Text>
+                     </TouchableOpacity>
+                     <TouchableOpacity style={styles.bottomAction} activeOpacity={0.7}>
+                        <Ionicons name="cut-outline" size={FP.bottomActionIconSize} color={colors.accent.primaryDark} />
+                        <Text style={styles.bottomActionText}>Clip</Text>
+                     </TouchableOpacity>
+                     </View>
                   </View>
                </Animated.View>
             </View>
@@ -1068,15 +1266,6 @@ export const AudioPlayer: React.FC = React.memo(() => {
 });
 
 AudioPlayer.displayName = 'AudioPlayer';
-
-// Tab bar height calculation - must match tab bar height in app/(tabs)/_layout.tsx
-// This will be calculated dynamically in the component using useSafeAreaInsets
-const getTabBarHeight = (bottomInset: number): number => {
-   const tabBarBaseHeight = Platform.OS === 'ios' ? 60 : 50;
-   const tabBarPaddingTop = Platform.OS === 'ios' ? 10 : 5;
-   const tabBarPaddingBottom = Platform.OS === 'ios' ? 20 : 5;
-   return tabBarBaseHeight + tabBarPaddingTop + tabBarPaddingBottom + bottomInset;
-};
 
 const styles = StyleSheet.create({
    container: {
@@ -1098,28 +1287,83 @@ const styles = StyleSheet.create({
       position: 'absolute',
    },
    playerContainer: {
-      padding: spacing.lg,
-      backgroundColor: colors.background.darkGray,
-      borderTopLeftRadius: borderRadius.xl,
-      borderTopRightRadius: borderRadius.xl,
+      paddingHorizontal: FP.paddingHorizontal,
+      paddingTop: FP.paddingTop,
+      paddingBottom: FP.paddingBottom,
+      backgroundColor: colors.background.player,
+      borderRadius: borderRadius.xl,
+      borderWidth: 1,
+      borderColor: colors.border.light,
       overflow: 'hidden',
+      ...shadows.lg,
       ...Platform.select({
-         ios: {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 3.84,
-         },
-         android: {
-            elevation: 5,
-         },
+         android: { elevation: 12 },
       }),
+   },
+   playerScrollContent: {
+      flexGrow: 0,
+      flexShrink: 1,
+      minHeight: 0,
+   },
+   playerScrollContentContainer: {
+      flexGrow: 1,
+   },
+   dragMinimizeZone: {
+      flexShrink: 0,
+   },
+   playerFixedFooter: {
+      flexShrink: 0,
    },
    header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: spacing.md,
+      marginBottom: FP.headerMarginBottom,
+   },
+   chapterLabel: {
+      fontSize: FP.chapterLabelSize,
+      color: colors.text.secondary,
+      textAlign: 'center',
+      marginBottom: spacing.xs,
+   },
+   chapterTitle: {
+      fontSize: FP.chapterTitleSize,
+      fontWeight: '700',
+      color: colors.accent.primaryDark,
+      textAlign: 'center',
+      marginBottom: spacing.sm,
+      paddingHorizontal: spacing.md,
+   },
+   secondaryControls: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: FP.secondaryGap,
+      marginBottom: FP.secondaryMarginBottom,
+   },
+   secondaryButton: {
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.md,
+   },
+   secondaryButtonText: {
+      fontSize: FP.secondaryButtonTextSize,
+      color: colors.accent.primaryDark,
+      fontWeight: '500',
+   },
+   bottomActions: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      paddingTop: FP.bottomActionsPaddingTop,
+      borderTopWidth: 1,
+      borderTopColor: colors.border.light,
+   },
+   bottomAction: {
+      alignItems: 'center',
+      padding: spacing.sm,
+   },
+   bottomActionText: {
+      fontSize: FP.bottomActionTextSize,
+      color: colors.text.secondary,
+      marginTop: spacing.xs,
    },
    title: {
       fontSize: typography.fontSize.lg,
@@ -1144,27 +1388,24 @@ const styles = StyleSheet.create({
    dragHandlerContainer: {
       alignItems: 'center',
       paddingTop: spacing.sm,
-      paddingBottom: spacing.xs,
-      // Increase touchable area for better drag interaction
-      minHeight: 44,
+      paddingBottom: spacing.sm,
+      minHeight: FP.dragHandlerMinHeight,
       justifyContent: 'center',
    },
    dragHandler: {
-      width: 40,
-      height: 4,
+      width: FP.dragHandlerWidth,
+      height: FP.dragHandlerHeight,
       backgroundColor: colors.text.secondaryDark,
-      borderRadius: 2,
+      borderRadius: FP.dragHandlerHeight / 2,
       opacity: 0.5,
    },
    closeButton: {
       padding: spacing.xs,
    },
    coverContainer: {
-      width: 200,
-      height: 200,
       alignSelf: 'center',
-      marginBottom: spacing.md,
-      borderRadius: borderRadius.lg,
+      marginBottom: FP.coverMarginBottom,
+      borderRadius: borderRadius.xl,
       overflow: 'hidden',
    },
    coverImage: {
@@ -1172,22 +1413,22 @@ const styles = StyleSheet.create({
       height: '100%',
    },
    progressContainer: {
-      marginBottom: spacing.lg,
+      marginBottom: FP.progressMarginBottom,
    },
    progressBarWrapper: {
       marginBottom: spacing.xs,
-      paddingVertical: spacing.sm, // Increase touch area
-      paddingHorizontal: 8, // Add horizontal padding to accommodate handle overflow
+      paddingVertical: spacing.sm,
+      paddingHorizontal: FP.progressBarHorizontalPadding,
    },
    progressBarTouchable: {
       width: '100%',
-      minHeight: 44, // Minimum touch target size for better interaction
+      minHeight: FP.progressTouchMinHeight,
       justifyContent: 'center',
    },
    progressBarContainer: {
       position: 'relative',
       width: '100%',
-      height: 4, // Match progress bar height for proper alignment
+      height: FP.progressBarHeight,
       justifyContent: 'center',
       ...Platform.select({
          ios: {
@@ -1202,29 +1443,26 @@ const styles = StyleSheet.create({
       }),
    },
    progressBar: {
-      height: 4,
-      backgroundColor: colors.background.dark,
+      height: FP.progressBarHeight,
+      backgroundColor: colors.border.light,
       borderRadius: borderRadius.sm,
-      overflow: 'hidden', // Constrain progress fill within bounds
+      overflow: 'hidden',
       width: '100%',
    },
    progressFill: {
       height: '100%',
-      backgroundColor: colors.app.red,
-      // Add a subtle inner glow effect using border
-      borderWidth: 0.5,
-      borderColor: 'rgba(255, 255, 255, 0.3)',
+      backgroundColor: colors.accent.primary,
+      borderWidth: 0,
    },
    progressHandle: {
       position: 'absolute',
-      width: 16,
-      height: 16,
-      borderRadius: 8,
-      backgroundColor: colors.app.red,
+      width: FP.progressHandleSize,
+      height: FP.progressHandleSize,
+      borderRadius: FP.progressHandleSize / 2,
+      backgroundColor: colors.accent.primary,
       borderWidth: 2,
-      borderColor: colors.text.dark,
-      top: -6, // Center vertically on the progress bar (4px bar height / 2 - 8px handle radius)
-      // left will be set via animated style, positioned at progress percentage minus 8px to center
+      borderColor: colors.background.screen,
+      top: PROGRESS_HANDLE_TOP,
       ...Platform.select({
          ios: {
             shadowColor: '#ffffff',
@@ -1242,7 +1480,7 @@ const styles = StyleSheet.create({
       justifyContent: 'space-between',
    },
    timeText: {
-      fontSize: typography.fontSize.sm,
+      fontSize: FP.timeTextSize,
       color: colors.text.secondaryDark,
       ...Platform.select({
          ios: {
@@ -1255,40 +1493,44 @@ const styles = StyleSheet.create({
       }),
    },
    controlsContainer: {
+      alignSelf: 'stretch',
+      width: '100%',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 80,
+      marginBottom: FP.controlsMarginBottom,
    },
    controlsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.sm,
-      flexWrap: 'wrap',
-      paddingHorizontal: spacing.xs,
+      justifyContent: 'space-between',
+      alignSelf: 'stretch',
+      width: '100%',
    },
    playButton: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      backgroundColor: colors.app.red,
+      width: FP.playButtonSize,
+      height: FP.playButtonSize,
+      borderRadius: FP.playButtonSize / 2,
+      backgroundColor: colors.accent.primary,
       justifyContent: 'center',
       alignItems: 'center',
    },
    chapterButton: {
       alignItems: 'center',
       justifyContent: 'center',
-      padding: spacing.xs,
+      width: 44,
+      paddingVertical: spacing.xs,
    },
    seekButton: {
       alignItems: 'center',
       justifyContent: 'center',
-      padding: spacing.sm,
+      minWidth: 44,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: spacing.xs,
    },
    seekButtonText: {
-      fontSize: typography.fontSize.xs,
+      fontSize: FP.seekButtonTextSize,
       color: colors.text.secondaryDark,
-      marginTop: spacing.xs / 2,
+      marginTop: spacing.xs,
       ...Platform.select({
          ios: {
             fontFamily: 'System',
@@ -1344,93 +1586,88 @@ const styles = StyleSheet.create({
    playIconOffset: {
       marginLeft: 1, // Slight offset to visually center the play triangle
    },
-   minimizedPiPContainer: {
-      width: 140, // Fixed size for PiP window
-      height: 140,
-      borderRadius: borderRadius.lg,
+   minimizedBarOuter: {
+      borderRadius: borderRadius.xl,
       overflow: 'hidden',
+      ...shadows.lg,
       ...Platform.select({
-         ios: {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-         },
-         android: {
-            elevation: 8,
-         },
+         android: { elevation: 12 },
       }),
    },
-   minimizedContainer: {
-      width: '100%',
-      height: '100%',
-      position: 'relative',
-      backgroundColor: colors.background.darkGray,
-      borderRadius: borderRadius.lg,
-      overflow: 'hidden',
+   minimizedBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      height: MINIMIZED_BAR.height,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+      backgroundColor: colors.background.player,
+      borderRadius: borderRadius.xl,
+      borderWidth: 1,
+      borderColor: colors.border.light,
+      gap: spacing.sm,
    },
-   minimizedCover: {
-      position: 'absolute',
+   minimizedCoverWrap: {
+      width: MINIMIZED_BAR.coverSize,
+      height: MINIMIZED_BAR.coverSize,
+      borderRadius: borderRadius.md,
+      overflow: 'hidden',
+      flexShrink: 0,
+   },
+   minimizedCoverImage: {
       width: '100%',
       height: '100%',
-      borderRadius: borderRadius.lg,
-      backgroundColor: colors.background.dark,
+      backgroundColor: colors.background.highlight,
    },
    minimizedCoverPlaceholder: {
       justifyContent: 'center',
       alignItems: 'center',
    },
-   minimizedOverlay: {
-      position: 'absolute',
-      width: '100%',
+   minimizedInfo: {
+      flex: 1,
+      minWidth: 0,
+      justifyContent: 'center',
+      gap: 2,
+   },
+   minimizedTitle: {
+      fontSize: typography.fontSize.base,
+      fontWeight: '700',
+      color: colors.accent.primaryDark,
+   },
+   minimizedChapterMeta: {
+      fontSize: typography.fontSize.sm,
+      color: colors.text.secondary,
+   },
+   minimizedTimeText: {
+      fontSize: typography.fontSize.sm,
+      color: colors.text.secondary,
+      marginBottom: spacing.xs / 2,
+   },
+   minimizedProgressTrack: {
+      height: 4,
+      borderRadius: borderRadius.sm,
+      backgroundColor: colors.border.light,
+      overflow: 'hidden',
+   },
+   minimizedProgressFill: {
       height: '100%',
-      backgroundColor: 'rgba(0, 0, 0, 0.3)', // Semi-transparent overlay for button visibility
-      borderRadius: borderRadius.lg,
+      backgroundColor: colors.accent.primary,
+      borderRadius: borderRadius.sm,
    },
-   minimizedPlayButtonContainer: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
+   minimizedPlayControl: {
+      width: 40,
+      height: 40,
       justifyContent: 'center',
       alignItems: 'center',
    },
-   minimizedPlayButton: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: 'rgba(255, 255, 255, 0.9)', // Semi-transparent white background
-      justifyContent: 'center',
+   minimizedTrailingControls: {
+      flexDirection: 'row',
       alignItems: 'center',
-      ...Platform.select({
-         ios: {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.3,
-            shadowRadius: 4,
-         },
-         android: {
-            elevation: 4,
-         },
-      }),
+      flexShrink: 0,
+      gap: spacing.xs,
    },
-   minimizedCloseButton: {
-      position: 'absolute',
-      top: spacing.xs,
-      right: spacing.xs,
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 10,
-   },
-   minimizedCloseButtonBackground: {
-      width: '100%',
-      height: '100%',
-      borderRadius: 16,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)', // Dark semi-transparent background
+   minimizedCloseControl: {
+      width: 36,
+      height: 36,
       justifyContent: 'center',
       alignItems: 'center',
    },

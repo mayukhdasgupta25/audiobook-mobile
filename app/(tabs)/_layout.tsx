@@ -2,67 +2,47 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Platform, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography } from '@/theme';
+import {
+   getTabBarInnerHeight,
+   getTabBarPaddingTop,
+   getTabBarPaddingBottom,
+} from '@/theme/tabLayout';
 import { TabNavigationProvider } from '@/hooks/useTabNavigation';
+import { FloatingTabBar } from '@/components/FloatingTabBar';
 
-/**
- * Tab layout with custom directional transitions
- * Wraps tabs in navigation context provider for tracking previous routes
- */
 export default function TabLayout() {
-   const insets = useSafeAreaInsets();
-
-   // Calculate tab bar height and padding accounting for safe area insets
-   const tabBarBaseHeight = Platform.OS === 'ios' ? 60 : 50; // Base height without safe area
-   const tabBarPaddingTop = Platform.OS === 'ios' ? 10 : 5;
-   const tabBarPaddingBottom = Platform.OS === 'ios' ? 20 : 5;
-
-   // Total height includes base height + top padding + bottom padding + bottom safe area inset
-   const tabBarHeight = tabBarBaseHeight + tabBarPaddingTop + tabBarPaddingBottom + insets.bottom;
-   // Bottom padding includes the safe area inset to push content above system navigation
-   const tabBarBottomPadding = tabBarPaddingBottom + insets.bottom;
+   const tabBarInnerHeight = getTabBarInnerHeight();
+   const sceneStyle = { backgroundColor: colors.background.screen };
 
    return (
       <TabNavigationProvider>
-         <View style={{ flex: 1, backgroundColor: colors.background.dark, overflow: 'hidden' }}>
+         <View style={{ flex: 1, backgroundColor: colors.background.screen, overflow: 'hidden' }}>
             <Tabs
+               tabBar={(props) => <FloatingTabBar {...props} />}
                screenOptions={{
                   headerShown: false,
-                  // Critical: mount all tab screens immediately.
-                  // Otherwise the first time you tap a tab, that screen mounts as "active"
-                  // and `AnimatedTabScreen` treats it as initial render (no slide animation).
                   lazy: false,
-                  tabBarActiveTintColor: colors.text.dark,
-                  tabBarInactiveTintColor: colors.text.secondaryDark,
-                  // Set dark background for all tab screens by default
-                  sceneStyle: {
-                     backgroundColor: colors.background.dark,
-                  },
+                  tabBarActiveTintColor: colors.accent.primary,
+                  tabBarInactiveTintColor: colors.text.muted,
+                  sceneStyle,
                   tabBarStyle: {
                      display: Platform.OS === 'web' ? 'none' : 'flex',
-                     backgroundColor: colors.background.darkGray,
+                     backgroundColor: 'transparent',
                      borderTopWidth: 0,
-                     height: tabBarHeight,
-                     paddingTop: tabBarPaddingTop,
-                     paddingBottom: tabBarBottomPadding,
-                     // Ensure tab bar is above AudioPlayer (which has zIndex 100)
-                     zIndex: 200,
-                     elevation: 200, // Android elevation (above AudioPlayer elevation 100)
+                     height: tabBarInnerHeight,
+                     paddingTop: getTabBarPaddingTop(),
+                     paddingBottom: getTabBarPaddingBottom(),
+                     elevation: 0,
                      shadowOpacity: 0,
                   },
                   tabBarLabelStyle: {
                      fontSize: typography.fontSize.xs,
                      fontWeight: '500',
-                     marginTop: 4,
+                     marginTop: 2,
                      ...Platform.select({
-                        ios: {
-                           fontFamily: 'System',
-                           fontWeight: '500',
-                        },
-                        android: {
-                           fontFamily: 'sans-serif',
-                        },
+                        ios: { fontFamily: 'System', fontWeight: '500' },
+                        android: { fontFamily: 'sans-serif' },
                      }),
                   },
                }}
@@ -74,36 +54,39 @@ export default function TabLayout() {
                      tabBarIcon: ({ color, size }) => (
                         <Ionicons name="home" size={size} color={color} />
                      ),
-                     // Ensure dark background for this screen
-                     sceneStyle: {
-                        backgroundColor: colors.background.dark,
-                     },
                   }}
                />
                <Tabs.Screen
-                  name="new-hot"
+                  name="library"
                   options={{
-                     title: 'New & Hot',
+                     title: 'Library',
                      tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="flash" size={size} color={color} />
+                        <Ionicons name="library-outline" size={size} color={color} />
                      ),
-                     // Ensure dark background for this screen
-                     sceneStyle: {
-                        backgroundColor: colors.background.dark,
-                     },
+                  }}
+               />
+               <Tabs.Screen
+                  name="discover"
+                  options={{
+                     title: 'Discover',
+                     tabBarIcon: ({ color, size }) => (
+                        <Ionicons name="compass-outline" size={size} color={color} />
+                     ),
                   }}
                />
                <Tabs.Screen
                   name="profile"
                   options={{
-                     title: 'My AudioBook',
+                     title: 'Profile',
                      tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="person-circle-outline" size={size} color={color} />
+                        <Ionicons name="person-outline" size={size} color={color} />
                      ),
-                     // Ensure dark background for this screen
-                     sceneStyle: {
-                        backgroundColor: colors.background.dark,
-                     },
+                  }}
+               />
+               <Tabs.Screen
+                  name="new-hot"
+                  options={{
+                     href: null,
                   }}
                />
             </Tabs>

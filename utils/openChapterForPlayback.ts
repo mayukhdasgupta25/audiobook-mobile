@@ -11,13 +11,19 @@ import {
    persistPlaybackReturnPath,
 } from '@/utils/playbackReturnPathStorage';
 
-export function chapterToMetadata(chapter: Chapter): ChapterMetadata {
+export function chapterToMetadata(
+   chapter: Chapter,
+   options?: { totalChapters?: number }
+): ChapterMetadata {
    return {
       id: chapter.id,
       title: chapter.title,
       coverImage: chapter.coverImage,
       maximizedChapterCoverImage: chapter.maximizedChapterCoverImage || null,
       minimizedChapterCoverImage: chapter.minimizedChapterCoverImage || null,
+      chapterNumber: chapter.chapterNumber,
+      totalChapters: options?.totalChapters,
+      audiobookTitle: chapter.audiobook?.title,
    };
 }
 
@@ -25,6 +31,7 @@ export interface OpenChapterOptions {
    chapter: Chapter;
    dispatch: AppDispatch;
    totalDurationSeconds?: number;
+   totalChapters?: number;
    autoPlay?: boolean;
 }
 
@@ -35,6 +42,7 @@ export async function openChapterForPlayback({
    chapter,
    dispatch,
    totalDurationSeconds,
+   totalChapters,
    autoPlay = true,
 }: OpenChapterOptions): Promise<number> {
    let resumePosition = 0;
@@ -50,7 +58,7 @@ export async function openChapterForPlayback({
    dispatch(
       setChapter({
          chapterId: chapter.id,
-         metadata: chapterToMetadata(chapter),
+         metadata: chapterToMetadata(chapter, { totalChapters }),
          audiobookId: chapter.audiobookId,
          resumePosition,
       })

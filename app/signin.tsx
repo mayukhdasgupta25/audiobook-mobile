@@ -15,6 +15,7 @@ import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch } from 'react-redux';
 import { TextInput } from '@/components/TextInput';
+import { SecondaryButton } from '@/components/SecondaryButton';
 import { colors, spacing, typography, borderRadius } from '@/theme';
 import { login, googleAuth } from '@/services/auth';
 import { parseIsNewUserFlag } from '@/utils/onboardingProfile';
@@ -288,19 +289,14 @@ export default function SignInScreen() {
                      </TouchableOpacity>
 
                      {/* Sign In Button */}
-                     <TouchableOpacity
-                        style={[styles.signInButton, isLoadingSignIn && styles.signInButtonDisabled]}
+                     <SecondaryButton
+                        title="Sign In"
                         onPress={handleSignIn}
-                        activeOpacity={0.8}
+                        loading={isLoadingSignIn}
                         disabled={isLoadingSignIn || isLoadingGoogle}
+                        style={styles.authButton}
                         testID="signin-button"
-                     >
-                        {isLoadingSignIn ? (
-                           <ActivityIndicator color={colors.text.dark} />
-                        ) : (
-                           <Text style={styles.signInButtonText}>Sign In</Text>
-                        )}
-                     </TouchableOpacity>
+                     />
 
                      {/* Divider */}
                      <View style={styles.divider}>
@@ -445,30 +441,8 @@ const styles = StyleSheet.create({
          },
       }),
    },
-   signInButton: {
-      backgroundColor: colors.app.red,
-      borderRadius: borderRadius.md,
-      height: 48,
-      justifyContent: 'center',
-      alignItems: 'center',
+   authButton: {
       marginBottom: spacing.lg,
-   },
-   signInButtonDisabled: {
-      opacity: 0.6,
-   },
-   signInButtonText: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
    },
    divider: {
       flexDirection: 'row',

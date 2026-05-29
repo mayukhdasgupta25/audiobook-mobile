@@ -3,7 +3,6 @@ import {
    View,
    Text,
    StyleSheet,
-   TouchableOpacity,
    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +12,7 @@ import {
    getPlanFeatureDescriptions,
 } from '@/services/subscriptions';
 import { formatPlanPrice } from '@/utils/format';
+import { SecondaryButton } from '@/components/SecondaryButton';
 
 interface SubscriptionPlanCardProps {
    plan: SubscriptionPlan;
@@ -63,17 +63,11 @@ export function SubscriptionPlanCard({
             </View>
          ) : null}
 
-         <TouchableOpacity
-            style={[
-               styles.upgradeButton,
-               buttonDisabled && styles.upgradeButtonDisabled,
-            ]}
+         <SecondaryButton
+            title={buttonLabel}
             onPress={() => onUpgradePress(plan)}
-            activeOpacity={0.7}
             disabled={buttonDisabled}
-         >
-            <Text style={styles.upgradeButtonText}>{buttonLabel}</Text>
-         </TouchableOpacity>
+         />
       </View>
    );
 }
@@ -154,31 +148,6 @@ const styles = StyleSheet.create({
          },
          android: {
             fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   upgradeButton: {
-      backgroundColor: colors.app.red,
-      borderRadius: borderRadius.md,
-      paddingVertical: spacing.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   upgradeButtonDisabled: {
-      backgroundColor: colors.background.darkGray,
-      opacity: 0.7,
-   },
-   upgradeButtonText: {
-      fontSize: typography.fontSize.base,
-      fontWeight: '600',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
          },
       }),
    },

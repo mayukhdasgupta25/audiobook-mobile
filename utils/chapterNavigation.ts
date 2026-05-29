@@ -45,11 +45,12 @@ export async function getAdjacentChapter(
 export async function switchToChapter(
    dispatch: AppDispatch,
    chapter: Chapter,
-   options?: { onChapterSwitched?: (chapterId: string) => void }
+   options?: { onChapterSwitched?: (chapterId: string) => void; totalChapters?: number }
 ): Promise<void> {
    await openChapterForPlayback({
       chapter,
       dispatch,
+      totalChapters: options?.totalChapters,
       autoPlay: true,
    });
    requestChapterReload();
@@ -110,7 +111,11 @@ export async function skipToNextChapterRemote(
 ): Promise<void> {
    const next = await getAdjacentChapter(audiobookId, currentChapterId, 1);
    if (next) {
-      await switchToChapter(dispatch, next, { onChapterSwitched });
+      const allChapters = await fetchAllChapters(audiobookId);
+      await switchToChapter(dispatch, next, {
+         onChapterSwitched,
+         totalChapters: allChapters.length,
+      });
    }
 }
 
@@ -122,6 +127,10 @@ export async function skipToPreviousChapterRemote(
 ): Promise<void> {
    const prev = await getAdjacentChapter(audiobookId, currentChapterId, -1);
    if (prev) {
-      await switchToChapter(dispatch, prev, { onChapterSwitched });
+      const allChapters = await fetchAllChapters(audiobookId);
+      await switchToChapter(dispatch, prev, {
+         onChapterSwitched,
+         totalChapters: allChapters.length,
+      });
    }
 }

@@ -251,7 +251,7 @@ function InnerLayout() {
             screenOptions={{
                headerShown: false,
                contentStyle: {
-                  backgroundColor: colors.background.dark,
+                  backgroundColor: colors.background.screen,
                },
             }}
          >
@@ -259,7 +259,7 @@ function InnerLayout() {
                name="(tabs)"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -267,7 +267,7 @@ function InnerLayout() {
                name="details/[id]"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -275,7 +275,7 @@ function InnerLayout() {
                name="search"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -283,7 +283,7 @@ function InnerLayout() {
                name="signin"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -291,7 +291,7 @@ function InnerLayout() {
                name="signup"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -299,7 +299,7 @@ function InnerLayout() {
                name="verify-otp"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -307,7 +307,7 @@ function InnerLayout() {
                name="verify-password-otp"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -315,7 +315,7 @@ function InnerLayout() {
                name="verify-email-otp"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -323,7 +323,7 @@ function InnerLayout() {
                name="change-password"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -331,7 +331,7 @@ function InnerLayout() {
                name="change-email"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -339,7 +339,7 @@ function InnerLayout() {
                name="update-first-name"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -347,7 +347,7 @@ function InnerLayout() {
                name="update-last-name"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -355,7 +355,7 @@ function InnerLayout() {
                name="update-avatar"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -363,7 +363,7 @@ function InnerLayout() {
                name="account"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -371,7 +371,7 @@ function InnerLayout() {
                name="subscription-plans"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -379,7 +379,7 @@ function InnerLayout() {
                name="manage-devices"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -387,7 +387,15 @@ function InnerLayout() {
                name="verify-device-removal-otp"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="chapter-comments"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.screen,
                   },
                }}
             />
@@ -395,7 +403,7 @@ function InnerLayout() {
                name="onboarding"
                options={{
                   contentStyle: {
-                     backgroundColor: colors.background.dark,
+                     backgroundColor: colors.background.screen,
                   },
                   gestureEnabled: false,
                }}
@@ -414,11 +422,11 @@ export default function RootLayout() {
    return (
       <GestureHandlerRootView style={{ flex: 1 }}>
          <SafeAreaProvider>
-            <View style={{ flex: 1, backgroundColor: colors.background.dark }}>
+            <View style={{ flex: 1, backgroundColor: colors.background.screen }}>
                <Provider store={store}>
                   <PersistGate loading={null} persistor={persistor}>
                      <QueryClientProvider client={queryClient}>
-                        <StatusBar style="light" />
+                        <StatusBar style="dark" />
                         <InnerLayout />
                      </QueryClientProvider>
                   </PersistGate>

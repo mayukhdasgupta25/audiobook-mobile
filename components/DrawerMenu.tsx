@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import {
    View,
    Text,
@@ -13,6 +13,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, shadows } from '@/theme';
+import {
+   DRAWER_SLIDE_SPRING,
+   DRAWER_BACKDROP_FADE_MS,
+   DRAWER_CLOSE_MS,
+} from '@/theme/tabAnimation';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.75, 320);
@@ -49,6 +54,8 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
    const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
    const backdropOpacity = useRef(new Animated.Value(0)).current;
    const [isAnimating, setIsAnimating] = React.useState(false);
+   const openAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
+   const closeAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
 
    // Menu items configuration
    const menuItems: MenuItem[] = [
@@ -79,73 +86,75 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
       },
    ];
 
-   // Animate drawer open/close
-   useEffect(() => {
-      if (visible) {
-         // Reset to initial state before animating
-         slideAnim.setValue(-DRAWER_WIDTH);
-         backdropOpacity.setValue(0);
+   const runOpenAnimation = useCallback(() => {
+      openAnimationRef.current?.stop();
+      closeAnimationRef.current?.stop();
+      slideAnim.setValue(-DRAWER_WIDTH);
+      backdropOpacity.setValue(0);
+      setIsAnimating(true);
+
+      // Defer one frame so Modal layout is ready before the slide begins
+      requestAnimationFrame(() => {
+         openAnimationRef.current = Animated.parallel([
+            Animated.spring(slideAnim, {
+               toValue: 0,
+               ...DRAWER_SLIDE_SPRING,
+            }),
+            Animated.timing(backdropOpacity, {
+               toValue: 1,
+               duration: DRAWER_BACKDROP_FADE_MS,
+               easing: Easing.out(Easing.cubic),
+               useNativeDriver: true,
+            }),
+         ]);
+         openAnimationRef.current.start(({ finished }) => {
+            if (finished) {
+               setIsAnimating(false);
+            }
+         });
+      });
+   }, [slideAnim, backdropOpacity]);
+
+   const runCloseAnimation = useCallback(
+      (onComplete?: () => void) => {
+         openAnimationRef.current?.stop();
+         closeAnimationRef.current?.stop();
          setIsAnimating(true);
 
-         // Opening animations
-         Animated.parallel([
-            Animated.timing(slideAnim, {
-               toValue: 0,
-               duration: 300,
-               easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-               useNativeDriver: true,
-            }),
-            Animated.timing(backdropOpacity, {
-               toValue: 0.95,
-               duration: 300,
-               useNativeDriver: true,
-            }),
-         ]).start(() => {
-            setIsAnimating(false);
-         });
-      } else if (isAnimating) {
-         // Closing animations - only animate if we were previously open
-         Animated.parallel([
+         closeAnimationRef.current = Animated.parallel([
             Animated.timing(slideAnim, {
                toValue: -DRAWER_WIDTH,
-               duration: 300,
-               easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+               duration: DRAWER_CLOSE_MS,
+               easing: Easing.in(Easing.cubic),
                useNativeDriver: true,
             }),
             Animated.timing(backdropOpacity, {
                toValue: 0,
-               duration: 300,
+               duration: DRAWER_CLOSE_MS,
+               easing: Easing.in(Easing.quad),
                useNativeDriver: true,
             }),
-         ]).start(() => {
-            setIsAnimating(false);
+         ]);
+         closeAnimationRef.current.start(({ finished }) => {
+            if (finished) {
+               setIsAnimating(false);
+               onComplete?.();
+            }
          });
-      }
-      // slideAnim and backdropOpacity are refs and don't need to be in deps
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, [visible]);
+      },
+      [slideAnim, backdropOpacity]
+   );
 
-   // Handle drawer close with animation
-   const handleClose = React.useCallback(() => {
-      // Start closing animation
-      setIsAnimating(true);
-      Animated.parallel([
-         Animated.timing(slideAnim, {
-            toValue: -DRAWER_WIDTH,
-            duration: 300,
-            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-            useNativeDriver: true,
-         }),
-         Animated.timing(backdropOpacity, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: true,
-         }),
-      ]).start(() => {
-         setIsAnimating(false);
-         onClose();
-      });
-   }, [slideAnim, backdropOpacity, onClose]);
+   // Animate drawer open when visible becomes true
+   useEffect(() => {
+      if (visible) {
+         runOpenAnimation();
+      }
+   }, [visible, runOpenAnimation]);
+
+   const handleClose = useCallback(() => {
+      runCloseAnimation(onClose);
+   }, [runCloseAnimation, onClose]);
 
    // Handle Android back button
    useEffect(() => {
@@ -153,19 +162,17 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
 
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
          handleClose();
-         return true; // Prevent default behavior
+         return true;
       });
 
       return () => backHandler.remove();
    }, [visible, handleClose]);
 
    const handleMenuItemPress = (item: MenuItem) => {
-      // Close drawer with animation first
-      handleClose();
-      // Then execute the action after animation completes
-      setTimeout(() => {
+      runCloseAnimation(() => {
+         onClose();
          item.onPress?.();
-      }, 350);
+      });
    };
 
    // Don't render if not visible and not animating
@@ -221,7 +228,6 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
             <View style={styles.drawerContent}>
                {menuItems.map((item, index) => (
                   <React.Fragment key={item.id}>
-                     {/* Add divider before Sign Out */}
                      {item.isDanger && index > 0 && <View style={styles.divider} />}
 
                      <TouchableOpacity
@@ -265,7 +271,7 @@ const styles = StyleSheet.create({
    },
    backdropOverlay: {
       flex: 1,
-      backgroundColor: '#000000',
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
    },
    drawerContainer: {
       position: 'absolute',
@@ -288,7 +294,7 @@ const styles = StyleSheet.create({
       paddingTop: Platform.OS === 'ios' ? 60 : 40,
       paddingBottom: spacing.md,
       borderBottomWidth: 1,
-      borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+      borderBottomColor: colors.border.light,
    },
    headerTitle: {
       fontSize: typography.fontSize.xl,
@@ -342,9 +348,8 @@ const styles = StyleSheet.create({
    },
    divider: {
       height: 1,
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      backgroundColor: colors.border.light,
       marginVertical: spacing.sm,
       marginHorizontal: spacing.md,
    },
 });
-

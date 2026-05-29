@@ -14,6 +14,9 @@ export interface ChapterMetadata {
    coverImage: string | null;
    maximizedChapterCoverImage: string | null;
    minimizedChapterCoverImage: string | null;
+   chapterNumber?: number;
+   totalChapters?: number;
+   audiobookTitle?: string;
 }
 
 /**
@@ -28,6 +31,8 @@ export interface PlayerState {
    error: string | null;
    isVisible: boolean; // Whether player UI is visible
    isMinimized: boolean; // Whether player is in minimized state
+   /** Hide player chrome while playback continues (e.g. comments screen) */
+   isUiSuppressed: boolean;
    chapterMetadata: ChapterMetadata | null; // Chapter title and cover for UI
    audiobookId: string | null; // Audiobook ID for fetching next chapter
    /** Last in-app route while a chapter was loaded (for notification resume). */
@@ -46,6 +51,7 @@ const initialState: PlayerState = {
    error: null,
    isVisible: false,
    isMinimized: false,
+   isUiSuppressed: false,
    chapterMetadata: null,
    audiobookId: null,
    playbackReturnPath: null,
@@ -88,6 +94,7 @@ const playerSlice = createSlice({
          if (state.currentChapterId) {
             state.isVisible = true;
             state.isMinimized = false;
+            state.isUiSuppressed = false;
          }
       },
       /**
@@ -160,6 +167,10 @@ const playerSlice = createSlice({
       setMinimized: (state, action: PayloadAction<boolean>) => {
          state.isMinimized = action.payload;
       },
+      /** Hide player UI without pausing playback */
+      setUiSuppressed: (state, action: PayloadAction<boolean>) => {
+         state.isUiSuppressed = action.payload;
+      },
       setPlaybackReturnPath: (state, action: PayloadAction<string | null>) => {
          state.playbackReturnPath = action.payload;
       },
@@ -179,6 +190,7 @@ export const {
    setError,
    setVisible,
    setMinimized,
+   setUiSuppressed,
    setPlaybackReturnPath,
 } = playerSlice.actions;
 export default playerSlice.reducer;
