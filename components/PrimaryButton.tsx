@@ -5,8 +5,10 @@ import {
    StyleSheet,
    ActivityIndicator,
    Platform,
+   View,
    ViewStyle,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '@/theme';
 
 interface PrimaryButtonProps {
@@ -16,6 +18,7 @@ interface PrimaryButtonProps {
    loading?: boolean;
    style?: ViewStyle;
    testID?: string;
+   icon?: React.ComponentProps<typeof Ionicons>['name'];
 }
 
 export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
@@ -25,6 +28,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
    loading = false,
    style,
    testID,
+   icon,
 }) => (
    <TouchableOpacity
       style={[styles.button, (disabled || loading) && styles.disabled, style]}
@@ -36,7 +40,12 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
       {loading ? (
          <ActivityIndicator color="#FFFFFF" />
       ) : (
-         <Text style={styles.text}>{title}</Text>
+         <View style={styles.content}>
+            {icon ? (
+               <Ionicons name={icon} size={20} color="#FFFFFF" style={styles.icon} />
+            ) : null}
+            <Text style={styles.text}>{title}</Text>
+         </View>
       )}
    </TouchableOpacity>
 );
@@ -53,6 +62,14 @@ const styles = StyleSheet.create({
    },
    disabled: {
       opacity: 0.5,
+   },
+   content: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+   },
+   icon: {
+      marginRight: spacing.sm,
    },
    text: {
       color: '#FFFFFF',

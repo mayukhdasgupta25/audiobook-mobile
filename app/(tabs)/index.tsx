@@ -23,7 +23,10 @@ import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { useHomeContent } from '@/hooks/useHomeContent';
 import { useTimeOfDay } from '@/hooks/useTimeOfDay';
 import { useAudiobook } from '@/hooks/useAudiobook';
+import { useOrganizations } from '@/hooks/useOrganizations';
+import { PublisherRow } from '@/components/PublisherRow';
 import { apiConfig } from '@/services/api';
+import { Organization } from '@/services/organizations';
 import { RootState } from '@/store';
 
 const MOOD_CHIPS = [
@@ -51,6 +54,26 @@ function HomeScreenContent() {
    }, [userProfile]);
 
    const { contentRows, isLoading, error, loadNextPage, heroCarouselItems } = useHomeContent();
+   const { data: organizationsData, isLoading: organizationsLoading } = useOrganizations();
+   const organizations = organizationsData?.data ?? [];
+
+   const getOrganizationImageUri = useCallback((org: Organization) => {
+      const path = org.logo ?? org.coverImage;
+      return path ? `${apiConfig.baseURL}${path}` : undefined;
+   }, []);
+
+   const handlePublisherPress = useCallback((org: Organization) => {
+      const imagePath = org.logo ?? org.coverImage;
+      router.push({
+         pathname: '/publisher/[id]',
+         params: {
+            id: org.id,
+            name: org.name,
+            ...(org.description ? { description: org.description } : {}),
+            ...(imagePath ? { imagePath } : {}),
+         },
+      } as never);
+   }, []);
 
    const continueAudiobookId = playerAudiobookId ?? heroCarouselItems[0]?.id ?? null;
    const { data: continueAudiobookData } = useAudiobook(continueAudiobookId ?? '');
@@ -180,19 +203,17 @@ function HomeScreenContent() {
                   <Ionicons name="grid-outline" size={24} color={colors.text.primary} />
                </TouchableOpacity>
                <TouchableOpacity
-                  onPress={() => router.push('/(tabs)/profile')}
-                  style={styles.avatarButton}
+                  onPress={() => {}}
+                  style={styles.iconButton}
                   activeOpacity={0.7}
+                  accessibilityLabel="Notifications"
+                  accessibilityRole="button"
                >
-                  {userProfile?.avatar ? (
-                     <Image
-                        source={{ uri: userProfile.avatar }}
-                        style={styles.avatar}
-                        contentFit="cover"
-                     />
-                  ) : (
-                     <Ionicons name="person" size={20} color={colors.accent.primary} />
-                  )}
+                  <Ionicons
+                     name="notifications-outline"
+                     size={24}
+                     color={colors.text.primary}
+                  />
                </TouchableOpacity>
             </View>
 
@@ -213,6 +234,13 @@ function HomeScreenContent() {
                <Ionicons name="search" size={20} color={colors.text.muted} />
                <Text style={styles.searchPlaceholder}>Search stories, authors, genres...</Text>
             </TouchableOpacity>
+
+            <PublisherRow
+               organizations={organizations}
+               isLoading={organizationsLoading}
+               getImageUri={getOrganizationImageUri}
+               onPress={handlePublisherPress}
+            />
 
             {/* Continue Listening */}
             {continueListening && (
@@ -386,19 +414,6 @@ const styles = StyleSheet.create({
    },
    iconButton: {
       padding: spacing.xs,
-   },
-   avatarButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: colors.background.highlight,
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-   },
-   avatar: {
-      width: 36,
-      height: 36,
    },
    greetingSection: {
       paddingHorizontal: spacing.md,

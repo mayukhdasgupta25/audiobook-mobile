@@ -37,8 +37,11 @@ flowchart LR
 | Seek scrubber | Yes | Yes |
 | Skip forward / back | Yes (configurable seconds) | Yes |
 | Previous / next chapter | Yes | Yes |
+| Playback speed (0.5x–1.75x) | Yes (Speed action) | Yes (cycle; see below) |
 
 Skip duration is configured under **Account → Playback** (5s, 10s, or 15s).
+
+**Playback speed:** Choose 0.5x, 0.75x, 1x, 1.25x, or 1.75x from the in-app player **Speed** control. The setting is persisted and applied via `TrackPlayer.setRate`. On **iOS** lock screen / Control Center, tap the speed button (labeled with the current rate) to cycle faster, or **Slower** to step down. On **Android**, tap the heart control in the media notification to cycle speeds. Now-playing metadata shows the active rate (e.g. `1.25x`).
 
 ## Developer setup
 

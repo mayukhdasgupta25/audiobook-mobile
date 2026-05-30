@@ -33,6 +33,10 @@ import { useChaptersProgress } from '@/hooks/useChaptersProgress';
 import { openChapterForPlayback } from '@/utils/openChapterForPlayback';
 import { requestChapterReload } from '@/services/playbackReload';
 import { getMinimizedPlayerScrollPadding } from '@/theme/tabLayout';
+import { StarRating } from '@/components/StarRating';
+import { useFavorite, useFavoriteMutations } from '@/hooks/useFavorite';
+import { useReviewMutation } from '@/hooks/useReviewMutation';
+import { AddToPlaylistSheet } from '@/components/AddToPlaylistSheet';
 
 export default function DetailsScreen() {
    const { id, autoPlay } = useLocalSearchParams<{ id: string; autoPlay?: string }>();
@@ -48,7 +52,8 @@ export default function DetailsScreen() {
    const clickedChapterIdRef = useRef<string | null>(null);
    const dispatch = useDispatch();
    const [detailTab, setDetailTab] = useState<'chapters' | 'about'>('chapters');
-   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+   const [hasSubmittedReview, setHasSubmittedReview] = useState(false);
+   const [playlistSheetVisible, setPlaylistSheetVisible] = useState(false);
 
    const isAuthenticated = useSelector(
       (state: RootState) => state.auth.isAuthenticated
@@ -75,6 +80,35 @@ export default function DetailsScreen() {
    const { data: audiobookData } = useAudiobook(id || '');
 
    const audiobook = audiobookData?.data;
+
+   const { data: favorite } = useFavorite(id || '');
+   const { add: addFavorite, remove: removeFavorite } = useFavoriteMutations(id || '');
+   const reviewMutation = useReviewMutation(id || '');
+
+   const aggregateRating = audiobook?.rating ?? 0;
+   const canRate =
+      !hasSubmittedReview &&
+      !reviewMutation.isPending &&
+      aggregateRating === 0;
+
+   const handleFavoritePress = useCallback(() => {
+      if (!id || addFavorite.isPending || removeFavorite.isPending) return;
+      if (favorite) {
+         removeFavorite.mutate(favorite.id);
+      } else {
+         addFavorite.mutate();
+      }
+   }, [id, favorite, addFavorite, removeFavorite]);
+
+   const handleRate = useCallback(
+      (rating: number) => {
+         if (!canRate || !id) return;
+         reviewMutation.mutate(rating, {
+            onSuccess: () => setHasSubmittedReview(true),
+         });
+      },
+      [canRate, id, reviewMutation]
+   );
 
    const isAccessRestricted = audiobook?.subscriptionAccess?.canAccess === false;
    const shouldFetchChapters = !!audiobook && !isAccessRestricted;
@@ -315,21 +349,6 @@ export default function DetailsScreen() {
       }
    }, [shouldFetchChapters, pagination, isLoadingChapters, currentPage]);
 
-   const handleCommentsPress = useCallback(
-      (chapter: Chapter) => {
-         router.push({
-            pathname: '/chapter-comments',
-            params: {
-               audiobookId: id ?? '',
-               chapterId: chapter.id,
-               chapterTitle: chapter.title,
-               chapterNumber: String(chapter.chapterNumber),
-            },
-         } as never);
-      },
-      [id]
-   );
-
    // Handle back button press
    const handleBack = useCallback(() => {
       router.back();
@@ -554,21 +573,17 @@ export default function DetailsScreen() {
          return null;
       }
 
+      if (!audiobook.description?.trim()) {
+         return (
+            <View style={styles.aboutSection}>
+               <Text style={styles.aboutEmpty}>No description available.</Text>
+            </View>
+         );
+      }
+
       return (
          <View style={styles.aboutSection}>
-            {audiobook.narrators?.length ? (
-               <Text style={styles.aboutText}>
-                  Narrators: {audiobook.narrators.join(', ')}
-               </Text>
-            ) : null}
-            {audiobook.genres?.map((genre, index) => (
-               <Text key={index} style={styles.aboutText}>
-                  {genre.name}
-               </Text>
-            ))}
-            {audiobook.description ? (
-               <Text style={styles.aboutDescription}>{audiobook.description}</Text>
-            ) : null}
+            <Text style={styles.aboutDescription}>{audiobook.description}</Text>
          </View>
       );
    }, [audiobook]);
@@ -600,11 +615,7 @@ export default function DetailsScreen() {
       const coverPath = audiobook?.coverImage || audiobook?.chaptersHeroCoverImage;
       const smallCoverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
       const chapterCount = allChapters.length;
-      const description = audiobook?.description ?? '';
-      const shortDescription =
-         description.length > 120 && !descriptionExpanded
-            ? `${description.slice(0, 120)}...`
-            : description;
+      const genres = audiobook?.genres ?? [];
 
       return (
          <>
@@ -614,16 +625,22 @@ export default function DetailsScreen() {
                   <Ionicons name="chevron-back" size={24} color={colors.text.primary} />
                </TouchableOpacity>
                <View style={styles.topActionsRight}>
-                  <TouchableOpacity style={styles.topIconButton} activeOpacity={0.7}>
-                     <Ionicons name="bookmark-outline" size={22} color={colors.text.primary} />
+                  <TouchableOpacity
+                     style={styles.topIconButton}
+                     activeOpacity={0.7}
+                     onPress={handleFavoritePress}
+                     disabled={addFavorite.isPending || removeFavorite.isPending}
+                  >
+                     <Ionicons
+                        name={favorite ? 'heart' : 'heart-outline'}
+                        size={22}
+                        color={favorite ? colors.like : colors.text.secondary}
+                     />
                   </TouchableOpacity>
                   <TouchableOpacity
                      style={styles.topIconButton}
                      activeOpacity={0.7}
-                     onPress={() => {
-                        const chapter = allChapters.find((c) => c.id === currentPlayingChapterId) ?? allChapters[0];
-                        if (chapter) handleCommentsPress(chapter);
-                     }}
+                     onPress={() => setPlaylistSheetVisible(true)}
                   >
                      <Ionicons name="ellipsis-horizontal" size={22} color={colors.text.primary} />
                   </TouchableOpacity>
@@ -646,16 +663,11 @@ export default function DetailsScreen() {
                   {audiobook?.author && (
                      <Text style={styles.bookAuthor}>{audiobook.author}</Text>
                   )}
-                  <View style={styles.ratingRow}>
-                     {[1, 2, 3, 4, 5].map((star) => (
-                        <Ionicons
-                           key={star}
-                           name="star"
-                           size={14}
-                           color={colors.accent.primary}
-                        />
-                     ))}
-                  </View>
+                  <StarRating
+                     rating={aggregateRating}
+                     interactive={canRate}
+                     onRate={handleRate}
+                  />
                   <Text style={styles.bookMeta}>
                      {formattedDuration}
                      {chapterCount > 0 ? ` · ${chapterCount} chapters` : ''}
@@ -666,24 +678,30 @@ export default function DetailsScreen() {
             {/* Play / Download */}
             {!isAccessRestricted && (
                <View style={styles.actionButtons}>
-                  <PrimaryButton title="Play" onPress={handlePlayAll} style={styles.playBtn} />
-                  <SecondaryButton title="Download" onPress={() => {}} style={styles.downloadBtn} />
+                  <PrimaryButton
+                     title="Play"
+                     icon="play"
+                     onPress={handlePlayAll}
+                     style={styles.playBtn}
+                  />
+                  <SecondaryButton
+                     title="Download"
+                     icon="download-outline"
+                     onPress={() => {}}
+                     style={styles.downloadBtn}
+                  />
                </View>
             )}
 
-            {/* Description */}
-            {description ? (
-               <View style={styles.descriptionSection}>
-                  <Text style={styles.description}>{shortDescription}</Text>
-                  {description.length > 120 && (
-                     <TouchableOpacity onPress={() => setDescriptionExpanded(!descriptionExpanded)}>
-                        <Text style={styles.moreLink}>
-                           {descriptionExpanded ? 'Less' : 'More'}
-                        </Text>
-                     </TouchableOpacity>
-                  )}
+            {genres.length > 0 && (
+               <View style={styles.genresContainer}>
+                  {genres.map((genre, index) => (
+                     <View key={`${genre.name}-${index}`} style={styles.genreChip}>
+                        <Text style={styles.genreChipText}>{genre.name}</Text>
+                     </View>
+                  ))}
                </View>
-            ) : null}
+            )}
 
             <TabUnderline
                tabs={[
@@ -701,19 +719,30 @@ export default function DetailsScreen() {
       audiobook,
       allChapters,
       formattedDuration,
-      descriptionExpanded,
       detailTab,
       handleBack,
       handlePlayAll,
-      handleCommentsPress,
-      currentPlayingChapterId,
       handleDetailTabPress,
       renderUpgradeSection,
       isAccessRestricted,
+      handleFavoritePress,
+      favorite,
+      addFavorite.isPending,
+      removeFavorite.isPending,
+      aggregateRating,
+      canRate,
+      handleRate,
    ]);
 
    return (
       <>
+         {id ? (
+            <AddToPlaylistSheet
+               visible={playlistSheetVisible}
+               audiobookId={id}
+               onClose={() => setPlaylistSheetVisible(false)}
+            />
+         ) : null}
          <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <View style={styles.bookHeaderWrapper}>{renderBookHeader()}</View>
             <TabSlideView
@@ -819,29 +848,18 @@ const styles = StyleSheet.create({
    downloadBtn: {
       flex: 1,
    },
-   descriptionSection: {
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.md,
-   },
-   moreLink: {
-      fontSize: typography.fontSize.sm,
-      color: colors.accent.primary,
-      fontWeight: '600',
-      marginTop: spacing.xs,
-   },
    aboutSection: {
       padding: spacing.md,
    },
-   aboutText: {
-      fontSize: typography.fontSize.sm,
+   aboutEmpty: {
+      fontSize: typography.fontSize.base,
       color: colors.text.secondary,
-      marginBottom: spacing.xs,
+      lineHeight: 22,
    },
    aboutDescription: {
       fontSize: typography.fontSize.base,
       color: colors.text.primary,
       lineHeight: 22,
-      marginTop: spacing.md,
    },
    scrollContent: {
       // Base padding - will be overridden by dynamic padding based on player visibility
@@ -938,19 +956,21 @@ const styles = StyleSheet.create({
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: spacing.sm,
-      marginTop: spacing.sm,
+      paddingHorizontal: spacing.md,
       marginBottom: spacing.md,
    },
    genreChip: {
-      backgroundColor: colors.app.red,
+      backgroundColor: colors.primary[100],
+      borderWidth: 1,
+      borderColor: colors.primary[200],
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
-      borderRadius: borderRadius.sm,
+      borderRadius: borderRadius.lg,
    },
    genreChipText: {
       fontSize: typography.fontSize.sm,
-      color: colors.text.dark,
-      fontWeight: '500',
+      color: colors.accent.primary,
+      fontWeight: '600',
       ...Platform.select({
          ios: {
             fontFamily: 'System',

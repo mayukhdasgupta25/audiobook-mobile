@@ -9,22 +9,55 @@ interface TabNavigationContextType {
 
 const TabNavigationContext = createContext<TabNavigationContextType | undefined>(undefined);
 
-/**
- * Extract route name from pathname
- * Handles cases like "/(tabs)/index" -> "index" and "/(tabs)" -> "index"
- * Memoized function to avoid recreating on every call
- */
-const getRouteFromPathname = (path: string): string => {
-   const segments = path.split('/').filter(Boolean);
-   const lastSegment = segments[segments.length - 1];
+/** Tab screen names under app/(tabs)/ — used when pathname omits the (tabs) group prefix. */
+const TAB_SCREEN_NAMES = new Set([
+   'index',
+   'library',
+   'discover',
+   'profile',
+   'new-hot',
+]);
 
-   // If pathname is just "/(tabs)" or ends with "(tabs)", default to "index"
-   if (!lastSegment || lastSegment === '(tabs)') {
+/**
+ * True for tab navigator routes only (not stack overlays like /details or /library/playlists).
+ * Expo Router may report "/(tabs)/library" or "/library" depending on platform/version.
+ */
+export function isTabGroupPathname(path: string): boolean {
+   if (!path || path === '/') {
+      return true;
+   }
+   if (path.includes('(tabs)')) {
+      return true;
+   }
+   const segments = path.split('/').filter(Boolean);
+   return segments.length === 1 && TAB_SCREEN_NAMES.has(segments[0]);
+}
+
+/**
+ * Extract tab route name from pathname.
+ * e.g. "/(tabs)/library" or "/library" -> "library"
+ */
+export function getTabRouteFromPathname(path: string): string {
+   if (!path || path === '/') {
       return 'index';
    }
+   const segments = path.split('/').filter(Boolean);
+   const tabsIndex = segments.indexOf('(tabs)');
 
-   return lastSegment;
-};
+   if (tabsIndex >= 0) {
+      const routeAfterTabs = segments[tabsIndex + 1];
+      if (!routeAfterTabs || routeAfterTabs === '(tabs)') {
+         return 'index';
+      }
+      return routeAfterTabs;
+   }
+
+   if (segments.length === 1 && TAB_SCREEN_NAMES.has(segments[0])) {
+      return segments[0];
+   }
+
+   return 'index';
+}
 
 /**
  * Provider component that tracks tab navigation state
@@ -35,15 +68,20 @@ export const TabNavigationProvider: React.FC<{ children: React.ReactNode }> = ({
    const isInitializedRef = useRef<boolean>(false);
 
    // Initialize with current route
-   const initialRoute = getRouteFromPathname(pathname);
+   const initialRoute = getTabRouteFromPathname(pathname);
    const [previousRoute, setPreviousRoute] = useState<string>(initialRoute);
    const [currentRoute, setCurrentRoute] = useState<string>(initialRoute);
    const [previousPathname, setPreviousPathname] = useState<string>(pathname);
 
    useEffect(() => {
-      const route = getRouteFromPathname(pathname);
+      // Stack screens (details, library/*, etc.) sit above tabs — keep tab route state frozen.
+      if (!isTabGroupPathname(pathname)) {
+         return;
+      }
+
+      const route = getTabRouteFromPathname(pathname);
       const prevPath = previousPathnameRef.current;
-      const prevRoute = getRouteFromPathname(prevPath);
+      const prevRoute = getTabRouteFromPathname(prevPath);
 
       // On first render, just initialize without triggering navigation
       if (!isInitializedRef.current) {

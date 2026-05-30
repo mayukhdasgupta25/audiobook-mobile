@@ -33,7 +33,13 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store';
 import { setMinimized, setUiSuppressed, releasePlayback } from '@/store/player';
 import { useAudioPlayerControls } from '@/contexts/AudioPlaybackContext';
+import { PlaybackSpeedSheet } from '@/components/PlaybackSpeedSheet';
+import {
+   formatPlaybackSpeedLabel,
+   type PlaybackSpeed,
+} from '@/constants/playbackSpeed';
 import { usePlaybackSync } from '@/hooks/usePlaybackSync';
+import { useBookmark, useBookmarkMutations } from '@/hooks/useBookmark';
 import { syncPlayback, initializePlaybackSession } from '@/services/audiobooks';
 import { colors, spacing, typography, borderRadius, shadows } from '@/theme';
 import {
@@ -77,14 +83,11 @@ const FP = {
    headerMarginBottom: spacing.md,
    coverMarginBottom: spacing.md,
    progressMarginBottom: spacing.md,
-   secondaryMarginBottom: spacing.sm,
    controlsMarginBottom: spacing.sm,
    bottomActionsPaddingTop: spacing.md,
-   secondaryGap: spacing.xl,
    bottomActionTextSize: typography.fontSize.sm,
    seekButtonTextSize: typography.fontSize.sm,
    timeTextSize: typography.fontSize.base,
-   secondaryButtonTextSize: typography.fontSize.base,
 } as const;
 
 const PROGRESS_BAR_INSET = FP.progressBarHorizontalPadding * 2;
@@ -121,6 +124,8 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const skipDurationSeconds = useSelector(
       (state: RootState) => state.settings.skipDurationSeconds
    );
+   const playbackSpeed = useSelector((state: RootState) => state.settings.playbackSpeed);
+   const [speedSheetVisible, setSpeedSheetVisible] = useState(false);
 
    // Get user from Redux for session initialization
    const user = useSelector((state: RootState) => state.auth.user);
@@ -164,7 +169,36 @@ export const AudioPlayer: React.FC = React.memo(() => {
       skipToPreviousChapter,
       setDragging,
       resetPlayer,
+      setPlaybackRate,
    } = useAudioPlayerControls();
+
+   const handleSpeedSelect = useCallback(
+      (speed: PlaybackSpeed) => {
+         setPlaybackRate(speed);
+         setSpeedSheetVisible(false);
+      },
+      [setPlaybackRate]
+   );
+
+   const { data: bookmark } = useBookmark(currentChapterId);
+   const { add: addBookmark, remove: removeBookmark } =
+      useBookmarkMutations(currentChapterId);
+
+   const handleBookmarkPress = useCallback(() => {
+      if (!currentChapterId || addBookmark.isPending || removeBookmark.isPending) {
+         return;
+      }
+      if (bookmark) {
+         removeBookmark.mutate(bookmark.id);
+      } else {
+         addBookmark.mutate();
+      }
+   }, [
+      currentChapterId,
+      bookmark,
+      addBookmark,
+      removeBookmark,
+   ]);
 
    // Use playback sync hook to automatically sync every 5 seconds during playback
    // Only sync when player is visible (active)
@@ -561,7 +595,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
       isMinimizedRef.current = isMinimized;
    }, [isMinimized]);
 
-   const handleNotesPress = useCallback(() => {
+   const handleDiscussPress = useCallback(() => {
       if (!audiobookId || !currentChapterId) return;
       dispatch(setUiSuppressed(true));
       dispatch(setMinimized(true));
@@ -1133,16 +1167,6 @@ export const AudioPlayer: React.FC = React.memo(() => {
                      </View>
                      </View>
 
-                     {/* Secondary controls */}
-                     <View style={styles.secondaryControls}>
-                     <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.7}>
-                        <Text style={styles.secondaryButtonText}>Speed (1.0x)</Text>
-                     </TouchableOpacity>
-                     <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.7}>
-                        <Text style={styles.secondaryButtonText}>Timer</Text>
-                     </TouchableOpacity>
-                     </View>
-
                      {/* Controls */}
                      <View style={styles.controlsContainer}>
                      {error ? (
@@ -1240,27 +1264,53 @@ export const AudioPlayer: React.FC = React.memo(() => {
 
                      {/* Bottom action row */}
                      <View style={styles.bottomActions}>
-                     <TouchableOpacity style={styles.bottomAction} activeOpacity={0.7}>
-                        <Ionicons name="bookmark-outline" size={FP.bottomActionIconSize} color={colors.accent.primaryDark} />
+                     <TouchableOpacity
+                        style={styles.bottomAction}
+                        onPress={handleBookmarkPress}
+                        activeOpacity={0.7}
+                        disabled={
+                           !currentChapterId ||
+                           addBookmark.isPending ||
+                           removeBookmark.isPending
+                        }
+                     >
+                        <Ionicons
+                           name={bookmark ? 'bookmark' : 'bookmark-outline'}
+                           size={FP.bottomActionIconSize}
+                           color={colors.accent.primaryDark}
+                        />
                         <Text style={styles.bottomActionText}>Bookmark</Text>
                      </TouchableOpacity>
-                     <TouchableOpacity style={styles.bottomAction} activeOpacity={0.7}>
-                        <Ionicons name="list-outline" size={FP.bottomActionIconSize} color={colors.accent.primaryDark} />
-                        <Text style={styles.bottomActionText}>Chapters</Text>
-                     </TouchableOpacity>
-                     <TouchableOpacity style={styles.bottomAction} onPress={handleNotesPress} activeOpacity={0.7}>
+                     <TouchableOpacity style={styles.bottomAction} onPress={handleDiscussPress} activeOpacity={0.7}>
                         <Ionicons name="chatbubble-outline" size={FP.bottomActionIconSize} color={colors.accent.primaryDark} />
-                        <Text style={styles.bottomActionText}>Notes</Text>
+                        <Text style={styles.bottomActionText}>Discuss</Text>
                      </TouchableOpacity>
-                     <TouchableOpacity style={styles.bottomAction} activeOpacity={0.7}>
-                        <Ionicons name="cut-outline" size={FP.bottomActionIconSize} color={colors.accent.primaryDark} />
-                        <Text style={styles.bottomActionText}>Clip</Text>
+                     <TouchableOpacity
+                        style={styles.bottomAction}
+                        onPress={() => setSpeedSheetVisible(true)}
+                        activeOpacity={0.7}
+                     >
+                        <Ionicons
+                           name="speedometer-outline"
+                           size={FP.bottomActionIconSize}
+                           color={colors.accent.primaryDark}
+                        />
+                        <Text style={styles.bottomActionText}>
+                           {formatPlaybackSpeedLabel(playbackSpeed)}
+                        </Text>
                      </TouchableOpacity>
                      </View>
                   </View>
                </Animated.View>
             </View>
          )}
+
+         <PlaybackSpeedSheet
+            visible={speedSheetVisible}
+            currentSpeed={playbackSpeed}
+            onSelect={handleSpeedSelect}
+            onClose={() => setSpeedSheetVisible(false)}
+         />
       </Animated.View>
    );
 });
@@ -1333,21 +1383,6 @@ const styles = StyleSheet.create({
       textAlign: 'center',
       marginBottom: spacing.sm,
       paddingHorizontal: spacing.md,
-   },
-   secondaryControls: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      gap: FP.secondaryGap,
-      marginBottom: FP.secondaryMarginBottom,
-   },
-   secondaryButton: {
-      paddingVertical: spacing.xs,
-      paddingHorizontal: spacing.md,
-   },
-   secondaryButtonText: {
-      fontSize: FP.secondaryButtonTextSize,
-      color: colors.accent.primaryDark,
-      fontWeight: '500',
    },
    bottomActions: {
       flexDirection: 'row',

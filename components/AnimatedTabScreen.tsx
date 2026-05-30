@@ -8,7 +8,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { usePathname } from 'expo-router';
 import { colors } from '@/theme';
-import { useTabNavigation } from '@/hooks/useTabNavigation';
+import {
+   useTabNavigation,
+   isTabGroupPathname,
+   getTabRouteFromPathname,
+} from '@/hooks/useTabNavigation';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -41,7 +45,8 @@ export const AnimatedTabScreen: React.FC<AnimatedTabScreenProps> = ({
    currentRoute,
 }) => {
    const pathname = usePathname();
-   const { previousPathname: contextPreviousPathname } = useTabNavigation();
+   const { previousPathname: contextPreviousPathname, currentRoute: activeTabRoute } =
+      useTabNavigation();
    const translateX = useSharedValue(0);
    const opacity = useSharedValue(1);
    const isMountedRef = useRef(false);
@@ -50,25 +55,17 @@ export const AnimatedTabScreen: React.FC<AnimatedTabScreenProps> = ({
    const animationInProgressRef = useRef(false);
    const hasNavigatedAfterMountRef = useRef(false);
 
-   // Extract the route name from pathname (e.g., "/(tabs)/index" -> "index")
-   // Memoized to avoid recreating on every render
    const getRouteFromPathname = useCallback((path: string): string => {
-      const segments = path.split('/').filter(Boolean);
-      const lastSegment = segments[segments.length - 1];
-
-      // If pathname is just "/(tabs)" or ends with "(tabs)", default to "index"
-      if (!lastSegment || lastSegment === '(tabs)') {
-         return 'index';
-      }
-
-      return lastSegment;
+      return getTabRouteFromPathname(path);
    }, []);
 
-   // Check if this screen is currently active - memoized
+   // On stack overlays (details, library lists, etc.) keep the selected tab visually active.
    const isActive = useMemo((): boolean => {
-      const pathRoute = getRouteFromPathname(pathname);
-      return pathRoute === currentRoute;
-   }, [pathname, currentRoute, getRouteFromPathname]);
+      if (!isTabGroupPathname(pathname)) {
+         return activeTabRoute === currentRoute;
+      }
+      return getTabRouteFromPathname(pathname) === currentRoute;
+   }, [pathname, currentRoute, activeTabRoute]);
 
    // Determine actual animation direction based on previous route - memoized
    const getAnimationDirection = useCallback((prevPath?: string, prevRoute?: string): 'left' | 'right' => {
@@ -126,6 +123,24 @@ export const AnimatedTabScreen: React.FC<AnimatedTabScreenProps> = ({
       }
 
       const pathnameChanged = previousPathnameRef.current !== pathname;
+      const inTabGroup = isTabGroupPathname(pathname);
+      const prevInTabGroup = isTabGroupPathname(previousPathnameRef.current);
+
+      // Pushing/popping a root stack screen — tabs stay put; only the overlay animates.
+      if (pathnameChanged && inTabGroup !== prevInTabGroup) {
+         wasActiveRef.current = isActive;
+         previousPathnameRef.current = pathname;
+         if (!inTabGroup && isActive) {
+            translateX.value = 0;
+            opacity.value = 1;
+         }
+         return;
+      }
+
+      // Only run tab transition animations while switching between tabs.
+      if (!inTabGroup) {
+         return;
+      }
 
       // Also check if the route changed (more reliable than just pathname)
       const currentRouteName = getRouteFromPathname(pathname);
@@ -228,6 +243,10 @@ export const AnimatedTabScreen: React.FC<AnimatedTabScreenProps> = ({
    // Safety check: ensure screen is visible when active
    useEffect(() => {
       if (!isMountedRef.current) {
+         return;
+      }
+
+      if (!isActive) {
          return;
       }
 

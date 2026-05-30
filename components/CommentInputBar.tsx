@@ -10,42 +10,62 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '@/theme';
 import { getTabBarFloatBottom, getTabBarFloatHorizontal } from '@/theme/tabLayout';
+import { CommentTimestampInput } from './CommentTimestampInput';
 
 interface CommentInputBarProps {
    placeholder?: string;
    disabled?: boolean;
+   value?: string;
+   onChangeText?: (text: string) => void;
    onSend?: () => void;
    /** Pill-style bar floated above the bottom edge with shadow */
    floating?: boolean;
+   /** Brown @ highlighting while composing timestamp mentions */
+   highlightTimestamps?: boolean;
 }
 
 export const CommentInputBar: React.FC<CommentInputBarProps> = ({
    placeholder = 'Share your thoughts...',
    disabled = true,
+   value = '',
+   onChangeText,
    onSend,
    floating = false,
+   highlightTimestamps = false,
 }) => {
    const insets = useSafeAreaInsets();
 
+   const inputNode = highlightTimestamps ? (
+      <CommentTimestampInput
+         value={value}
+         onChangeText={onChangeText ?? (() => {})}
+         placeholder={placeholder}
+         editable={!disabled}
+      />
+   ) : (
+      <TextInput
+         style={styles.plainInput}
+         placeholder={placeholder}
+         placeholderTextColor={colors.text.muted}
+         editable={!disabled}
+         value={value}
+         onChangeText={onChangeText}
+         keyboardAppearance="light"
+      />
+   );
+
    const row = (
       <View style={styles.row}>
-         <View style={styles.avatar}>
-            <Ionicons name="person" size={18} color={colors.text.muted} />
+         <View style={highlightTimestamps ? styles.highlightInputWrap : styles.input}>
+            {inputNode}
          </View>
-         <TextInput
-            style={styles.input}
-            placeholder={placeholder}
-            placeholderTextColor={colors.text.muted}
-            editable={!disabled}
-            keyboardAppearance="light"
-         />
          <TouchableOpacity
             style={[styles.sendButton, disabled && styles.sendDisabled]}
             disabled={disabled}
             onPress={onSend}
             activeOpacity={0.7}
          >
-            <Ionicons name="send" size={18} color="#FFFFFF" />
+            <Ionicons name="send" size={20} color="#FFFFFF" />
          </TouchableOpacity>
       </View>
    );
@@ -76,7 +96,8 @@ const styles = StyleSheet.create({
       borderTopColor: colors.border.light,
       backgroundColor: colors.background.screen,
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
    },
    floatingOuter: {
       position: 'absolute',
@@ -104,29 +125,34 @@ const styles = StyleSheet.create({
       flexDirection: 'row',
       alignItems: 'center',
    },
-   avatar: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: colors.background.input,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: spacing.sm,
-   },
    input: {
       flex: 1,
+      minHeight: 48,
       backgroundColor: colors.background.input,
-      borderRadius: borderRadius.full,
+      borderRadius: borderRadius.lg,
+      marginRight: spacing.sm,
+      overflow: 'hidden',
+   },
+   highlightInputWrap: {
+      flex: 1,
+      minHeight: 48,
+      backgroundColor: colors.background.input,
+      borderRadius: borderRadius.lg,
+      marginRight: spacing.sm,
+      overflow: 'hidden',
+   },
+   plainInput: {
+      flex: 1,
+      minHeight: 48,
       paddingHorizontal: spacing.md,
-      paddingVertical: Platform.OS === 'ios' ? spacing.sm : spacing.xs,
+      paddingVertical: Platform.OS === 'ios' ? spacing.md : spacing.sm,
       fontSize: typography.fontSize.base,
       color: colors.text.primary,
-      marginRight: spacing.sm,
    },
    sendButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       backgroundColor: colors.accent.primary,
       alignItems: 'center',
       justifyContent: 'center',

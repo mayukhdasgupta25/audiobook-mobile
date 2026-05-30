@@ -38,3 +38,15 @@ export const DRAWER_SLIDE_SPRING = {
 
 export const DRAWER_BACKDROP_FADE_MS = 380;
 export const DRAWER_CLOSE_MS = 320;
+
+/** Bottom sheet (e.g. Add to playlist) */
+export const BOTTOM_SHEET_SLIDE_SPRING = {
+   damping: 32,
+   stiffness: 280,
+   mass: 0.85,
+   overshootClamping: true,
+   useNativeDriver: true as const,
+};
+
+export const BOTTOM_SHEET_BACKDROP_FADE_MS = 280;
+export const BOTTOM_SHEET_CLOSE_MS = 260;
