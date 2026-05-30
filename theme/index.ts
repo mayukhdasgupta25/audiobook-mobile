@@ -41,7 +41,8 @@ export const colors = {
    error: '#EF4444',
    warning: '#f59e0b',
    info: '#3b82f6',
-   like: '#EF4444',
+   /** Favorited heart — muted rose, lower contrast on light backgrounds */
+   like: '#B57373',
    background: {
       screen: '#FFFFFF',
       player: '#FDF8F2',
@@ -158,6 +159,8 @@ export const shadows = {
       elevation: 8,
    },
 } as const;
+
+export { timestampMentionStyles } from './timestampMention';
 
 export const lightTheme = {
    colors,

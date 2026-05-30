@@ -4,7 +4,7 @@
 
 import { useRef, useCallback, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import TrackPlayer, { Event, State, TrackType } from 'react-native-track-player';
+import TrackPlayer, { Event, State, TrackType, PitchAlgorithm } from 'react-native-track-player';
 import { RootState, store } from '@/store';
 import {
    stop,
@@ -38,7 +38,13 @@ import { registerChapterReload } from '@/services/playbackReload';
 import { ensureMediaNotificationPermission } from '@/utils/ensureMediaNotificationPermission';
 import { isActivePlaybackSession } from '@/utils/playbackSession';
 import { teardownTrackPlayerPlayback } from '@/services/playbackTeardown';
+import {
+   syncTrackProgressToPlayerStore,
+   clearPlayerLoadingIfNeeded,
+} from '@/utils/playerStoreSync';
 import { Platform } from 'react-native';
+import type { PlaybackSpeed } from '@/constants/playbackSpeed';
+import { applyPlaybackSpeed } from '@/utils/applyPlaybackSpeed';
 
 const LOAD_TIMEOUT_MS = 30_000;
 
@@ -62,8 +68,10 @@ export function useAudioPlayer() {
    const { isPlaying, currentChapterId, chapterMetadata, playbackPosition } = useSelector(
       (state: RootState) => state.player
    );
+   const wasPlayingRef = useRef(isPlaying);
    const accessToken = useSelector((state: RootState) => state.auth.accessToken);
    const user = useSelector((state: RootState) => state.auth.user);
+   const playbackSpeed = useSelector((state: RootState) => state.settings.playbackSpeed);
 
    const clearLoadTimeout = useCallback(() => {
       if (loadTimeoutRef.current) {
@@ -107,7 +115,7 @@ export function useAudioPlayer() {
 
       const state = store.getState().player;
       const resumePosition = state.playbackPosition;
-      const skipDurationSeconds = store.getState().settings.skipDurationSeconds;
+      const { skipDurationSeconds, playbackSpeed: speed } = store.getState().settings;
       const audiobookId = state.audiobookId;
 
       clearLoadTimeout();
@@ -131,7 +139,7 @@ export function useAudioPlayer() {
             await ensureMediaNotificationPermission();
          }
          await setupTrackPlayerOnce();
-         await updateTrackPlayerOptions(skipDurationSeconds);
+         await updateTrackPlayerOptions(skipDurationSeconds, speed);
 
          const playbackSource = await resolveChapterPlaybackSource(
             currentChapterId,
@@ -153,7 +161,12 @@ export function useAudioPlayer() {
          }
 
          if (playbackSource.totalDurationSeconds > 0) {
-            dispatch(setTotalDuration(playbackSource.totalDurationSeconds));
+            const { totalDuration } = store.getState().player;
+            if (
+               Math.abs(totalDuration - playbackSource.totalDurationSeconds) >= 0.5
+            ) {
+               dispatch(setTotalDuration(playbackSource.totalDurationSeconds));
+            }
          }
 
          await TrackPlayer.reset();
@@ -171,10 +184,11 @@ export function useAudioPlayer() {
             url: playbackUrl,
             type: TrackType.HLS,
             title: chapterMetadata.title || 'Unknown Chapter',
-            artist: 'AudioBook',
+            artist: chapterMetadata.audiobookTitle ?? 'AudioBook',
             // `album` stores audiobook id for notification tap navigation
             album: audiobookId ?? undefined,
             artwork: buildArtworkUrl(chapterMetadata.coverImage),
+            ...(speed !== 1 ? { pitchAlgorithm: PitchAlgorithm.Voice } : {}),
             // iOS plays the public bit_transcode HLS URL; auth headers break AVPlayer sub-requests.
             ...(Platform.OS === 'android'
                ? {
@@ -186,13 +200,15 @@ export function useAudioPlayer() {
          });
 
          // Re-apply options after reset so progress events stay enabled on Android
-         await updateTrackPlayerOptions(skipDurationSeconds);
+         await updateTrackPlayerOptions(skipDurationSeconds, speed);
 
          lastLoadedChapterRef.current = currentChapterId;
 
          if (resumePosition > 0) {
             await TrackPlayer.seekTo(resumePosition);
          }
+
+         await applyPlaybackSpeed(speed);
 
          if (state.isPlaying) {
             await TrackPlayer.play();
@@ -237,11 +253,15 @@ export function useAudioPlayer() {
             if (isDraggingRef.current || getIsDragging()) {
                return;
             }
-            dispatch(setPosition(event.position));
-            if (event.duration > 0) {
-               dispatch(setTotalDuration(event.duration));
+            if (!store.getState().player.isPlaying) {
+               clearPlayerLoadingIfNeeded(dispatch);
+               return;
             }
-            dispatch(setLoading(false));
+            syncTrackProgressToPlayerStore(
+               dispatch,
+               event.position,
+               event.duration
+            );
             clearLoadTimeout();
          }),
 
@@ -305,22 +325,33 @@ export function useAudioPlayer() {
                playbackState === State.Paused ||
                playbackState === State.Buffering
             ) {
-               dispatch(setLoading(false));
+               clearPlayerLoadingIfNeeded(dispatch);
                clearLoadTimeout();
             }
 
             if (
                playbackState === State.Playing ||
-               playbackState === State.Ready ||
-               playbackState === State.Paused
+               playbackState === State.Ready
             ) {
                try {
                   const duration = await TrackPlayer.getDuration();
                   if (duration > 0) {
-                     dispatch(setTotalDuration(duration));
+                     const { totalDuration } = store.getState().player;
+                     if (Math.abs(totalDuration - duration) >= 0.5) {
+                        dispatch(setTotalDuration(duration));
+                     }
                   }
                } catch {
                   // Duration not available yet
+               }
+            }
+
+            if (playbackState === State.Paused || playbackState === State.Stopped) {
+               try {
+                  const { position, duration } = await TrackPlayer.getProgress();
+                  syncTrackProgressToPlayerStore(dispatch, position, duration);
+               } catch {
+                  // Progress not available yet
                }
             }
 
@@ -341,79 +372,79 @@ export function useAudioPlayer() {
       void loadChapter();
    }, [loadChapter]);
 
-   // Poll position — RNTP progress events can be unreliable on Android with HLS
-   useEffect(() => {
-      if (!currentChapterId) {
+   const syncProgressFromTrackPlayer = useCallback(async () => {
+      if (!isActivePlaybackSession() || !currentChapterId) {
          return;
       }
 
-      let mounted = true;
+      if (
+         lastLoadedChapterRef.current !== currentChapterId ||
+         isDraggingRef.current ||
+         getIsDragging()
+      ) {
+         return;
+      }
 
-      const syncProgress = async () => {
+      try {
+         const [{ position, duration }, playbackState] = await Promise.all([
+            TrackPlayer.getProgress(),
+            TrackPlayer.getPlaybackState(),
+         ]);
+
+         if (lastLoadedChapterRef.current !== currentChapterId) {
+            return;
+         }
+
+         const reduxPlayer = store.getState().player;
+         if (playbackState.state === State.Playing && !reduxPlayer.isPlaying) {
+            dispatch(play());
+         } else if (
+            (playbackState.state === State.Paused ||
+               playbackState.state === State.Stopped) &&
+            reduxPlayer.isPlaying
+         ) {
+            dispatch(pause());
+         }
+
          if (!isActivePlaybackSession()) {
             return;
          }
 
-         if (
-            !mounted ||
-            lastLoadedChapterRef.current !== currentChapterId ||
-            isDraggingRef.current ||
-            getIsDragging()
-         ) {
-            return;
+         const trackIsPlaying = playbackState.state === State.Playing;
+         if (trackIsPlaying) {
+            syncTrackProgressToPlayerStore(dispatch, position, duration);
+         } else {
+            clearPlayerLoadingIfNeeded(dispatch);
          }
+         clearLoadTimeout();
+      } catch {
+         // Player not ready yet
+      }
+   }, [currentChapterId, dispatch, clearLoadTimeout]);
 
-         try {
-            const [{ position, duration }, playbackState] = await Promise.all([
-               TrackPlayer.getProgress(),
-               TrackPlayer.getPlaybackState(),
-            ]);
+   // Poll only while playing — RNTP progress events can be unreliable on Android with HLS
+   useEffect(() => {
+      if (!currentChapterId || !isPlaying) {
+         return;
+      }
 
-            if (
-               !mounted ||
-               lastLoadedChapterRef.current !== currentChapterId ||
-               isDraggingRef.current ||
-               getIsDragging()
-            ) {
-               return;
-            }
-
-            const reduxPlayer = store.getState().player;
-            if (playbackState.state === State.Playing && !reduxPlayer.isPlaying) {
-               dispatch(play());
-            } else if (
-               (playbackState.state === State.Paused ||
-                  playbackState.state === State.Stopped) &&
-               reduxPlayer.isPlaying
-            ) {
-               dispatch(pause());
-            }
-
-            if (!isActivePlaybackSession()) {
-               return;
-            }
-
-            dispatch(setPosition(position));
-            if (duration > 0) {
-               dispatch(setTotalDuration(duration));
-            }
-            dispatch(setLoading(false));
-            clearLoadTimeout();
-         } catch {
-            // Player not ready yet
-         }
-      };
-
-      void syncProgress();
+      void syncProgressFromTrackPlayer();
       const intervalId = setInterval(() => {
-         void syncProgress();
+         void syncProgressFromTrackPlayer();
       }, 1000);
 
       return () => {
-         mounted = false;
          clearInterval(intervalId);
       };
-   }, [currentChapterId, dispatch, clearLoadTimeout]);
+   }, [currentChapterId, isPlaying, syncProgressFromTrackPlayer]);
+
+   // One final position sync when pausing so UI shows the frozen time without ongoing polls
+   useEffect(() => {
+      if (wasPlayingRef.current && !isPlaying && currentChapterId) {
+         void syncProgressFromTrackPlayer();
+      }
+      wasPlayingRef.current = isPlaying;
+   }, [isPlaying, currentChapterId, syncProgressFromTrackPlayer]);
 
    useEffect(() => {
       if (
@@ -584,6 +615,17 @@ export function useAudioPlayer() {
       }
    }, [currentChapterId, resetPlayer]);
 
+   const setPlaybackRate = useCallback((speed: PlaybackSpeed) => {
+      void applyPlaybackSpeed(speed);
+   }, []);
+
+   useEffect(() => {
+      if (!currentChapterId || lastLoadedChapterRef.current !== currentChapterId) {
+         return;
+      }
+      void applyPlaybackSpeed(playbackSpeed);
+   }, [playbackSpeed, currentChapterId]);
+
    return {
       isPlaying,
       playbackPosition,
@@ -595,5 +637,6 @@ export function useAudioPlayer() {
       skipToPreviousChapter,
       setDragging,
       resetPlayer,
+      setPlaybackRate,
    };
 }

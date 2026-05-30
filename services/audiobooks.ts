@@ -74,6 +74,8 @@ export interface Audiobook {
    meta: Record<string, string> | null;
    minSubscriptionTier?: number;
    subscriptionAccess?: SubscriptionAccess;
+   /** Aggregate rating 0–5 from GET /audiobooks/{id} */
+   rating?: number;
 }
 
 /**
@@ -399,6 +401,28 @@ export async function getChapters(
  * @returns Promise with audiobook response
  * @throws ApiError if request fails
  */
+/**
+ * Search audiobooks by title, author, or description
+ * GET /api/v1/audiobooks/search?q={query}
+ */
+export async function searchAudiobooks(query: string): Promise<AudiobooksResponse> {
+   try {
+      const encoded = encodeURIComponent(query.trim());
+      const response = await get<AudiobooksResponse>(
+         `${API_V1_PATH}/audiobooks/search?q=${encoded}`,
+         true
+      );
+      return response.data;
+   } catch (error) {
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Failed to search audiobooks: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
 export async function getAudiobookById(
    audiobookId: string
 ): Promise<AudiobookResponse> {

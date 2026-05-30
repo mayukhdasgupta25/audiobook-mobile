@@ -120,6 +120,9 @@ const playerSlice = createSlice({
        * Update playback position
        */
       setPosition: (state, action: PayloadAction<number>) => {
+         if (Math.abs(state.playbackPosition - action.payload) < 0.25) {
+            return;
+         }
          state.playbackPosition = action.payload;
       },
       /**
@@ -133,12 +136,21 @@ const playerSlice = createSlice({
        * Set total duration
        */
       setTotalDuration: (state, action: PayloadAction<number>) => {
+         if (action.payload <= 0) {
+            return;
+         }
+         if (Math.abs(state.totalDuration - action.payload) < 0.5) {
+            return;
+         }
          state.totalDuration = action.payload;
       },
       /**
        * Set loading state
        */
       setLoading: (state, action: PayloadAction<boolean>) => {
+         if (state.isLoading === action.payload) {
+            return;
+         }
          state.isLoading = action.payload;
       },
       /**

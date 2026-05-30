@@ -10,6 +10,11 @@ import {
    skipToNextChapterRemote,
    skipToPreviousChapterRemote,
 } from '@/utils/chapterNavigation';
+import { applyPlaybackSpeed } from '@/utils/applyPlaybackSpeed';
+import {
+   getNextPlaybackSpeed,
+   getPreviousPlaybackSpeed,
+} from '@/utils/playbackSpeed';
 
 let handlersRegistered = false;
 
@@ -109,6 +114,27 @@ export function setupPlaybackServiceHandlers(): void {
          state.currentChapterId
       ).catch((error: unknown) => {
          console.error('[playbackService] RemotePrevious failed:', error);
+      });
+   });
+
+   TrackPlayer.addEventListener(Event.RemoteLike, () => {
+      const current = store.getState().settings.playbackSpeed;
+      void applyPlaybackSpeed(getNextPlaybackSpeed(current)).catch((error: unknown) => {
+         console.error('[playbackService] RemoteLike (speed) failed:', error);
+      });
+   });
+
+   TrackPlayer.addEventListener(Event.RemoteDislike, () => {
+      const current = store.getState().settings.playbackSpeed;
+      void applyPlaybackSpeed(getPreviousPlaybackSpeed(current)).catch((error: unknown) => {
+         console.error('[playbackService] RemoteDislike (speed) failed:', error);
+      });
+   });
+
+   TrackPlayer.addEventListener(Event.RemoteSetRating, () => {
+      const current = store.getState().settings.playbackSpeed;
+      void applyPlaybackSpeed(getNextPlaybackSpeed(current)).catch((error: unknown) => {
+         console.error('[playbackService] RemoteSetRating (speed) failed:', error);
       });
    });
 }

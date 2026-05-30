@@ -202,6 +202,8 @@ function InnerLayout() {
          segments[0] === '(tabs)' ||
          segments[0] === 'details' ||
          segments[0] === 'search' ||
+         segments[0] === 'library' ||
+         segments[0] === 'playlists' ||
          segments[0] === 'account' ||
          segments[0] === 'subscription-plans' ||
          segments[0] === 'update-first-name' ||
@@ -246,7 +248,7 @@ function InnerLayout() {
    }
 
    return (
-      <>
+      <AudioPlaybackProvider>
          <Stack
             screenOptions={{
                headerShown: false,
@@ -400,6 +402,32 @@ function InnerLayout() {
                }}
             />
             <Stack.Screen
+               name="publisher/[id]"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.screen,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="playlists/[id]"
+               options={{
+                  contentStyle: {
+                     backgroundColor: colors.background.screen,
+                  },
+               }}
+            />
+            <Stack.Screen
+               name="library"
+               options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                  contentStyle: {
+                     backgroundColor: colors.background.screen,
+                  },
+               }}
+            />
+            <Stack.Screen
                name="onboarding"
                options={{
                   contentStyle: {
@@ -410,11 +438,9 @@ function InnerLayout() {
             />
          </Stack>
 
-         {/* Playback logic stays mounted; UI hides when not visible */}
-         <AudioPlaybackProvider>
-            <AudioPlayer />
-         </AudioPlaybackProvider>
-      </>
+         {/* Playback stays mounted app-wide; player UI hides when not visible */}
+         <AudioPlayer />
+      </AudioPlaybackProvider>
    );
 }
 
