@@ -7,9 +7,8 @@ import { WizardScreenLayout } from '@/components/WizardScreenLayout';
 import { fetchUserProfile } from '@/store/auth';
 import { useOnboardingStore, MIN_AGE, MAX_AGE } from '@/store/onboarding';
 import { AppDispatch, RootState } from '@/store';
-import { spacing } from '@/theme';
 
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 4;
 const DEFAULT_AGE = 25;
 
 function clampAge(age: number): number {
@@ -117,7 +116,8 @@ export default function OnboardingAgeScreen() {
 
 const styles = StyleSheet.create({
    loading: {
-      paddingVertical: spacing.xl,
+      flex: 1,
+      justifyContent: 'center',
       alignItems: 'center',
    },
 });

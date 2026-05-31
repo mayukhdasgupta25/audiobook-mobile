@@ -19,6 +19,7 @@ const completeProfile: UserProfile = {
       language: 'en',
       playbackSpeed: 1,
       favoriteGenreIds: ['g1'],
+      languages: ['hi', 'en'],
    },
    createdAt: '',
    updatedAt: '',
@@ -50,6 +51,12 @@ describe('onboardingProfile utils', () => {
          isOnboardingProfileIncomplete({
             ...completeProfile,
             preferences: { ...completeProfile.preferences, favoriteGenreIds: [] },
+         })
+      ).toBe(true);
+      expect(
+         isOnboardingProfileIncomplete({
+            ...completeProfile,
+            preferences: { ...completeProfile.preferences, languages: [] },
          })
       ).toBe(true);
       expect(isOnboardingProfileIncomplete(completeProfile)).toBe(false);

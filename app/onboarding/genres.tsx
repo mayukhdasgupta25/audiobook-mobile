@@ -17,7 +17,7 @@ import { AppDispatch } from '@/store';
 import { ApiError } from '@/services/api';
 import { colors, spacing, typography } from '@/theme';
 
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 4;
 
 /**
  * Onboarding step 3: select up to 3 genres and submit profile update
@@ -27,6 +27,7 @@ export default function OnboardingGenresScreen() {
 
    const age = useOnboardingStore((s) => s.age);
    const gender = useOnboardingStore((s) => s.gender);
+   const languageCodes = useOnboardingStore((s) => s.languageCodes);
    const genreIds = useOnboardingStore((s) => s.genreIds);
    const toggleGenreId = useOnboardingStore((s) => s.toggleGenreId);
 
@@ -53,6 +54,10 @@ export default function OnboardingGenresScreen() {
          setError('Gender is required. Please go back and select your gender.');
          return;
       }
+      if (languageCodes.length === 0) {
+         setError('Languages are required. Please go back and select your languages.');
+         return;
+      }
       if (genreIds.length === 0) {
          setError('Please select at least one genre');
          return;
@@ -64,7 +69,10 @@ export default function OnboardingGenresScreen() {
          await updateUserProfile({
             age,
             gender: formatGenderForApi(gender),
-            preferences: { favoriteGenreIds: genreIds },
+            preferences: {
+               favoriteGenreIds: genreIds,
+               languages: languageCodes,
+            },
          });
 
          await syncUserLocationToProfile();
@@ -87,7 +95,7 @@ export default function OnboardingGenresScreen() {
       } finally {
          setIsSubmitting(false);
       }
-   }, [age, gender, genreIds, dispatch]);
+   }, [age, gender, languageCodes, genreIds, dispatch]);
 
    const displayError =
       error ||
@@ -95,7 +103,7 @@ export default function OnboardingGenresScreen() {
 
    return (
       <WizardScreenLayout
-         step={3}
+         step={4}
          totalSteps={TOTAL_STEPS}
          title="Pick your favorite genres"
          subtitle={`Select up to ${MAX_GENRE_SELECTIONS} genres you enjoy most.`}
@@ -141,6 +149,8 @@ const styles = StyleSheet.create({
       fontSize: typography.fontSize.sm,
       color: colors.text.secondaryDark,
       marginBottom: spacing.md,
+      textAlign: 'center',
+      width: '100%',
    },
    loading: {
       paddingVertical: spacing.xl,
@@ -149,5 +159,6 @@ const styles = StyleSheet.create({
    chipGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
+      justifyContent: 'center',
    },
 });

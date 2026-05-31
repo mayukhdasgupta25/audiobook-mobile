@@ -6,12 +6,12 @@ import {
    ScrollView,
    TouchableOpacity,
    Platform,
-   ActivityIndicator,
    KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { PrimaryButton } from '@/components/PrimaryButton';
+import { colors, spacing, typography } from '@/theme';
 
 interface WizardScreenLayoutProps {
    step: number;
@@ -27,6 +27,8 @@ interface WizardScreenLayoutProps {
    error?: string | null;
    /** When false, body uses a flex layout (e.g. nested scroll pickers). Default true. */
    scrollable?: boolean;
+   /** Vertically center body content within available space. Default true. */
+   centerBody?: boolean;
 }
 
 /**
@@ -45,6 +47,7 @@ export const WizardScreenLayout: React.FC<WizardScreenLayoutProps> = ({
    onBack,
    error,
    scrollable = true,
+   centerBody = true,
 }) => {
    const content = (
       <>
@@ -68,7 +71,7 @@ export const WizardScreenLayout: React.FC<WizardScreenLayoutProps> = ({
             <Text style={styles.subtitle}>{subtitle}</Text>
          </View>
 
-         <View style={styles.body}>{children}</View>
+         <View style={[styles.body, centerBody && styles.bodyCentered]}>{children}</View>
 
          {error ? (
             <View style={styles.errorContainer}>
@@ -76,22 +79,13 @@ export const WizardScreenLayout: React.FC<WizardScreenLayoutProps> = ({
             </View>
          ) : null}
 
-         <TouchableOpacity
-            style={[
-               styles.continueButton,
-               (continueDisabled || isLoading) && styles.continueButtonDisabled,
-            ]}
+         <PrimaryButton
+            title={continueLabel}
             onPress={onContinue}
-            disabled={continueDisabled || isLoading}
-            accessibilityRole="button"
-            accessibilityLabel={continueLabel}
-         >
-            {isLoading ? (
-               <ActivityIndicator color={colors.text.dark} />
-            ) : (
-               <Text style={styles.continueButtonText}>{continueLabel}</Text>
-            )}
-         </TouchableOpacity>
+            disabled={continueDisabled}
+            loading={isLoading}
+            variant="outline"
+         />
       </>
    );
 
@@ -118,7 +112,9 @@ export const WizardScreenLayout: React.FC<WizardScreenLayoutProps> = ({
                      {content}
                   </ScrollView>
                ) : (
-                  <View style={[styles.scrollView, styles.staticContent]}>{content}</View>
+                  <View style={[styles.scrollView, styles.staticContent, centerBody && styles.staticContentCentered]}>
+                     {content}
+                  </View>
                )}
             </KeyboardAvoidingView>
          </SafeAreaView>
@@ -150,6 +146,9 @@ const styles = StyleSheet.create({
       paddingTop: spacing.xl,
       paddingBottom: spacing.xl,
       alignItems: 'stretch',
+   },
+   staticContentCentered: {
+      justifyContent: 'center',
    },
    header: {
       width: '100%',
@@ -206,6 +205,10 @@ const styles = StyleSheet.create({
       alignSelf: 'stretch',
       marginBottom: spacing.lg,
    },
+   bodyCentered: {
+      justifyContent: 'center',
+      alignItems: 'center',
+   },
    errorContainer: {
       marginBottom: spacing.md,
    },
@@ -213,24 +216,5 @@ const styles = StyleSheet.create({
       fontSize: typography.fontSize.sm,
       color: colors.error,
       textAlign: 'center',
-   },
-   continueButton: {
-      backgroundColor: colors.app.red,
-      borderRadius: borderRadius.md,
-      height: 48,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   continueButtonDisabled: {
-      opacity: 0.6,
-   },
-   continueButtonText: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '600' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
    },
 });

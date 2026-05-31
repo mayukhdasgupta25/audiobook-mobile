@@ -5,7 +5,7 @@
 import type { UserProfile } from '@/services/user';
 
 /**
- * Wizard is required when age, gender, or favorite genres are missing on the profile.
+ * Wizard is required when age, gender, languages, or favorite genres are missing on the profile.
  */
 export function isOnboardingProfileIncomplete(
    profile: UserProfile | null | undefined
@@ -19,8 +19,10 @@ export function isOnboardingProfileIncomplete(
       profile.gender != null && String(profile.gender).trim().length > 0;
    const genreIds = profile.preferences?.favoriteGenreIds ?? [];
    const hasGenres = genreIds.length > 0;
+   const languageCodes = profile.preferences?.languages ?? [];
+   const hasLanguages = languageCodes.length > 0;
 
-   return !hasAge || !hasGender || !hasGenres;
+   return !hasAge || !hasGender || !hasGenres || !hasLanguages;
 }
 
 /**
