@@ -15,6 +15,7 @@ export interface UserPreferences {
    language: string;
    playbackSpeed: number;
    favoriteGenreIds?: string[];
+   languages?: string[];
 }
 
 /**
@@ -94,7 +95,7 @@ export interface UpdateProfileRequest {
    location?: UserLocation;
    age?: number;
    gender?: string;
-   preferences?: Pick<UserPreferences, 'favoriteGenreIds'>;
+   preferences?: Pick<UserPreferences, 'favoriteGenreIds' | 'languages'>;
 }
 
 /**

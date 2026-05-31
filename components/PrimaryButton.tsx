@@ -19,6 +19,8 @@ interface PrimaryButtonProps {
    style?: ViewStyle;
    testID?: string;
    icon?: React.ComponentProps<typeof Ionicons>['name'];
+   /** filled = solid accent (default); outline = transparent with accent border */
+   variant?: 'filled' | 'outline';
 }
 
 export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
@@ -29,22 +31,35 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
    style,
    testID,
    icon,
+   variant = 'filled',
 }) => (
    <TouchableOpacity
-      style={[styles.button, (disabled || loading) && styles.disabled, style]}
+      style={[
+         styles.button,
+         variant === 'outline' && styles.buttonOutline,
+         (disabled || loading) && styles.disabled,
+         style,
+      ]}
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.8}
       testID={testID}
    >
       {loading ? (
-         <ActivityIndicator color="#FFFFFF" />
+         <ActivityIndicator
+            color={variant === 'outline' ? colors.accent.primary : '#FFFFFF'}
+         />
       ) : (
          <View style={styles.content}>
             {icon ? (
-               <Ionicons name={icon} size={20} color="#FFFFFF" style={styles.icon} />
+               <Ionicons
+                  name={icon}
+                  size={20}
+                  color={variant === 'outline' ? colors.accent.primary : '#FFFFFF'}
+                  style={styles.icon}
+               />
             ) : null}
-            <Text style={styles.text}>{title}</Text>
+            <Text style={[styles.text, variant === 'outline' && styles.textOutline]}>{title}</Text>
          </View>
       )}
    </TouchableOpacity>
@@ -59,6 +74,11 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: 48,
+   },
+   buttonOutline: {
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      borderColor: colors.accent.primary,
    },
    disabled: {
       opacity: 0.5,
@@ -79,5 +99,8 @@ const styles = StyleSheet.create({
          ios: { fontFamily: 'System', fontWeight: '600' },
          android: { fontFamily: 'sans-serif-medium' },
       }),
+   },
+   textOutline: {
+      color: colors.accent.primary,
    },
 });

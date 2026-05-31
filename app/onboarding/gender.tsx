@@ -9,7 +9,7 @@ import {
    type GenderValue,
 } from '@/store/onboarding';
 
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 4;
 
 /**
  * Onboarding step 2: select gender
@@ -36,7 +36,7 @@ export default function OnboardingGenderScreen() {
          return;
       }
       setStoredGender(selectedGender);
-      router.push('/onboarding/genres' as Href);
+      router.push('/onboarding/languages' as Href);
    }, [selectedGender, setStoredGender]);
 
    const handleBack = useCallback(() => {
@@ -73,5 +73,6 @@ const styles = StyleSheet.create({
    chipGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
+      justifyContent: 'center',
    },
 });
