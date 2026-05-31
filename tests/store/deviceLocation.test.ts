@@ -4,9 +4,9 @@ import {
    isLocationCacheFresh,
    useDeviceLocationStore,
 } from '@/store/deviceLocation';
-import type { UserLocation } from '@/services/user';
+import type { DeviceLocationReading } from '@/store/deviceLocation';
 
-const sampleLocation: UserLocation = {
+const sampleLocation: DeviceLocationReading = {
    latitude: 40.7128,
    longitude: -74.006,
    accuracy: 10,

@@ -2,26 +2,42 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
-import { GRID_GAP, GRID_PADDING, NUM_COLUMNS } from '@/components/AudiobookGridCard';
-import { spacing } from '@/theme';
+import { portraitCoverHeight } from './skeletonLayout';
+import {
+   AUDIOBOOK_GRID_CARD_WIDTH,
+   GRID_GAP,
+   GRID_PADDING,
+   NUM_COLUMNS,
+} from '@/components/AudiobookGridCard';
+import { borderRadius, colors, spacing } from '@/theme';
 
 interface SkeletonGridProps {
    rows?: number;
+   /** When set, overrides default portrait aspect (0.7). */
    cardAspect?: number;
 }
 
-export function SkeletonGrid({ rows = 3, cardAspect = 1.35 }: SkeletonGridProps) {
+export function SkeletonGrid({ rows = 3, cardAspect }: SkeletonGridProps) {
    const itemCount = rows * NUM_COLUMNS;
-   const availableWidth = 360 - GRID_PADDING * 2;
-   const cardWidth = (availableWidth - GRID_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
-   const cardHeight = Math.round(cardWidth * cardAspect);
+   const cardWidth = AUDIOBOOK_GRID_CARD_WIDTH;
+   const cardHeight =
+      cardAspect !== undefined
+         ? Math.round(cardWidth * cardAspect)
+         : portraitCoverHeight(cardWidth);
 
    return (
       <View style={styles.grid}>
          {Array.from({ length: itemCount }).map((_, index) => (
-            <View key={index} style={[styles.item, { width: cardWidth }]}>
-               <SkeletonBox width={cardWidth} height={cardHeight} borderRadius={12} />
-               <SkeletonText width="80%" height={12} style={styles.title} />
+            <View key={index} style={[styles.card, { width: cardWidth }]}>
+               <SkeletonBox
+                  width={cardWidth}
+                  height={cardHeight}
+                  borderRadius={borderRadius.md}
+               />
+               <View style={styles.footer}>
+                  <SkeletonText width="90%" height={12} />
+                  <SkeletonText width="70%" height={12} style={styles.footerLine} />
+               </View>
             </View>
          ))}
       </View>
@@ -35,10 +51,19 @@ const styles = StyleSheet.create({
       paddingHorizontal: GRID_PADDING,
       gap: GRID_GAP,
    },
-   item: {
-      marginBottom: GRID_GAP,
+   card: {
+      marginBottom: spacing.xs,
+      borderRadius: borderRadius.md,
+      overflow: 'hidden',
+      backgroundColor: colors.background.card,
    },
-   title: {
-      marginTop: spacing.sm,
+   footer: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      gap: spacing.xs,
+   },
+   footerLine: {
+      marginTop: 2,
    },
 });

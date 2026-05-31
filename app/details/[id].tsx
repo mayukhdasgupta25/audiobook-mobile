@@ -23,7 +23,7 @@ import { useStreamingPlaylist } from '@/hooks/useStreamingPlaylist';
 import { ChapterListItem } from '@/components/ChapterListItem';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { SecondaryButton } from '@/components/SecondaryButton';
-import { SkeletonBox, SkeletonListItem, SkeletonText } from '@/components/skeleton';
+import { SkeletonChapterRow, SkeletonDetailsHeader, SkeletonDetailsAbout } from '@/components/skeleton';
 import { TabUnderline } from '@/components/TabUnderline';
 import { TabSlideView } from '@/components/TabSlideView';
 import { formatDuration } from '@/utils/duration';
@@ -78,7 +78,7 @@ export default function DetailsScreen() {
    }, [isPlayerVisible, insets.bottom]);
 
    // Fetch audiobook data
-   const { data: audiobookData } = useAudiobook(id || '');
+   const { data: audiobookData, isLoading: isAudiobookLoading } = useAudiobook(id || '');
 
    const audiobook = audiobookData?.data;
 
@@ -540,7 +540,7 @@ export default function DetailsScreen() {
       if (isLoadingChapters) {
          return (
             <View style={styles.emptyContainer}>
-               <SkeletonListItem coverSize={48} count={6} />
+               <SkeletonChapterRow count={6} />
             </View>
          );
       }
@@ -569,8 +569,8 @@ export default function DetailsScreen() {
    }, []);
 
    const renderAboutContent = useCallback(() => {
-      if (!audiobook) {
-         return null;
+      if (isAudiobookLoading || !audiobook) {
+         return <SkeletonDetailsAbout lines={5} />;
       }
 
       if (!audiobook.description?.trim()) {
@@ -586,7 +586,7 @@ export default function DetailsScreen() {
             <Text style={styles.aboutDescription}>{audiobook.description}</Text>
          </View>
       );
-   }, [audiobook]);
+   }, [audiobook, isAudiobookLoading]);
 
    const renderUpgradeSection = useCallback(() => {
       if (!isAccessRestricted) {
@@ -647,64 +647,60 @@ export default function DetailsScreen() {
                </View>
             </View>
 
-            {/* Book row */}
-            <View style={styles.bookRow}>
-               {smallCoverUri ? (
-                  <Image source={{ uri: smallCoverUri }} style={styles.bookCover} contentFit="cover" />
-               ) : (
-                  <SkeletonBox width={88} height={88} borderRadius={borderRadius.lg} style={{ marginRight: spacing.md }} />
-               )}
-               <View style={styles.bookInfo}>
-                  <Text style={styles.audiobookTitle} numberOfLines={2}>
-                     {audiobook?.title ?? ' '}
-                  </Text>
-                  {!audiobook?.title ? (
-                     <>
-                        <SkeletonText width="80%" height={16} style={{ marginTop: spacing.xs }} />
-                        <SkeletonText width="50%" height={12} style={{ marginTop: spacing.sm }} />
-                     </>
-                  ) : null}
-                  {audiobook?.author && (
-                     <Text style={styles.bookAuthor}>{audiobook.author}</Text>
-                  )}
-                  <StarRating
-                     rating={aggregateRating}
-                     interactive={canRate}
-                     onRate={handleRate}
-                  />
-                  <Text style={styles.bookMeta}>
-                     {formattedDuration}
-                     {chapterCount > 0 ? ` · ${chapterCount} chapters` : ''}
-                  </Text>
-               </View>
-            </View>
-
-            {/* Play / Download */}
-            {!isAccessRestricted && (
-               <View style={styles.actionButtons}>
-                  <PrimaryButton
-                     title="Play"
-                     icon="play"
-                     onPress={handlePlayAll}
-                     style={styles.playBtn}
-                  />
-                  <SecondaryButton
-                     title="Download"
-                     icon="download-outline"
-                     onPress={() => {}}
-                     style={styles.downloadBtn}
-                  />
-               </View>
-            )}
-
-            {genres.length > 0 && (
-               <View style={styles.genresContainer}>
-                  {genres.map((genre, index) => (
-                     <View key={`${genre.name}-${index}`} style={styles.genreChip}>
-                        <Text style={styles.genreChipText}>{genre.name}</Text>
+            {isAudiobookLoading || !audiobook ? (
+               <SkeletonDetailsHeader showGenreChips />
+            ) : (
+               <>
+                  <View style={styles.bookRow}>
+                     {smallCoverUri ? (
+                        <Image source={{ uri: smallCoverUri }} style={styles.bookCover} contentFit="cover" />
+                     ) : null}
+                     <View style={styles.bookInfo}>
+                        <Text style={styles.audiobookTitle} numberOfLines={2}>
+                           {audiobook.title}
+                        </Text>
+                        {audiobook.author ? (
+                           <Text style={styles.bookAuthor}>{audiobook.author}</Text>
+                        ) : null}
+                        <StarRating
+                           rating={aggregateRating}
+                           interactive={canRate}
+                           onRate={handleRate}
+                        />
+                        <Text style={styles.bookMeta}>
+                           {formattedDuration}
+                           {chapterCount > 0 ? ` · ${chapterCount} chapters` : ''}
+                        </Text>
                      </View>
-                  ))}
-               </View>
+                  </View>
+
+                  {!isAccessRestricted && (
+                     <View style={styles.actionButtons}>
+                        <PrimaryButton
+                           title="Play"
+                           icon="play"
+                           onPress={handlePlayAll}
+                           style={styles.playBtn}
+                        />
+                        <SecondaryButton
+                           title="Download"
+                           icon="download-outline"
+                           onPress={() => {}}
+                           style={styles.downloadBtn}
+                        />
+                     </View>
+                  )}
+
+                  {genres.length > 0 && (
+                     <View style={styles.genresContainer}>
+                        {genres.map((genre, index) => (
+                           <View key={`${genre.name}-${index}`} style={styles.genreChip}>
+                              <Text style={styles.genreChipText}>{genre.name}</Text>
+                           </View>
+                        ))}
+                     </View>
+                  )}
+               </>
             )}
 
             <TabUnderline
@@ -720,6 +716,7 @@ export default function DetailsScreen() {
          </>
       );
    }, [
+      isAudiobookLoading,
       audiobook,
       allChapters,
       formattedDuration,

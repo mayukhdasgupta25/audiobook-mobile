@@ -15,7 +15,7 @@ import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
 import { MoodChip } from '@/components/MoodChip';
 import { useMoods } from '@/hooks/useMoods';
 import { ContentRow, ContentItem } from '@/components/ContentRow';
-import { SkeletonListItem, SkeletonMoodChips } from '@/components/skeleton';
+import { SkeletonMoodChips, SkeletonDiscoverTrendingRow, SkeletonContentRow } from '@/components/skeleton';
 import { colors, spacing, typography, borderRadius } from '@/theme';
 import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { useHomeContent } from '@/hooks/useHomeContent';
@@ -86,7 +86,7 @@ function DiscoverScreenContent() {
 
             <Text style={styles.sectionTitle}>Trending Now</Text>
             {isLoading && trendingItems.length === 0 ? (
-               <SkeletonListItem coverSize={72} count={5} />
+               <SkeletonDiscoverTrendingRow count={5} />
             ) : (
                trendingItems.map((item) => (
                   <View key={item.id}>
@@ -121,6 +121,13 @@ function DiscoverScreenContent() {
                   </View>
                ))
             )}
+
+            {isLoading && genreRows.length === 0 ? (
+               <>
+                  <SkeletonContentRow titleWidth={140} cardCount={4} />
+                  <SkeletonContentRow titleWidth={120} cardCount={4} />
+               </>
+            ) : null}
 
             {genreRows.map((row) => (
                <ContentRow

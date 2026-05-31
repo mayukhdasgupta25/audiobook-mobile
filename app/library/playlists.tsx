@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { PlaylistCard, PLAYLIST_CARD_WIDTH } from '@/components/PlaylistCard';
 import { CreatePlaylistModal } from '@/components/CreatePlaylistModal';
-import { SkeletonGrid } from '@/components/skeleton';
+import { SkeletonPlaylistGrid } from '@/components/skeleton';
 import { usePlaylists, usePlaylistMutations } from '@/hooks/usePlaylists';
 import { colors, spacing, typography } from '@/theme';
 import { GRID_GAP, GRID_PADDING, NUM_COLUMNS } from '@/components/AudiobookGridCard';
@@ -68,7 +68,7 @@ export default function LibraryPlaylistsScreen() {
          />
 
          {isLoading ? (
-            <SkeletonGrid rows={3} cardAspect={1} />
+            <SkeletonPlaylistGrid rows={3} />
          ) : (
             <FlatList
                data={playlists}

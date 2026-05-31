@@ -14,7 +14,7 @@ import { MoodHeroCard } from '@/components/moods/MoodHeroCard';
 import { MoodBestForCard } from '@/components/moods/MoodBestForCard';
 import { MoodAudiobookRow } from '@/components/moods/MoodAudiobookRow';
 import { MoodAboutSection } from '@/components/moods/MoodAboutSection';
-import { SkeletonBox, SkeletonContentRow, SkeletonListItem } from '@/components/skeleton';
+import { SkeletonMoodDetailPage, SkeletonMoodAudiobookRow } from '@/components/skeleton';
 import { useMood } from '@/hooks/useMood';
 import { useMoodAudiobooks } from '@/hooks/useMoodAudiobooks';
 import { colors, spacing, typography } from '@/theme';
@@ -94,9 +94,7 @@ export default function MoodDetailScreen() {
    if (isMoodLoading) {
       return (
          <SafeAreaView style={styles.container} edges={['bottom']}>
-            <SkeletonBox width="100%" height={220} borderRadius={0} />
-            <SkeletonContentRow />
-            <SkeletonListItem coverSize={56} count={4} />
+            <SkeletonMoodDetailPage />
          </SafeAreaView>
       );
    }
@@ -161,7 +159,7 @@ export default function MoodDetailScreen() {
 
                   <View style={styles.recommendationsCard}>
                      {isAudiobooksLoading && allAudiobooks.length === 0 ? (
-                        <SkeletonListItem coverSize={56} count={4} />
+                        <SkeletonMoodAudiobookRow count={4} />
                      ) : audiobooksError ? (
                         <View style={styles.loadingBlock}>
                            <Text style={styles.emptyText}>No recommendations yet.</Text>
@@ -184,7 +182,7 @@ export default function MoodDetailScreen() {
                      )}
 
                      {showAllRecommendations && isAudiobooksFetching ? (
-                        <SkeletonListItem coverSize={56} count={2} />
+                        <SkeletonMoodAudiobookRow count={2} />
                      ) : null}
                   </View>
                </View>

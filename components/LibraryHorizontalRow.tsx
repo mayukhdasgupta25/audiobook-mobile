@@ -5,42 +5,45 @@ import {
    ScrollView,
    StyleSheet,
 } from 'react-native';
-import { SkeletonBox } from '@/components/skeleton/SkeletonBox';
-import { SkeletonText } from '@/components/skeleton/SkeletonText';
+import {
+   SkeletonLibraryBookmarkRow,
+   SkeletonLibraryFavoriteRow,
+   SkeletonLibraryPlaylistRow,
+} from '@/components/skeleton';
 import { colors, spacing, typography } from '@/theme';
+import { LIBRARY_PREVIEW_LIMIT } from '@/constants/library';
+
+export type LibraryRowSkeletonVariant = 'playlist' | 'favorite' | 'bookmark';
 
 interface LibraryHorizontalRowProps {
    isLoading?: boolean;
    isEmpty?: boolean;
    emptyMessage?: string;
+   skeletonVariant?: LibraryRowSkeletonVariant;
    children: React.ReactNode;
 }
 
-function LibraryRowSkeleton() {
-   return (
-      <ScrollView
-         horizontal
-         showsHorizontalScrollIndicator={false}
-         contentContainerStyle={styles.scrollContent}
-      >
-         {Array.from({ length: 3 }).map((_, index) => (
-            <View key={index} style={styles.skeletonCard}>
-               <SkeletonBox width={140} height={140} borderRadius={12} />
-               <SkeletonText width={100} height={12} style={styles.skeletonTitle} />
-            </View>
-         ))}
-      </ScrollView>
-   );
+function LibraryRowSkeleton({ variant }: { variant: LibraryRowSkeletonVariant }) {
+   switch (variant) {
+      case 'favorite':
+         return <SkeletonLibraryFavoriteRow count={LIBRARY_PREVIEW_LIMIT} />;
+      case 'bookmark':
+         return <SkeletonLibraryBookmarkRow count={LIBRARY_PREVIEW_LIMIT} />;
+      case 'playlist':
+      default:
+         return <SkeletonLibraryPlaylistRow count={LIBRARY_PREVIEW_LIMIT} />;
+   }
 }
 
 export const LibraryHorizontalRow: React.FC<LibraryHorizontalRowProps> = ({
    isLoading = false,
    isEmpty = false,
    emptyMessage = 'Nothing here yet',
+   skeletonVariant = 'playlist',
    children,
 }) => {
    if (isLoading) {
-      return <LibraryRowSkeleton />;
+      return <LibraryRowSkeleton variant={skeletonVariant} />;
    }
 
    if (isEmpty) {
@@ -76,11 +79,5 @@ const styles = StyleSheet.create({
    emptyText: {
       fontSize: typography.fontSize.sm,
       color: colors.text.secondary,
-   },
-   skeletonCard: {
-      marginRight: spacing.sm,
-   },
-   skeletonTitle: {
-      marginTop: spacing.sm,
    },
 });

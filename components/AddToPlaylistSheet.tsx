@@ -16,7 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '@/theme';
-import { SkeletonListItem } from '@/components/skeleton';
+import { SkeletonPlaylistPickRow } from '@/components/skeleton';
 import {
    BOTTOM_SHEET_SLIDE_SPRING,
    BOTTOM_SHEET_BACKDROP_FADE_MS,
@@ -220,7 +220,7 @@ export const AddToPlaylistSheet: React.FC<AddToPlaylistSheetProps> = ({
                <View style={styles.handle} />
                <Text style={styles.title}>Add to playlist</Text>
                {isLoading ? (
-                  <SkeletonListItem coverSize={40} count={4} />
+                  <SkeletonPlaylistPickRow count={4} />
                ) : playlists.length === 0 ? (
                   <Text style={styles.empty}>
                      Create a playlist in Library first.

@@ -1,28 +1,56 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { SkeletonBox } from './SkeletonBox';
+import { SkeletonBox, type SkeletonShape } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
-import { spacing } from '@/theme';
+import { borderRadius, colors, spacing } from '@/theme';
 
 interface SkeletonListItemProps {
    coverSize?: number;
+   coverWidth?: number;
+   coverHeight?: number;
+   shape?: SkeletonShape;
+   textLines?: 2 | 3;
+   trailingActionSize?: number;
+   showDivider?: boolean;
    count?: number;
 }
 
-export function SkeletonListItem({ coverSize = 56, count = 1 }: SkeletonListItemProps) {
+export function SkeletonListItem({
+   coverSize = 56,
+   coverWidth,
+   coverHeight,
+   shape = 'square',
+   textLines = 2,
+   trailingActionSize,
+   showDivider = false,
+   count = 1,
+}: SkeletonListItemProps) {
+   const width = coverWidth ?? coverSize;
+   const height = coverHeight ?? coverSize;
+
    return (
       <>
          {Array.from({ length: count }).map((_, index) => (
-            <View key={index} style={styles.row}>
-               <SkeletonBox
-                  width={coverSize}
-                  height={coverSize}
-                  borderRadius={coverSize <= 40 ? coverSize / 2 : 8}
-               />
-               <View style={styles.textBlock}>
-                  <SkeletonText width="75%" height={14} />
-                  <SkeletonText width="50%" height={12} style={styles.subtitle} />
+            <View key={index}>
+               <View style={styles.row}>
+                  <SkeletonBox
+                     shape={shape}
+                     width={width}
+                     height={height}
+                     borderRadius={shape === 'square' ? borderRadius.md : undefined}
+                  />
+                  <View style={styles.textBlock}>
+                     <SkeletonText width="75%" height={14} />
+                     <SkeletonText width="55%" height={12} style={styles.subtitle} />
+                     {textLines >= 3 ? (
+                        <SkeletonText width="40%" height={10} style={styles.subtitle} />
+                     ) : null}
+                  </View>
+                  {trailingActionSize ? (
+                     <SkeletonBox shape="circle" size={trailingActionSize} />
+                  ) : null}
                </View>
+               {showDivider ? <View style={styles.divider} /> : null}
             </View>
          ))}
       </>
@@ -43,5 +71,10 @@ const styles = StyleSheet.create({
    },
    subtitle: {
       marginTop: spacing.xs,
+   },
+   divider: {
+      height: 1,
+      backgroundColor: colors.background.input,
+      marginHorizontal: spacing.md,
    },
 });

@@ -22,7 +22,7 @@ import { ApiError } from '@/services/api';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { getPlanFeatureDescriptions } from '@/services/subscriptions';
 import { formatAccountDate, formatPlanPrice } from '@/utils/format';
-import { SkeletonProfileCard } from '@/components/skeleton';
+import { SkeletonMembershipCard } from '@/components/skeleton';
 import {
    setSkipDurationSeconds,
    type SkipDurationSeconds,
@@ -199,7 +199,7 @@ export default function AccountScreen() {
                      </View>
 
                      {isSubscriptionLoading ? (
-                        <SkeletonProfileCard />
+                        <SkeletonMembershipCard />
                      ) : subscriptionError ? null : !activeSubscription ? (
                         <Text style={styles.membershipEmptyText}>No active membership</Text>
                      ) : (

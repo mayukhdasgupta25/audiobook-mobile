@@ -9,19 +9,59 @@ import Animated, {
 } from 'react-native-reanimated';
 import { borderRadius, colors } from '@/theme';
 
+export type SkeletonShape = 'rectangle' | 'square' | 'circle';
+
 interface SkeletonBoxProps {
    width?: number | `${number}%`;
    height?: number;
    borderRadius?: number;
+   /** When set, derives dimensions and radius from shape rules. */
+   shape?: SkeletonShape;
+   /** Used with square/circle when width/height omitted. */
+   size?: number;
    style?: ViewStyle;
 }
 
-export function SkeletonBox({
-   width = '100%',
-   height = 16,
-   borderRadius: radius = borderRadius.sm,
-   style,
-}: SkeletonBoxProps) {
+function resolveSkeletonDimensions(props: SkeletonBoxProps): {
+   width: number | `${number}%`;
+   height: number;
+   radius: number;
+} {
+   const {
+      width = '100%',
+      height = 16,
+      borderRadius: radiusProp,
+      shape = 'rectangle',
+      size,
+   } = props;
+
+   if (shape === 'circle') {
+      const circleSize = size ?? (typeof width === 'number' ? width : height);
+      return {
+         width: circleSize,
+         height: circleSize,
+         radius: circleSize / 2,
+      };
+   }
+
+   if (shape === 'square') {
+      const squareSize = size ?? (typeof width === 'number' ? width : height);
+      return {
+         width: squareSize,
+         height: squareSize,
+         radius: radiusProp ?? borderRadius.md,
+      };
+   }
+
+   return {
+      width,
+      height,
+      radius: radiusProp ?? borderRadius.sm,
+   };
+}
+
+export function SkeletonBox(props: SkeletonBoxProps) {
+   const { width, height, radius } = resolveSkeletonDimensions(props);
    const opacity = useSharedValue(0.45);
 
    useEffect(() => {
@@ -42,7 +82,7 @@ export function SkeletonBox({
             styles.box,
             { width, height, borderRadius: radius },
             animatedStyle,
-            style,
+            props.style,
          ]}
       />
    );

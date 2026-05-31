@@ -22,7 +22,7 @@ import {
    NUM_COLUMNS,
 } from '@/components/AudiobookGridCard';
 import { colors, spacing, typography, borderRadius } from '@/theme';
-import { SkeletonGrid } from '@/components/skeleton';
+import { SkeletonGrid, SkeletonPublisherHeader } from '@/components/skeleton';
 
 export default function PublisherDetailScreen() {
    const params = useLocalSearchParams<{
@@ -114,7 +114,10 @@ export default function PublisherDetailScreen() {
          </View>
 
          {isLoading && allAudiobooks.length === 0 ? (
-            <SkeletonGrid rows={4} />
+            <>
+               <SkeletonPublisherHeader />
+               <SkeletonGrid rows={4} />
+            </>
          ) : (
             <FlatList
                data={allAudiobooks}

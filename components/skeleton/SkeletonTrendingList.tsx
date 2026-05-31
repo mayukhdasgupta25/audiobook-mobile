@@ -30,11 +30,7 @@ export function SkeletonTrendingList({ count = 3 }: SkeletonTrendingListProps) {
                   <SkeletonText width="90%" height={16} />
                   <SkeletonText width="60%" height={12} style={styles.authorLine} />
                </View>
-               <SkeletonBox
-                  width={PLAY_BUTTON_SIZE}
-                  height={PLAY_BUTTON_SIZE}
-                  borderRadius={PLAY_BUTTON_SIZE / 2}
-               />
+               <SkeletonBox shape="circle" size={PLAY_BUTTON_SIZE} />
             </View>
          ))}
       </View>
@@ -62,7 +58,8 @@ const styles = StyleSheet.create({
       flex: 1,
       justifyContent: 'center',
       paddingVertical: spacing.xs,
-      marginHorizontal: spacing.md,
+      marginLeft: spacing.md,
+      marginRight: spacing.sm,
    },
    authorLine: {
       marginTop: spacing.xs,

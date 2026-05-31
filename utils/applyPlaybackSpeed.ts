@@ -7,7 +7,7 @@ import { store } from '@/store';
 import { setPlaybackSpeed } from '@/store/settings';
 import type { PlaybackSpeed } from '@/constants/playbackSpeed';
 import { formatPlaybackSpeedLabel } from '@/constants/playbackSpeed';
-import { updateTrackPlayerOptions } from '@/hooks/useTrackPlayerSetup';
+import { updateTrackPlayerOptions } from '@/services/trackPlayerSetup';
 
 function buildNowPlayingArtistLine(speed: PlaybackSpeed): string {
    const playerState = store.getState().player;

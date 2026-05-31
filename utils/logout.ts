@@ -13,7 +13,7 @@ import { teardownTrackPlayerPlayback } from '@/services/playbackTeardown';
 import { logout as logoutApi, revokeGoogleSignInSession } from '@/services/auth';
 import { clearDeviceLocationCache } from '@/services/location';
 import { router } from 'expo-router';
-import { queryClient } from '@/app/_layout';
+import { queryClient } from '@/utils/queryClient';
 
 /**
  * Logout function that calls API and clears all state

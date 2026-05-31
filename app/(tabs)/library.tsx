@@ -99,6 +99,7 @@ function LibraryScreenContent() {
                isLoading={playlistsLoading}
                isEmpty={playlists.length === 0}
                emptyMessage="No playlists yet. Tap + to create one."
+               skeletonVariant="playlist"
             >
                {playlists.map((playlist) => (
                   <PlaylistCard
@@ -117,6 +118,7 @@ function LibraryScreenContent() {
                isLoading={favoritesLoading || favoriteBooksLoading}
                isEmpty={favorites.length === 0 && favoriteBooks.length === 0}
                emptyMessage="No favorites yet. Heart an audiobook to save it here."
+               skeletonVariant="favorite"
             >
                {favoriteBooks.map((book) => {
                   const coverPath = book.contentCardCoverImage || book.coverImage;
@@ -144,6 +146,7 @@ function LibraryScreenContent() {
                isLoading={bookmarksLoading}
                isEmpty={bookmarks.length === 0}
                emptyMessage="No bookmarks yet. Bookmark a chapter while listening."
+               skeletonVariant="bookmark"
             >
                {bookmarks.map((bookmark) => {
                   const audiobookId = getBookmarkAudiobookId(bookmark);
