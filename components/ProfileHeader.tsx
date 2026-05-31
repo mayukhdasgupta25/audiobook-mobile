@@ -8,7 +8,9 @@ import {
    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 interface ProfileHeaderProps {
    userName: string;
@@ -29,6 +31,87 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
    onSearchPress,
    onMenuPress,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.md,
+            backgroundColor: t.colors.background.dark,
+         },
+         userSection: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            flex: 1,
+            minWidth: 0, // Allow flex item to shrink below its content size
+         },
+         avatarContainer: {
+            marginRight: spacing.sm,
+         },
+         avatar: {
+            width: 80,
+            height: 80,
+            borderRadius: borderRadius.full,
+         },
+         avatarPlaceholder: {
+            backgroundColor: t.colors.primary[500],
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         avatarText: {
+            fontSize: typography.fontSize['2xl'],
+            fontWeight: '700',
+            color: t.colors.text.dark,
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '700',
+               },
+               android: {
+                  fontFamily: 'sans-serif',
+                  fontWeight: 'bold',
+               },
+            }),
+         },
+         nameContainer: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            flex: 1,
+            minWidth: 0, // Allow flex item to shrink below its content size
+         },
+         userName: {
+            fontSize: typography.fontSize['2xl'],
+            fontWeight: '600',
+            color: t.colors.text.dark,
+            letterSpacing: -0.3,
+            flexShrink: 1, // Allow text to shrink and truncate
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '600',
+               },
+               android: {
+                  fontFamily: 'sans-serif-medium',
+               },
+            }),
+         },
+         chevron: {
+            marginLeft: spacing.xs,
+         },
+         actionsContainer: {
+            flexDirection: 'row',
+            alignItems: 'center',
+         },
+         iconButton: {
+            marginLeft: spacing.md,
+            padding: spacing.xs,
+         },
+      })
+   );
+
    // Get user initials for placeholder
    const getInitials = (name: string): string => {
       const names = name.trim().split(' ');
@@ -89,82 +172,3 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       </View>
    );
 };
-
-const styles = StyleSheet.create({
-   container: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
-      backgroundColor: colors.background.dark,
-   },
-   userSection: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-      minWidth: 0, // Allow flex item to shrink below its content size
-   },
-   avatarContainer: {
-      marginRight: spacing.sm,
-   },
-   avatar: {
-      width: 80,
-      height: 80,
-      borderRadius: borderRadius.full,
-   },
-   avatarPlaceholder: {
-      backgroundColor: colors.primary[500],
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   avatarText: {
-      fontSize: typography.fontSize['2xl'],
-      fontWeight: '700',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '700',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-            fontWeight: 'bold',
-         },
-      }),
-   },
-   nameContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-      minWidth: 0, // Allow flex item to shrink below its content size
-   },
-   userName: {
-      fontSize: typography.fontSize['2xl'],
-      fontWeight: '600',
-      color: colors.text.dark,
-      letterSpacing: -0.3,
-      flexShrink: 1, // Allow text to shrink and truncate
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   chevron: {
-      marginLeft: spacing.xs,
-   },
-   actionsContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-   },
-   iconButton: {
-      marginLeft: spacing.md,
-      padding: spacing.xs,
-   },
-});
-

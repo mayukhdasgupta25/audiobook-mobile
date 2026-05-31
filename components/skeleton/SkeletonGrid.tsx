@@ -9,7 +9,8 @@ import {
    GRID_PADDING,
    NUM_COLUMNS,
 } from '@/components/AudiobookGridCard';
-import { borderRadius, colors, spacing } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { borderRadius, spacing } from '@/theme';
 
 interface SkeletonGridProps {
    rows?: number;
@@ -24,6 +25,31 @@ export function SkeletonGrid({ rows = 3, cardAspect }: SkeletonGridProps) {
       cardAspect !== undefined
          ? Math.round(cardWidth * cardAspect)
          : portraitCoverHeight(cardWidth);
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         grid: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            paddingHorizontal: GRID_PADDING,
+            gap: GRID_GAP,
+         },
+         card: {
+            marginBottom: spacing.xs,
+            borderRadius: borderRadius.md,
+            overflow: 'hidden',
+            backgroundColor: t.colors.background.card,
+         },
+         footer: {
+            paddingHorizontal: spacing.sm,
+            paddingVertical: spacing.sm,
+            alignItems: 'center',
+            gap: spacing.xs,
+         },
+         footerLine: {
+            marginTop: 2,
+         },
+      })
+   );
 
    return (
       <View style={styles.grid}>
@@ -43,27 +69,3 @@ export function SkeletonGrid({ rows = 3, cardAspect }: SkeletonGridProps) {
       </View>
    );
 }
-
-const styles = StyleSheet.create({
-   grid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      paddingHorizontal: GRID_PADDING,
-      gap: GRID_GAP,
-   },
-   card: {
-      marginBottom: spacing.xs,
-      borderRadius: borderRadius.md,
-      overflow: 'hidden',
-      backgroundColor: colors.background.card,
-   },
-   footer: {
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.sm,
-      alignItems: 'center',
-      gap: spacing.xs,
-   },
-   footerLine: {
-      marginTop: 2,
-   },
-});

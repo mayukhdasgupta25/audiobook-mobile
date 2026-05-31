@@ -8,7 +8,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import {
    getMembershipCrownColor,
    getMembershipLabel,
@@ -34,6 +36,70 @@ export const MembershipBanner: React.FC<MembershipBannerProps> = ({
    onUpgradePress,
    onPress,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: t.colors.membership.bannerBg,
+            borderRadius: borderRadius.lg,
+            padding: spacing.md,
+            marginHorizontal: spacing.md,
+            marginBottom: spacing.lg,
+         },
+         containerDrawer: {
+            marginHorizontal: spacing.md,
+            marginBottom: spacing.md,
+         },
+         iconCircle: {
+            width: 48,
+            height: 48,
+            borderRadius: borderRadius.full,
+            backgroundColor: t.colors.background.screen,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: spacing.md,
+         },
+         textBlock: {
+            flex: 1,
+            marginRight: spacing.sm,
+         },
+         title: {
+            fontSize: typography.fontSize.lg,
+            color: t.colors.membership.bannerText,
+            marginBottom: spacing.xs,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
+            }),
+         },
+         description: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.membership.bannerText,
+            lineHeight: typography.fontSize.sm * typography.lineHeight.normal,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '400' },
+               android: { fontFamily: 'sans-serif' },
+            }),
+         },
+         manageButton: {
+            backgroundColor: t.colors.accent.primaryDark,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+            borderRadius: borderRadius.md,
+         },
+         manageButtonText: {
+            color: t.colors.background.screen,
+            fontSize: typography.fontSize.sm,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '600' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+      })
+   );
+
    const isDrawer = variant === 'drawer';
    const isPremium = tier === 'premium';
    const isPaid = tier !== 'none';
@@ -104,64 +170,3 @@ export const MembershipBanner: React.FC<MembershipBannerProps> = ({
 
    return content;
 };
-
-const styles = StyleSheet.create({
-   container: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.membership.bannerBg,
-      borderRadius: borderRadius.lg,
-      padding: spacing.md,
-      marginHorizontal: spacing.md,
-      marginBottom: spacing.lg,
-   },
-   containerDrawer: {
-      marginHorizontal: spacing.md,
-      marginBottom: spacing.md,
-   },
-   iconCircle: {
-      width: 48,
-      height: 48,
-      borderRadius: borderRadius.full,
-      backgroundColor: colors.background.screen,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: spacing.md,
-   },
-   textBlock: {
-      flex: 1,
-      marginRight: spacing.sm,
-   },
-   title: {
-      fontSize: typography.fontSize.lg,
-      color: colors.membership.bannerText,
-      marginBottom: spacing.xs,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
-      }),
-   },
-   description: {
-      fontSize: typography.fontSize.sm,
-      color: colors.membership.bannerText,
-      lineHeight: typography.fontSize.sm * typography.lineHeight.normal,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '400' },
-         android: { fontFamily: 'sans-serif' },
-      }),
-   },
-   manageButton: {
-      backgroundColor: colors.accent.primaryDark,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: borderRadius.md,
-   },
-   manageButtonText: {
-      color: colors.background.screen,
-      fontSize: typography.fontSize.sm,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '600' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-});

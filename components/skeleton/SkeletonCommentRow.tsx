@@ -1,13 +1,42 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SkeletonText } from './SkeletonText';
-import { colors, spacing } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { spacing } from '@/theme';
 
 interface SkeletonCommentRowProps {
    count?: number;
 }
 
 export function SkeletonCommentRow({ count = 6 }: SkeletonCommentRowProps) {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         row: {
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: spacing.sm,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+         },
+         main: {
+            flex: 1,
+            minWidth: 0,
+         },
+         line: {
+            marginTop: spacing.xs,
+         },
+         actions: {
+            flexDirection: 'row',
+            gap: spacing.md,
+            marginTop: spacing.sm,
+         },
+         divider: {
+            height: 1,
+            backgroundColor: t.colors.background.highlight,
+         },
+      })
+   );
+
    return (
       <>
          {Array.from({ length: count }).map((_, index) => (
@@ -29,29 +58,3 @@ export function SkeletonCommentRow({ count = 6 }: SkeletonCommentRowProps) {
       </>
    );
 }
-
-const styles = StyleSheet.create({
-   row: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.sm,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-   },
-   main: {
-      flex: 1,
-      minWidth: 0,
-   },
-   line: {
-      marginTop: spacing.xs,
-   },
-   actions: {
-      flexDirection: 'row',
-      gap: spacing.md,
-      marginTop: spacing.sm,
-   },
-   divider: {
-      height: 1,
-      backgroundColor: colors.background.highlight,
-   },
-});

@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { formatTimestampForAt } from '@/utils/commentTimestamp';
 
 interface TimestampAtPickerProps {
@@ -17,6 +19,86 @@ export const TimestampAtPicker: React.FC<TimestampAtPickerProps> = ({
    onSelect,
    onDismiss,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            marginHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+            padding: spacing.md,
+            borderRadius: borderRadius.lg,
+            backgroundColor: t.colors.background.highlight,
+            ...Platform.select({
+               android: { elevation: 4 },
+               ios: {
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.08,
+                  shadowRadius: 4,
+               },
+            }),
+         },
+         header: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.sm,
+            marginBottom: spacing.sm,
+         },
+         headerTitle: {
+            flex: 1,
+            fontSize: typography.fontSize.sm,
+            fontWeight: '700',
+            color: t.colors.text.primary,
+         },
+         option: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.sm,
+            padding: spacing.sm,
+            borderRadius: borderRadius.md,
+            backgroundColor: t.colors.background.input,
+         },
+         optionIcon: {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: t.colors.background.input,
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         optionText: {
+            flex: 1,
+         },
+         optionTitle: {
+            fontSize: typography.fontSize.base,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+         },
+         optionSubtitle: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.accent.primary,
+            marginTop: 2,
+         },
+         unavailable: {
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: spacing.sm,
+            padding: spacing.sm,
+         },
+         unavailableText: {
+            flex: 1,
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            lineHeight: 20,
+         },
+         hint: {
+            fontSize: typography.fontSize.xs,
+            color: t.colors.text.muted,
+            marginTop: spacing.sm,
+         },
+      })
+   );
+
    const formatted = formatTimestampForAt(positionSeconds);
 
    return (
@@ -59,80 +141,3 @@ export const TimestampAtPicker: React.FC<TimestampAtPickerProps> = ({
       </View>
    );
 };
-
-const styles = StyleSheet.create({
-   container: {
-      marginHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-      padding: spacing.md,
-      borderRadius: borderRadius.lg,
-      backgroundColor: colors.background.highlight,
-      ...Platform.select({
-         android: { elevation: 4 },
-         ios: {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 4,
-         },
-      }),
-   },
-   header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      marginBottom: spacing.sm,
-   },
-   headerTitle: {
-      flex: 1,
-      fontSize: typography.fontSize.sm,
-      fontWeight: '700',
-      color: colors.text.primary,
-   },
-   option: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      padding: spacing.sm,
-      borderRadius: borderRadius.md,
-      backgroundColor: colors.background.input,
-   },
-   optionIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.background.input,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   optionText: {
-      flex: 1,
-   },
-   optionTitle: {
-      fontSize: typography.fontSize.base,
-      fontWeight: '600',
-      color: colors.text.primary,
-   },
-   optionSubtitle: {
-      fontSize: typography.fontSize.sm,
-      color: colors.accent.primary,
-      marginTop: 2,
-   },
-   unavailable: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.sm,
-      padding: spacing.sm,
-   },
-   unavailableText: {
-      flex: 1,
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      lineHeight: 20,
-   },
-   hint: {
-      fontSize: typography.fontSize.xs,
-      color: colors.text.muted,
-      marginTop: spacing.sm,
-   },
-});

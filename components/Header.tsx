@@ -3,7 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { RootState } from '@/store';
 
 interface HeaderProps {
@@ -24,6 +26,47 @@ const HeaderComponent: React.FC<HeaderProps> = ({
    onSearchPress,
    onNotificationPress,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            backgroundColor: t.colors.background.dark,
+            paddingHorizontal: spacing.md,
+            paddingTop: spacing.sm,
+            paddingBottom: spacing.md,
+         },
+         content: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+         },
+         greeting: {
+            fontSize: typography.fontSize.xl,
+            fontWeight: '600',
+            color: t.colors.text.dark,
+            letterSpacing: -0.3,
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '600',
+               },
+               android: {
+                  fontFamily: 'sans-serif-medium',
+               },
+            }),
+         },
+         iconsContainer: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.xs,
+            marginRight: -spacing.xs,
+         },
+         iconButton: {
+            padding: spacing.xs,
+         },
+      })
+   );
+
    // Get user profile from Redux
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
 
@@ -86,42 +129,3 @@ const HeaderComponent: React.FC<HeaderProps> = ({
 
 // Memoize component to prevent unnecessary re-renders when props haven't changed
 export const Header = React.memo(HeaderComponent);
-
-const styles = StyleSheet.create({
-   container: {
-      backgroundColor: colors.background.dark,
-      paddingHorizontal: spacing.md,
-      paddingTop: spacing.sm,
-      paddingBottom: spacing.md,
-   },
-   content: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-   },
-   greeting: {
-      fontSize: typography.fontSize.xl,
-      fontWeight: '600',
-      color: colors.text.dark,
-      letterSpacing: -0.3,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   iconsContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-      marginRight: -spacing.xs,
-   },
-   iconButton: {
-      padding: spacing.xs,
-   },
-});
-

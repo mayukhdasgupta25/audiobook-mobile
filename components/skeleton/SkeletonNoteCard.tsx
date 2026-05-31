@@ -2,13 +2,37 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
-import { borderRadius, colors, spacing } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { borderRadius, spacing } from '@/theme';
 
 interface SkeletonNoteCardProps {
    count?: number;
 }
 
 export function SkeletonNoteCard({ count = 4 }: SkeletonNoteCardProps) {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         card: {
+            backgroundColor: t.colors.background.card,
+            borderRadius: borderRadius.lg,
+            padding: spacing.md,
+            marginHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+         },
+         header: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+         },
+         timestamp: {
+            marginTop: spacing.xs,
+         },
+         bodyLine: {
+            marginTop: spacing.sm,
+         },
+      })
+   );
+
    return (
       <>
          {Array.from({ length: count }).map((_, index) => (
@@ -26,24 +50,3 @@ export function SkeletonNoteCard({ count = 4 }: SkeletonNoteCardProps) {
       </>
    );
 }
-
-const styles = StyleSheet.create({
-   card: {
-      backgroundColor: colors.background.card,
-      borderRadius: borderRadius.lg,
-      padding: spacing.md,
-      marginHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-   },
-   header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-   },
-   timestamp: {
-      marginTop: spacing.xs,
-   },
-   bodyLine: {
-      marginTop: spacing.sm,
-   },
-});

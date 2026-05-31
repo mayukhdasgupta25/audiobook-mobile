@@ -19,7 +19,9 @@ import {
    ProfileMenuSection,
    type ProfileMenuItem,
 } from '@/components/profile/ProfileMenuSection';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { logout } from '@/utils/logout';
 import { resolveAvatarUrl } from '@/utils/resolveAvatarUrl';
@@ -29,6 +31,38 @@ import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
 import { RootState } from '@/store';
 
 function ProfileScreenContent() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flex: 1,
+            backgroundColor: t.colors.background.screen,
+         },
+         scrollView: {
+            flex: 1,
+         },
+         scrollContent: {},
+         header: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: spacing.md,
+            paddingTop: spacing.sm,
+            paddingBottom: spacing.md,
+         },
+         headerTitle: {
+            fontSize: typography.fontSize['3xl'],
+            color: t.colors.text.primary,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
+            }),
+         },
+         settingsButton: {
+            padding: spacing.xs,
+         },
+      })
+   );
    const scrollRef = useRef<ScrollView>(null);
    const insets = useSafeAreaInsets();
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
@@ -100,7 +134,7 @@ function ProfileScreenContent() {
             iconColor: colors.iconForegrounds.green,
          },
       ],
-      []
+      [colors]
    );
 
    const accountItems: ProfileMenuItem[] = useMemo(
@@ -141,7 +175,7 @@ function ProfileScreenContent() {
             onPress: handleAccountPress,
          },
       ],
-      [handleAccountPress]
+      [colors, handleAccountPress]
    );
 
    const logOutItems: ProfileMenuItem[] = useMemo(
@@ -157,7 +191,7 @@ function ProfileScreenContent() {
             isDanger: true,
          },
       ],
-      [handleSignOutPress]
+      [colors, handleSignOutPress]
    );
 
    const scrollContentPadding = getTabScreenPaddingBottom(insets.bottom);
@@ -218,36 +252,6 @@ function ProfileScreenContent() {
       </SafeAreaView>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.screen,
-   },
-   scrollView: {
-      flex: 1,
-   },
-   scrollContent: {},
-   header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingTop: spacing.sm,
-      paddingBottom: spacing.md,
-   },
-   headerTitle: {
-      fontSize: typography.fontSize['3xl'],
-      color: colors.text.primary,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
-      }),
-   },
-   settingsButton: {
-      padding: spacing.xs,
-   },
-});
 
 export default function ProfileScreen() {
    return (

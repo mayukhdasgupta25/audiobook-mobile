@@ -1,10 +1,12 @@
 import { Stack } from 'expo-router';
-import { colors } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
 
 /**
  * Signup onboarding wizard stack (Age → Gender → Genres)
  */
 export default function OnboardingLayout() {
+   const { colors } = useTheme();
+
    return (
       <Stack
          screenOptions={{

@@ -16,7 +16,9 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { useQueries } from '@tanstack/react-query';
 import { RootState } from '@/store';
-import { colors, typography, spacing, borderRadius } from '@/theme';
+import { typography, spacing, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { Chapter, getChapters, initializePlaybackSession } from '@/services/audiobooks';
 import { useAudiobook } from '@/hooks/useAudiobook';
 import { useStreamingPlaylist } from '@/hooks/useStreamingPlaylist';
@@ -40,6 +42,521 @@ import { useReviewMutation } from '@/hooks/useReviewMutation';
 import { AddToPlaylistSheet } from '@/components/AddToPlaylistSheet';
 
 export default function DetailsScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+   container: {
+      flex: 1,
+      backgroundColor: t.colors.background.screen,
+   },
+   bookHeaderWrapper: {
+      flexShrink: 0,
+   },
+   tabSlideContainer: {
+      flex: 1,
+   },
+   topActions: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+   },
+   topActionsRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+   },
+   topIconButton: {
+      padding: spacing.xs,
+      marginLeft: spacing.xs,
+   },
+   bookRow: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+   },
+   bookCover: {
+      width: 88,
+      height: 88,
+      borderRadius: borderRadius.lg,
+      marginRight: spacing.md,
+   },
+   bookCoverPlaceholder: {
+      backgroundColor: t.colors.background.highlight,
+      alignItems: 'center',
+      justifyContent: 'center',
+   },
+   bookInfo: {
+      flex: 1,
+      justifyContent: 'center',
+   },
+   bookAuthor: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondary,
+      marginTop: spacing.xs,
+   },
+   ratingRow: {
+      flexDirection: 'row',
+      marginTop: spacing.xs,
+      gap: 2,
+   },
+   bookMeta: {
+      fontSize: typography.fontSize.xs,
+      color: t.colors.text.muted,
+      marginTop: spacing.xs,
+   },
+   actionButtons: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.md,
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+   },
+   playBtn: {
+      flex: 1,
+   },
+   downloadBtn: {
+      flex: 1,
+   },
+   aboutSection: {
+      padding: spacing.md,
+   },
+   aboutEmpty: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.secondary,
+      lineHeight: 22,
+   },
+   aboutDescription: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.primary,
+      lineHeight: 22,
+   },
+   scrollContent: {
+      // Base padding - will be overridden by dynamic padding based on player visibility
+   },
+   backButtonContainer: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 10,
+      paddingTop: Platform.OS === 'ios' ? 50 : 20,
+      paddingLeft: spacing.md,
+      paddingRight: spacing.md,
+   },
+   backButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...Platform.select({
+         ios: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+         },
+         android: {
+            elevation: 5,
+         },
+      }),
+   },
+   coverContainer: {
+      width: '100%',
+      height: 300,
+      backgroundColor: t.colors.background.darkGray,
+   },
+   coverImage: {
+      width: '100%',
+      height: '100%',
+   },
+   coverPlaceholder: {
+      justifyContent: 'center',
+      alignItems: 'center',
+   },
+   infoSection: {
+      padding: spacing.lg,
+      backgroundColor: t.colors.background.dark,
+   },
+   titleRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginBottom: spacing.md,
+      gap: spacing.md,
+   },
+   audiobookTitle: {
+      fontSize: typography.fontSize.lg,
+      color: t.colors.text.primary,
+      fontWeight: '600',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   genreBanner: {
+      backgroundColor: t.colors.app.red,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.md,
+      flexShrink: 0,
+   },
+   genreText: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.dark,
+      fontWeight: '600',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   genresContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.md,
+   },
+   genreChip: {
+      backgroundColor: t.colors.primary[100],
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.lg,
+   },
+   genreChipText: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.accent.primary,
+      fontWeight: '600',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '500',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   narrators: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.secondaryDark,
+      marginTop: spacing.md,
+      marginBottom: spacing.xs,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   metaDropdownContainer: {
+      marginTop: spacing.md,
+      overflow: 'hidden',
+      alignItems: 'center',
+      width: '100%',
+   },
+   metaDropdownButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      backgroundColor: t.colors.app.red,
+      borderRadius: borderRadius.md,
+      marginBottom: spacing.xs,
+      alignSelf: 'center',
+   },
+   metaDropdownButtonText: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.dark,
+      fontWeight: '500',
+      marginRight: spacing.xs,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '500',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   metaContent: {
+      width: '100%',
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.md,
+      backgroundColor: t.colors.neutral[800],
+      borderRadius: borderRadius.md,
+      overflow: 'hidden',
+      marginTop: spacing.xs,
+   },
+   metaEntry: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: spacing.sm,
+      gap: spacing.sm,
+   },
+   metaKey: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondaryDark,
+      fontWeight: '600',
+      minWidth: 100,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   metaValueText: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.dark,
+      flex: 1,
+      textAlign: 'left',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   description: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondary,
+      lineHeight: 20,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   metaContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.md,
+   },
+   metaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+   },
+   metaLabel: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondaryDark,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   metaValue: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.dark,
+      fontWeight: '600',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   chaptersSection: {
+      backgroundColor: t.colors.background.dark,
+      paddingTop: spacing.md,
+   },
+   chaptersTitle: {
+      fontSize: typography.fontSize.xl,
+      fontWeight: '600',
+      color: t.colors.text.dark,
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.md,
+      letterSpacing: -0.3,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   upgradeSection: {
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.md,
+      gap: spacing.sm,
+   },
+   upgradeBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: spacing.xs,
+      backgroundColor: t.colors.app.red,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.md,
+      ...Platform.select({
+         ios: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 3,
+         },
+         android: {
+            elevation: 5,
+         },
+      }),
+   },
+   upgradeBadgeText: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.dark,
+      fontWeight: '600',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   upgradeMessage: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondaryDark,
+      lineHeight: typography.lineHeight.relaxed * typography.fontSize.sm,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   emptyContainer: {
+      padding: spacing.xl,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 200,
+   },
+   emptyText: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.secondaryDark,
+      textAlign: 'center',
+      marginTop: spacing.md,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   errorText: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.app.red,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   footerLoader: {
+      padding: spacing.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+   },
+   bottomNavBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: t.colors.background.darkGray,
+      height: Platform.OS === 'ios' ? 90 : 70,
+      paddingTop: Platform.OS === 'ios' ? 10 : 5,
+      paddingBottom: Platform.OS === 'ios' ? 30 : 10,
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      zIndex: 100, // Below AudioPlayer (zIndex 1000) but above content
+      elevation: 100, // Android elevation (below AudioPlayer elevation 1000)
+      ...Platform.select({
+         ios: {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 3,
+         },
+         android: {
+            elevation: 3,
+         },
+      }),
+   },
+   navItem: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.xs,
+   },
+   navLabel: {
+      fontSize: typography.fontSize.xs,
+      fontWeight: '500',
+      marginTop: 4,
+      color: t.colors.text.secondaryDark,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '500',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+      })
+   );
+
    const { id, autoPlay } = useLocalSearchParams<{ id: string; autoPlay?: string }>();
    const [currentPage, setCurrentPage] = useState(1);
    const insets = useSafeAreaInsets();
@@ -775,515 +1292,4 @@ export default function DetailsScreen() {
       </>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.screen,
-   },
-   bookHeaderWrapper: {
-      flexShrink: 0,
-   },
-   tabSlideContainer: {
-      flex: 1,
-   },
-   topActions: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingTop: spacing.sm,
-   },
-   topActionsRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
-   },
-   topIconButton: {
-      padding: spacing.xs,
-      marginLeft: spacing.xs,
-   },
-   bookRow: {
-      flexDirection: 'row',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
-   },
-   bookCover: {
-      width: 88,
-      height: 88,
-      borderRadius: borderRadius.lg,
-      marginRight: spacing.md,
-   },
-   bookCoverPlaceholder: {
-      backgroundColor: colors.background.highlight,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   bookInfo: {
-      flex: 1,
-      justifyContent: 'center',
-   },
-   bookAuthor: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      marginTop: spacing.xs,
-   },
-   ratingRow: {
-      flexDirection: 'row',
-      marginTop: spacing.xs,
-      gap: 2,
-   },
-   bookMeta: {
-      fontSize: typography.fontSize.xs,
-      color: colors.text.muted,
-      marginTop: spacing.xs,
-   },
-   actionButtons: {
-      flexDirection: 'row',
-      paddingHorizontal: spacing.md,
-      gap: spacing.sm,
-      marginBottom: spacing.md,
-   },
-   playBtn: {
-      flex: 1,
-   },
-   downloadBtn: {
-      flex: 1,
-   },
-   aboutSection: {
-      padding: spacing.md,
-   },
-   aboutEmpty: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondary,
-      lineHeight: 22,
-   },
-   aboutDescription: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.primary,
-      lineHeight: 22,
-   },
-   scrollContent: {
-      // Base padding - will be overridden by dynamic padding based on player visibility
-   },
-   backButtonContainer: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 10,
-      paddingTop: Platform.OS === 'ios' ? 50 : 20,
-      paddingLeft: spacing.md,
-      paddingRight: spacing.md,
-   },
-   backButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      ...Platform.select({
-         ios: {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 3.84,
-         },
-         android: {
-            elevation: 5,
-         },
-      }),
-   },
-   coverContainer: {
-      width: '100%',
-      height: 300,
-      backgroundColor: colors.background.darkGray,
-   },
-   coverImage: {
-      width: '100%',
-      height: '100%',
-   },
-   coverPlaceholder: {
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   infoSection: {
-      padding: spacing.lg,
-      backgroundColor: colors.background.dark,
-   },
-   titleRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      justifyContent: 'space-between',
-      marginBottom: spacing.md,
-      gap: spacing.md,
-   },
-   audiobookTitle: {
-      fontSize: typography.fontSize.lg,
-      color: colors.text.primary,
-      fontWeight: '600',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   genreBanner: {
-      backgroundColor: colors.app.red,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: borderRadius.md,
-      flexShrink: 0,
-   },
-   genreText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.dark,
-      fontWeight: '600',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   genresContainer: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.md,
-   },
-   genreChip: {
-      backgroundColor: colors.primary[100],
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: borderRadius.lg,
-   },
-   genreChipText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.accent.primary,
-      fontWeight: '600',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '500',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   narrators: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      marginTop: spacing.md,
-      marginBottom: spacing.xs,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   metaDropdownContainer: {
-      marginTop: spacing.md,
-      overflow: 'hidden',
-      alignItems: 'center',
-      width: '100%',
-   },
-   metaDropdownButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.lg,
-      backgroundColor: colors.app.red,
-      borderRadius: borderRadius.md,
-      marginBottom: spacing.xs,
-      alignSelf: 'center',
-   },
-   metaDropdownButtonText: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.dark,
-      fontWeight: '500',
-      marginRight: spacing.xs,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '500',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   metaContent: {
-      width: '100%',
-      paddingHorizontal: spacing.md,
-      paddingTop: spacing.sm,
-      paddingBottom: spacing.md,
-      backgroundColor: colors.neutral[800],
-      borderRadius: borderRadius.md,
-      overflow: 'hidden',
-      marginTop: spacing.xs,
-   },
-   metaEntry: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      marginBottom: spacing.sm,
-      gap: spacing.sm,
-   },
-   metaKey: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      fontWeight: '600',
-      minWidth: 100,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   metaValueText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.dark,
-      flex: 1,
-      textAlign: 'left',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   description: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      lineHeight: 20,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   metaContainer: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.md,
-   },
-   metaItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-   },
-   metaLabel: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   metaValue: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.dark,
-      fontWeight: '600',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   chaptersSection: {
-      backgroundColor: colors.background.dark,
-      paddingTop: spacing.md,
-   },
-   chaptersTitle: {
-      fontSize: typography.fontSize.xl,
-      fontWeight: '600',
-      color: colors.text.dark,
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.md,
-      letterSpacing: -0.3,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   upgradeSection: {
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.md,
-      gap: spacing.sm,
-   },
-   upgradeBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      gap: spacing.xs,
-      backgroundColor: colors.app.red,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: borderRadius.md,
-      ...Platform.select({
-         ios: {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.3,
-            shadowRadius: 3,
-         },
-         android: {
-            elevation: 5,
-         },
-      }),
-   },
-   upgradeBadgeText: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.dark,
-      fontWeight: '600',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   upgradeMessage: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      lineHeight: typography.lineHeight.relaxed * typography.fontSize.sm,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   emptyContainer: {
-      padding: spacing.xl,
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 200,
-   },
-   emptyText: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      textAlign: 'center',
-      marginTop: spacing.md,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   errorText: {
-      fontSize: typography.fontSize.base,
-      color: colors.app.red,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   footerLoader: {
-      padding: spacing.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   bottomNavBar: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: colors.background.darkGray,
-      height: Platform.OS === 'ios' ? 90 : 70,
-      paddingTop: Platform.OS === 'ios' ? 10 : 5,
-      paddingBottom: Platform.OS === 'ios' ? 30 : 10,
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      alignItems: 'center',
-      zIndex: 100, // Below AudioPlayer (zIndex 1000) but above content
-      elevation: 100, // Android elevation (below AudioPlayer elevation 1000)
-      ...Platform.select({
-         ios: {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 3,
-         },
-         android: {
-            elevation: 3,
-         },
-      }),
-   },
-   navItem: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: spacing.xs,
-   },
-   navLabel: {
-      fontSize: typography.fontSize.xs,
-      fontWeight: '500',
-      marginTop: 4,
-      color: colors.text.secondaryDark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '500',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-});
+

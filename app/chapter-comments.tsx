@@ -29,7 +29,9 @@ import { TimestampNumericSuggestions } from '@/components/TimestampNumericSugges
 import { CommentItem } from '@/components/CommentItem';
 import { useCommentTimestampAt } from '@/hooks/useCommentTimestampAt';
 import { NoteCard } from '@/components/NoteCard';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { setMinimized, setUiSuppressed } from '@/store/player';
 import { getTabBarFloatBottom } from '@/theme/tabLayout';
 import { useComments, useCommentMutation } from '@/hooks/useComments';
@@ -59,6 +61,124 @@ function getKeyboardLift(event: KeyboardEvent): number {
 }
 
 export default function ChapterCommentsScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         flex: { flex: 1 },
+         dismissKeyboardArea: {
+            flex: 1,
+         },
+         container: {
+            flex: 1,
+            backgroundColor: t.colors.background.screen,
+         },
+         timestampBadge: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.xs,
+            marginHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+            paddingHorizontal: spacing.sm,
+            paddingVertical: spacing.xs,
+            borderRadius: borderRadius.md,
+            backgroundColor: t.colors.background.highlight,
+         },
+         timestampBadgeText: {
+            fontSize: typography.fontSize.xs,
+            color: t.colors.accent.primary,
+            fontWeight: '600',
+         },
+         emptyState: {
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: spacing.xl,
+         },
+         emptyTitle: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            marginTop: spacing.md,
+         },
+         emptyHint: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            textAlign: 'center',
+            marginTop: spacing.sm,
+         },
+         centered: {
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         loadMore: {
+            padding: spacing.lg,
+            alignItems: 'center',
+         },
+         loadMoreText: {
+            color: t.colors.accent.primary,
+            fontWeight: '600',
+         },
+         fab: {
+            position: 'absolute',
+            right: spacing.md,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: t.colors.accent.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+            elevation: 4,
+         },
+         modalBackdrop: {
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            justifyContent: 'center',
+            padding: spacing.lg,
+         },
+         modalCard: {
+            backgroundColor: t.colors.background.screen,
+            borderRadius: borderRadius.xl,
+            padding: spacing.lg,
+         },
+         modalTitle: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '700',
+            color: t.colors.text.primary,
+            marginBottom: spacing.md,
+         },
+         modalInput: {
+            borderRadius: borderRadius.md,
+            padding: spacing.md,
+            marginBottom: spacing.sm,
+            color: t.colors.text.primary,
+            backgroundColor: t.colors.background.input,
+         },
+         modalTextArea: {
+            minHeight: 100,
+            textAlignVertical: 'top',
+         },
+         modalActions: {
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+            gap: spacing.lg,
+            marginTop: spacing.md,
+         },
+         modalCancel: {
+            color: t.colors.text.secondary,
+         },
+         modalSave: {
+            backgroundColor: t.colors.accent.primary,
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.sm,
+            borderRadius: borderRadius.md,
+         },
+         modalSaveText: {
+            color: t.colors.text.light,
+            fontWeight: '600',
+         },
+      })
+   );
    const dispatch = useDispatch();
    const insets = useSafeAreaInsets();
    const params = useLocalSearchParams<{
@@ -365,7 +485,7 @@ export default function ChapterCommentsScreen() {
                   style={[styles.fab, { bottom: insets.bottom + getTabBarFloatBottom() + spacing.md }]}
                   onPress={() => setNoteModalVisible(true)}
                >
-                  <Ionicons name="add" size={28} color="#fff" />
+                  <Ionicons name="add" size={28} color={colors.text.light} />
                </TouchableOpacity>
             )}
 
@@ -411,119 +531,3 @@ export default function ChapterCommentsScreen() {
       </SafeAreaView>
    );
 }
-
-const styles = StyleSheet.create({
-   flex: { flex: 1 },
-   dismissKeyboardArea: {
-      flex: 1,
-   },
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.screen,
-   },
-   timestampBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-      marginHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs,
-      borderRadius: borderRadius.md,
-      backgroundColor: colors.background.highlight,
-   },
-   timestampBadgeText: {
-      fontSize: typography.fontSize.xs,
-      color: colors.accent.primary,
-      fontWeight: '600',
-   },
-   emptyState: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: spacing.xl,
-   },
-   emptyTitle: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.primary,
-      marginTop: spacing.md,
-   },
-   emptyHint: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      textAlign: 'center',
-      marginTop: spacing.sm,
-   },
-   centered: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   loadMore: {
-      padding: spacing.lg,
-      alignItems: 'center',
-   },
-   loadMoreText: {
-      color: colors.accent.primary,
-      fontWeight: '600',
-   },
-   fab: {
-      position: 'absolute',
-      right: spacing.md,
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: colors.accent.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      elevation: 4,
-   },
-   modalBackdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-      justifyContent: 'center',
-      padding: spacing.lg,
-   },
-   modalCard: {
-      backgroundColor: colors.background.screen,
-      borderRadius: borderRadius.xl,
-      padding: spacing.lg,
-   },
-   modalTitle: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '700',
-      color: colors.text.primary,
-      marginBottom: spacing.md,
-   },
-   modalInput: {
-      borderRadius: borderRadius.md,
-      padding: spacing.md,
-      marginBottom: spacing.sm,
-      color: colors.text.primary,
-      backgroundColor: colors.background.input,
-   },
-   modalTextArea: {
-      minHeight: 100,
-      textAlignVertical: 'top',
-   },
-   modalActions: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      gap: spacing.lg,
-      marginTop: spacing.md,
-   },
-   modalCancel: {
-      color: colors.text.secondary,
-   },
-   modalSave: {
-      backgroundColor: colors.accent.primary,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
-      borderRadius: borderRadius.md,
-   },
-   modalSaveText: {
-      color: '#fff',
-      fontWeight: '600',
-   },
-});

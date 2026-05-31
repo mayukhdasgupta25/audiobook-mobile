@@ -4,7 +4,9 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Bookmark } from '@/services/bookmarks';
 import { apiConfig } from '@/services/api';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import {
    getBookmarkAudiobookId,
    getBookmarkChapterTitle,
@@ -27,6 +29,73 @@ export const BookmarkChapterCard: React.FC<BookmarkChapterCardProps> = ({
    onPress,
    variant = 'card',
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         card: {
+            width: BOOKMARK_CARD_WIDTH,
+            marginRight: spacing.sm,
+            backgroundColor: t.colors.background.card,
+            borderRadius: borderRadius.lg,
+            overflow: 'hidden',
+         },
+         rowCard: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: spacing.md,
+            backgroundColor: t.colors.background.card,
+         },
+         rowCover: {
+            width: 56,
+            height: 56,
+            borderRadius: borderRadius.md,
+         },
+         rowTextBlock: {
+            flex: 1,
+            marginLeft: spacing.md,
+         },
+         rowDivider: {
+            height: 1,
+            backgroundColor: t.colors.background.highlight,
+         },
+         disabled: {
+            opacity: 0.7,
+         },
+         cover: {
+            width: '100%',
+            height: 88,
+         },
+         coverPlaceholder: {
+            backgroundColor: t.colors.background.input,
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         textBlock: {
+            padding: spacing.sm,
+            flex: 1,
+         },
+         chapterLabel: {
+            fontSize: typography.fontSize.xs,
+            color: t.colors.accent.primary,
+            fontWeight: '600',
+            marginBottom: 2,
+         },
+         chapterTitle: {
+            fontSize: typography.fontSize.sm,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            ...Platform.select({
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         audiobookTitle: {
+            fontSize: typography.fontSize.xs,
+            color: t.colors.text.secondary,
+            marginTop: 2,
+         },
+      })
+   );
+
    const audiobookId = getBookmarkAudiobookId(bookmark);
    const coverPath = getBookmarkCoverPath(bookmark);
    const coverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
@@ -106,67 +175,3 @@ export const BookmarkChapterCard: React.FC<BookmarkChapterCardProps> = ({
       </TouchableOpacity>
    );
 };
-
-const styles = StyleSheet.create({
-   card: {
-      width: BOOKMARK_CARD_WIDTH,
-      marginRight: spacing.sm,
-      backgroundColor: colors.background.card,
-      borderRadius: borderRadius.lg,
-      overflow: 'hidden',
-   },
-   rowCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: spacing.md,
-      backgroundColor: colors.background.card,
-   },
-   rowCover: {
-      width: 56,
-      height: 56,
-      borderRadius: borderRadius.md,
-   },
-   rowTextBlock: {
-      flex: 1,
-      marginLeft: spacing.md,
-   },
-   rowDivider: {
-      height: 1,
-      backgroundColor: colors.background.highlight,
-   },
-   disabled: {
-      opacity: 0.7,
-   },
-   cover: {
-      width: '100%',
-      height: 88,
-   },
-   coverPlaceholder: {
-      backgroundColor: colors.background.input,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   textBlock: {
-      padding: spacing.sm,
-      flex: 1,
-   },
-   chapterLabel: {
-      fontSize: typography.fontSize.xs,
-      color: colors.accent.primary,
-      fontWeight: '600',
-      marginBottom: 2,
-   },
-   chapterTitle: {
-      fontSize: typography.fontSize.sm,
-      fontWeight: '600',
-      color: colors.text.primary,
-      ...Platform.select({
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   audiobookTitle: {
-      fontSize: typography.fontSize.xs,
-      color: colors.text.secondary,
-      marginTop: 2,
-   },
-});

@@ -1,6 +1,8 @@
 import React from 'react';
 import { TextInput, StyleSheet, Platform } from 'react-native';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 interface CommentTimestampInputProps {
    value: string;
@@ -16,6 +18,26 @@ export const CommentTimestampInput: React.FC<CommentTimestampInputProps> = ({
    placeholder = 'Share your thoughts...',
    editable = true,
 }) => {
+   const { colors, isDark } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         input: {
+            flex: 1,
+            minHeight: 48,
+            fontSize: typography.fontSize.base,
+            lineHeight: 22,
+            color: t.colors.text.primary,
+            backgroundColor: 'transparent',
+            paddingHorizontal: spacing.md,
+            paddingVertical: Platform.OS === 'ios' ? spacing.md : spacing.sm,
+         },
+         androidInput: {
+            includeFontPadding: false,
+            textAlignVertical: 'center',
+         },
+      })
+   );
+
    return (
       <TextInput
          style={[styles.input, Platform.OS === 'android' && styles.androidInput]}
@@ -24,27 +46,10 @@ export const CommentTimestampInput: React.FC<CommentTimestampInputProps> = ({
          placeholder={placeholder}
          placeholderTextColor={colors.text.muted}
          editable={editable}
-         keyboardAppearance="light"
+         keyboardAppearance={isDark ? 'dark' : 'light'}
          selectionColor={colors.accent.primary}
          cursorColor={colors.accent.primary}
          underlineColorAndroid="transparent"
       />
    );
 };
-
-const styles = StyleSheet.create({
-   input: {
-      flex: 1,
-      minHeight: 48,
-      fontSize: typography.fontSize.base,
-      lineHeight: 22,
-      color: colors.text.primary,
-      backgroundColor: 'transparent',
-      paddingHorizontal: spacing.md,
-      paddingVertical: Platform.OS === 'ios' ? spacing.md : spacing.sm,
-   },
-   androidInput: {
-      includeFontPadding: false,
-      textAlignVertical: 'center',
-   },
-});

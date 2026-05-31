@@ -9,7 +9,9 @@ import {
    Pressable,
    ActivityIndicator,
 } from 'react-native';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 interface CreatePlaylistModalProps {
    visible: boolean;
@@ -24,6 +26,64 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
    onCreate,
    isPending,
 }) => {
+   const { colors, isDark } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         backdrop: {
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.45)',
+            justifyContent: 'center',
+            padding: spacing.lg,
+         },
+         card: {
+            backgroundColor: t.colors.background.screen,
+            borderRadius: borderRadius.xl,
+            padding: spacing.lg,
+         },
+         title: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '700',
+            color: t.colors.text.primary,
+            marginBottom: spacing.md,
+         },
+         input: {
+            borderRadius: borderRadius.md,
+            padding: spacing.md,
+            marginBottom: spacing.sm,
+            color: t.colors.text.primary,
+            backgroundColor: t.colors.background.input,
+         },
+         textArea: {
+            minHeight: 80,
+            textAlignVertical: 'top',
+         },
+         actions: {
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+            gap: spacing.md,
+            marginTop: spacing.md,
+         },
+         cancelBtn: {
+            padding: spacing.sm,
+         },
+         cancelText: {
+            color: t.colors.text.secondary,
+         },
+         createBtn: {
+            backgroundColor: t.colors.accent.primary,
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.sm,
+            borderRadius: borderRadius.md,
+            minWidth: 88,
+            alignItems: 'center',
+         },
+         createText: {
+            color: '#fff',
+            fontWeight: '600',
+         },
+      })
+   );
+
    const [name, setName] = useState('');
    const [description, setDescription] = useState('');
 
@@ -46,6 +106,7 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
                   placeholderTextColor={colors.text.muted}
                   value={name}
                   onChangeText={setName}
+                  keyboardAppearance={isDark ? 'dark' : 'light'}
                />
                <TextInput
                   style={[styles.input, styles.textArea]}
@@ -54,6 +115,7 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
                   value={description}
                   onChangeText={setDescription}
                   multiline
+                  keyboardAppearance={isDark ? 'dark' : 'light'}
                />
                <View style={styles.actions}>
                   <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
@@ -76,58 +138,3 @@ export const CreatePlaylistModal: React.FC<CreatePlaylistModalProps> = ({
       </Modal>
    );
 };
-
-const styles = StyleSheet.create({
-   backdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      justifyContent: 'center',
-      padding: spacing.lg,
-   },
-   card: {
-      backgroundColor: colors.background.screen,
-      borderRadius: borderRadius.xl,
-      padding: spacing.lg,
-   },
-   title: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '700',
-      color: colors.text.primary,
-      marginBottom: spacing.md,
-   },
-   input: {
-      borderRadius: borderRadius.md,
-      padding: spacing.md,
-      marginBottom: spacing.sm,
-      color: colors.text.primary,
-      backgroundColor: colors.background.input,
-   },
-   textArea: {
-      minHeight: 80,
-      textAlignVertical: 'top',
-   },
-   actions: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      gap: spacing.md,
-      marginTop: spacing.md,
-   },
-   cancelBtn: {
-      padding: spacing.sm,
-   },
-   cancelText: {
-      color: colors.text.secondary,
-   },
-   createBtn: {
-      backgroundColor: colors.accent.primary,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
-      borderRadius: borderRadius.md,
-      minWidth: 88,
-      alignItems: 'center',
-   },
-   createText: {
-      color: '#fff',
-      fontWeight: '600',
-   },
-});

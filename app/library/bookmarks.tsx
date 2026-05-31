@@ -15,9 +15,41 @@ import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePlayBookmarkChapter } from '@/hooks/usePlayBookmarkChapter';
 import { Bookmark } from '@/services/bookmarks';
 import { getBookmarkAudiobookId } from '@/utils/bookmarkDisplay';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 export default function LibraryBookmarksScreen() {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flex: 1,
+            backgroundColor: t.colors.background.screen,
+         },
+         listContent: {
+            paddingBottom: spacing.xxl,
+            flexGrow: 1,
+         },
+         center: {
+            padding: spacing.xxl,
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         emptyText: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            ...Platform.select({
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         emptyHint: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            marginTop: spacing.sm,
+            textAlign: 'center',
+         },
+      })
+   );
    const { data, isLoading } = useBookmarks();
    const bookmarks = data?.data ?? [];
    const { playBookmark } = usePlayBookmarkChapter();
@@ -63,33 +95,3 @@ export default function LibraryBookmarksScreen() {
       </SafeAreaView>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.screen,
-   },
-   listContent: {
-      paddingBottom: spacing.xxl,
-      flexGrow: 1,
-   },
-   center: {
-      padding: spacing.xxl,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   emptyText: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.primary,
-      ...Platform.select({
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   emptyHint: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      marginTop: spacing.sm,
-      textAlign: 'center',
-   },
-});

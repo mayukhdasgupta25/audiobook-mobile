@@ -15,10 +15,60 @@ import { PlaylistCard, PLAYLIST_CARD_WIDTH } from '@/components/PlaylistCard';
 import { CreatePlaylistModal } from '@/components/CreatePlaylistModal';
 import { SkeletonPlaylistGrid } from '@/components/skeleton';
 import { usePlaylists, usePlaylistMutations } from '@/hooks/usePlaylists';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { GRID_GAP, GRID_PADDING, NUM_COLUMNS } from '@/components/AudiobookGridCard';
 
 export default function LibraryPlaylistsScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flex: 1,
+            backgroundColor: t.colors.background.screen,
+         },
+         addButton: {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: t.colors.accent.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         listContent: {
+            paddingHorizontal: GRID_PADDING,
+            paddingBottom: spacing.xxl,
+         },
+         columnWrapper: {
+            gap: GRID_GAP,
+            marginBottom: GRID_GAP,
+         },
+         gridItem: {
+            width: PLAYLIST_CARD_WIDTH,
+         },
+         center: {
+            flex: 1,
+            padding: spacing.xxl,
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         emptyText: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            ...Platform.select({
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         emptyHint: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            marginTop: spacing.sm,
+            textAlign: 'center',
+         },
+      })
+   );
    const [createModalVisible, setCreateModalVisible] = useState(false);
    const { data, isLoading } = usePlaylists();
    const { create } = usePlaylistMutations();
@@ -62,7 +112,7 @@ export default function LibraryPlaylistsScreen() {
                   style={styles.addButton}
                   activeOpacity={0.8}
                >
-                  <Ionicons name="add" size={24} color="#fff" />
+                  <Ionicons name="add" size={24} color={colors.text.light} />
                </TouchableOpacity>
             }
          />
@@ -95,49 +145,3 @@ export default function LibraryPlaylistsScreen() {
       </SafeAreaView>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.screen,
-   },
-   addButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.accent.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   listContent: {
-      paddingHorizontal: GRID_PADDING,
-      paddingBottom: spacing.xxl,
-   },
-   columnWrapper: {
-      gap: GRID_GAP,
-      marginBottom: GRID_GAP,
-   },
-   gridItem: {
-      width: PLAYLIST_CARD_WIDTH,
-   },
-   center: {
-      flex: 1,
-      padding: spacing.xxl,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   emptyText: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.primary,
-      ...Platform.select({
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   emptyHint: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      marginTop: spacing.sm,
-      textAlign: 'center',
-   },
-});

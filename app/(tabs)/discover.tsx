@@ -16,13 +16,105 @@ import { MoodChip } from '@/components/MoodChip';
 import { useMoods } from '@/hooks/useMoods';
 import { ContentRow, ContentItem } from '@/components/ContentRow';
 import { SkeletonMoodChips, SkeletonDiscoverTrendingRow, SkeletonContentRow } from '@/components/skeleton';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { useHomeContent } from '@/hooks/useHomeContent';
 import { apiConfig } from '@/services/api';
 import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
 
 function DiscoverScreenContent() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flex: 1,
+            backgroundColor: t.colors.background.screen,
+         },
+         header: {
+            paddingHorizontal: spacing.md,
+            paddingTop: spacing.md,
+            paddingBottom: spacing.sm,
+         },
+         title: {
+            fontSize: typography.fontSize['2xl'],
+            fontWeight: '700',
+            color: t.colors.text.primary,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         subtitle: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            marginTop: spacing.xs,
+         },
+         sectionTitle: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+            marginTop: spacing.md,
+         },
+         moodRow: {
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.md,
+         },
+         trendingRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+         },
+         rowDivider: {
+            height: 1,
+            backgroundColor: t.colors.background.highlight,
+         },
+         cover: {
+            width: 48,
+            height: 48,
+            borderRadius: borderRadius.md,
+            marginRight: spacing.md,
+         },
+         coverPlaceholder: {
+            backgroundColor: t.colors.background.highlight,
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         coverLetter: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '700',
+            color: t.colors.accent.primary,
+         },
+         trendingInfo: {
+            flex: 1,
+         },
+         trendingTitle: {
+            fontSize: typography.fontSize.base,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+         },
+         trendingAuthor: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            marginTop: 2,
+         },
+         playButton: {
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: t.colors.primary[50],
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         loader: {
+            marginVertical: spacing.xl,
+         },
+      })
+   );
    const scrollRef = useRef<ScrollView>(null);
    const insets = useSafeAreaInsets();
    const { contentRows, isLoading, heroCarouselItems } = useHomeContent();
@@ -149,91 +241,3 @@ export default function DiscoverScreen() {
       </AnimatedTabScreen>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.screen,
-   },
-   header: {
-      paddingHorizontal: spacing.md,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.sm,
-   },
-   title: {
-      fontSize: typography.fontSize['2xl'],
-      fontWeight: '700',
-      color: colors.text.primary,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   subtitle: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      marginTop: spacing.xs,
-   },
-   sectionTitle: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.primary,
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-      marginTop: spacing.md,
-   },
-   moodRow: {
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.md,
-   },
-   trendingRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-   },
-   rowDivider: {
-      height: 1,
-      backgroundColor: colors.background.highlight,
-   },
-   cover: {
-      width: 48,
-      height: 48,
-      borderRadius: borderRadius.md,
-      marginRight: spacing.md,
-   },
-   coverPlaceholder: {
-      backgroundColor: colors.background.highlight,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   coverLetter: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '700',
-      color: colors.accent.primary,
-   },
-   trendingInfo: {
-      flex: 1,
-   },
-   trendingTitle: {
-      fontSize: typography.fontSize.base,
-      fontWeight: '600',
-      color: colors.text.primary,
-   },
-   trendingAuthor: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      marginTop: 2,
-   },
-   playButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: colors.primary[50],
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   loader: {
-      marginVertical: spacing.xl,
-   },
-});

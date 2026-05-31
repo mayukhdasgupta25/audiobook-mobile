@@ -18,7 +18,9 @@ import { MoodChip } from '@/components/MoodChip';
 import { useMoods } from '@/hooks/useMoods';
 import { ContentRow, ContentItem } from '@/components/ContentRow';
 import { DrawerMenu } from '@/components/DrawerMenu';
-import { colors, spacing, typography, borderRadius, shadows } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { useHomeContent } from '@/hooks/useHomeContent';
 import { useTimeOfDay } from '@/hooks/useTimeOfDay';
@@ -46,6 +48,178 @@ const HEADER_ICON_BUTTON_SIZE = HEADER_ICON_SIZE + HEADER_ICON_HIT_SLOP * 2;
 const TOP_BAR_HEIGHT = HEADER_ICON_BUTTON_SIZE + spacing.sm * 2;
 
 function HomeScreenContent() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flex: 1,
+            backgroundColor: t.colors.background.screen,
+         },
+         scrollView: {
+            flex: 1,
+         },
+         scrollContent: {
+            paddingTop: spacing.xs,
+         },
+         topBar: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            height: TOP_BAR_HEIGHT,
+            paddingHorizontal: spacing.md,
+         },
+         iconButton: {
+            width: HEADER_ICON_BUTTON_SIZE,
+            height: HEADER_ICON_BUTTON_SIZE,
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         greetingSection: {
+            paddingHorizontal: spacing.md,
+            paddingBottom: spacing.md,
+         },
+         greeting: {
+            fontSize: typography.fontSize['2xl'],
+            fontWeight: '700',
+            color: t.colors.text.primary,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         greetingSubtitle: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.secondary,
+            marginTop: spacing.xs,
+         },
+         searchBar: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: t.colors.background.input,
+            borderRadius: borderRadius.lg,
+            marginHorizontal: spacing.md,
+            marginBottom: spacing.lg,
+            paddingHorizontal: spacing.md,
+            height: 48,
+            gap: spacing.sm,
+         },
+         searchPlaceholder: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.muted,
+            flex: 1,
+         },
+         section: {
+            marginBottom: spacing.lg,
+         },
+         sectionHeader: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+         },
+         sectionTitle: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '600' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         sectionTitlePadded: {
+            marginBottom: spacing.sm,
+         },
+         viewAll: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.accent.primary,
+            fontWeight: '500',
+         },
+         moodRow: {
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.xs,
+         },
+         trendingSection: {
+            marginBottom: 0,
+         },
+         trendingList: {
+            paddingHorizontal: spacing.md,
+         },
+         trendingCard: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            minHeight: 112,
+            padding: spacing.md,
+            marginBottom: spacing.sm,
+            borderRadius: borderRadius.xl,
+            backgroundColor: t.colors.background.card,
+            ...t.shadows.sm,
+         },
+         trendingCardLast: {
+            marginBottom: 0,
+         },
+         trendingCardCover: {
+            width: 72,
+            height: 96,
+            borderRadius: borderRadius.lg,
+            marginRight: spacing.md,
+         },
+         trendingCardBody: {
+            flex: 1,
+            justifyContent: 'center',
+            paddingVertical: spacing.xs,
+            marginRight: spacing.sm,
+         },
+         trendingCoverPlaceholder: {
+            backgroundColor: t.colors.background.highlight,
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         trendingCoverLetter: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '700',
+            color: t.colors.accent.primary,
+         },
+         trendingTitle: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            lineHeight: typography.fontSize.lg * 1.3,
+         },
+         trendingAuthor: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            marginTop: spacing.xs,
+         },
+         trendingPlay: {
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: t.colors.primary[50],
+            alignItems: 'center',
+            justifyContent: 'center',
+            alignSelf: 'center',
+         },
+         loadingContainer: {
+            padding: spacing.xl,
+            alignItems: 'center',
+         },
+         loadingText: {
+            marginTop: spacing.md,
+            color: t.colors.text.secondary,
+         },
+         errorContainer: {
+            padding: spacing.xl,
+            alignItems: 'center',
+         },
+         errorText: {
+            color: t.colors.error,
+            textAlign: 'center',
+         },
+      })
+   );
    const paginationTriggeredRef = useRef<Record<string, boolean>>({});
    const scrollRef = useRef<ScrollView>(null);
    const insets = useSafeAreaInsets();
@@ -452,173 +626,3 @@ export default function HomeScreen() {
       </AnimatedTabScreen>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.screen,
-   },
-   scrollView: {
-      flex: 1,
-   },
-   scrollContent: {
-      paddingTop: spacing.xs,
-   },
-   topBar: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      height: TOP_BAR_HEIGHT,
-      paddingHorizontal: spacing.md,
-   },
-   iconButton: {
-      width: HEADER_ICON_BUTTON_SIZE,
-      height: HEADER_ICON_BUTTON_SIZE,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   greetingSection: {
-      paddingHorizontal: spacing.md,
-      paddingBottom: spacing.md,
-   },
-   greeting: {
-      fontSize: typography.fontSize['2xl'],
-      fontWeight: '700',
-      color: colors.text.primary,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   greetingSubtitle: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondary,
-      marginTop: spacing.xs,
-   },
-   searchBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.background.input,
-      borderRadius: borderRadius.lg,
-      marginHorizontal: spacing.md,
-      marginBottom: spacing.lg,
-      paddingHorizontal: spacing.md,
-      height: 48,
-      gap: spacing.sm,
-   },
-   searchPlaceholder: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.muted,
-      flex: 1,
-   },
-   section: {
-      marginBottom: spacing.lg,
-   },
-   sectionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-   },
-   sectionTitle: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.primary,
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '600' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   sectionTitlePadded: {
-      marginBottom: spacing.sm,
-   },
-   viewAll: {
-      fontSize: typography.fontSize.sm,
-      color: colors.accent.primary,
-      fontWeight: '500',
-   },
-   moodRow: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-   },
-   trendingSection: {
-      marginBottom: 0,
-   },
-   trendingList: {
-      paddingHorizontal: spacing.md,
-   },
-   trendingCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      minHeight: 112,
-      padding: spacing.md,
-      marginBottom: spacing.sm,
-      borderRadius: borderRadius.xl,
-      backgroundColor: colors.background.card,
-      ...shadows.sm,
-   },
-   trendingCardLast: {
-      marginBottom: 0,
-   },
-   trendingCardCover: {
-      width: 72,
-      height: 96,
-      borderRadius: borderRadius.lg,
-      marginRight: spacing.md,
-   },
-   trendingCardBody: {
-      flex: 1,
-      justifyContent: 'center',
-      paddingVertical: spacing.xs,
-      marginRight: spacing.sm,
-   },
-   trendingCoverPlaceholder: {
-      backgroundColor: colors.background.highlight,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   trendingCoverLetter: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '700',
-      color: colors.accent.primary,
-   },
-   trendingTitle: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.primary,
-      lineHeight: typography.fontSize.lg * 1.3,
-   },
-   trendingAuthor: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      marginTop: spacing.xs,
-   },
-   trendingPlay: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.primary[50],
-      alignItems: 'center',
-      justifyContent: 'center',
-      alignSelf: 'center',
-   },
-   loadingContainer: {
-      padding: spacing.xl,
-      alignItems: 'center',
-   },
-   loadingText: {
-      marginTop: spacing.md,
-      color: colors.text.secondary,
-   },
-   errorContainer: {
-      padding: spacing.xl,
-      alignItems: 'center',
-   },
-   errorText: {
-      color: colors.error,
-      textAlign: 'center',
-   },
-});

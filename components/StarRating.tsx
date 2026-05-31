@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface StarRatingProps {
    rating: number;
@@ -22,6 +22,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
    interactive = false,
    onRate,
 }) => {
+   const { colors } = useTheme();
    const displayRating = clampRating(rating, maxStars);
 
    const handlePress = useCallback(

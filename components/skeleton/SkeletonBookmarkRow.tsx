@@ -2,7 +2,8 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
-import { borderRadius, colors, spacing } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { borderRadius, spacing } from '@/theme';
 
 interface SkeletonBookmarkRowProps {
    count?: number;
@@ -10,6 +11,29 @@ interface SkeletonBookmarkRowProps {
 
 /** Full-width bookmark list row skeleton. */
 export function SkeletonBookmarkRow({ count = 6 }: SkeletonBookmarkRowProps) {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         row: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: spacing.md,
+            backgroundColor: t.colors.background.card,
+         },
+         textBlock: {
+            flex: 1,
+            marginLeft: spacing.md,
+            gap: spacing.xs,
+         },
+         line: {
+            marginTop: spacing.xs,
+         },
+         divider: {
+            height: 1,
+            backgroundColor: t.colors.background.highlight,
+         },
+      })
+   );
+
    return (
       <>
          {Array.from({ length: count }).map((_, index) => (
@@ -28,24 +52,3 @@ export function SkeletonBookmarkRow({ count = 6 }: SkeletonBookmarkRowProps) {
       </>
    );
 }
-
-const styles = StyleSheet.create({
-   row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: spacing.md,
-      backgroundColor: colors.background.card,
-   },
-   textBlock: {
-      flex: 1,
-      marginLeft: spacing.md,
-      gap: spacing.xs,
-   },
-   line: {
-      marginTop: spacing.xs,
-   },
-   divider: {
-      height: 1,
-      backgroundColor: colors.background.highlight,
-   },
-});

@@ -9,7 +9,9 @@ import {
    ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 interface PrimaryButtonProps {
    title: string;
@@ -32,73 +34,78 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
    testID,
    icon,
    variant = 'filled',
-}) => (
-   <TouchableOpacity
-      style={[
-         styles.button,
-         variant === 'outline' && styles.buttonOutline,
-         (disabled || loading) && styles.disabled,
-         style,
-      ]}
-      onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.8}
-      testID={testID}
-   >
-      {loading ? (
-         <ActivityIndicator
-            color={variant === 'outline' ? colors.accent.primary : '#FFFFFF'}
-         />
-      ) : (
-         <View style={styles.content}>
-            {icon ? (
-               <Ionicons
-                  name={icon}
-                  size={20}
-                  color={variant === 'outline' ? colors.accent.primary : '#FFFFFF'}
-                  style={styles.icon}
-               />
-            ) : null}
-            <Text style={[styles.text, variant === 'outline' && styles.textOutline]}>{title}</Text>
-         </View>
-      )}
-   </TouchableOpacity>
-);
+}) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         button: {
+            backgroundColor: t.colors.accent.primary,
+            borderRadius: borderRadius.lg,
+            paddingVertical: spacing.md,
+            paddingHorizontal: spacing.lg,
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 48,
+         },
+         buttonOutline: {
+            backgroundColor: t.colors.primary[50],
+         },
+         disabled: {
+            opacity: 0.5,
+         },
+         content: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         icon: {
+            marginRight: spacing.sm,
+         },
+         text: {
+            color: '#FFFFFF',
+            fontSize: typography.fontSize.base,
+            fontWeight: '600',
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '600' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         textOutline: {
+            color: t.colors.accent.primary,
+         },
+      })
+   );
 
-const styles = StyleSheet.create({
-   button: {
-      backgroundColor: colors.accent.primary,
-      borderRadius: borderRadius.lg,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 48,
-   },
-   buttonOutline: {
-      backgroundColor: colors.primary[50],
-   },
-   disabled: {
-      opacity: 0.5,
-   },
-   content: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   icon: {
-      marginRight: spacing.sm,
-   },
-   text: {
-      color: '#FFFFFF',
-      fontSize: typography.fontSize.base,
-      fontWeight: '600',
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '600' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   textOutline: {
-      color: colors.accent.primary,
-   },
-});
+   return (
+      <TouchableOpacity
+         style={[
+            styles.button,
+            variant === 'outline' && styles.buttonOutline,
+            (disabled || loading) && styles.disabled,
+            style,
+         ]}
+         onPress={onPress}
+         disabled={disabled || loading}
+         activeOpacity={0.8}
+         testID={testID}
+      >
+         {loading ? (
+            <ActivityIndicator
+               color={variant === 'outline' ? colors.accent.primary : '#FFFFFF'}
+            />
+         ) : (
+            <View style={styles.content}>
+               {icon ? (
+                  <Ionicons
+                     name={icon}
+                     size={20}
+                     color={variant === 'outline' ? colors.accent.primary : '#FFFFFF'}
+                     style={styles.icon}
+                  />
+               ) : null}
+               <Text style={[styles.text, variant === 'outline' && styles.textOutline]}>{title}</Text>
+            </View>
+         )}
+      </TouchableOpacity>
+   );
+};

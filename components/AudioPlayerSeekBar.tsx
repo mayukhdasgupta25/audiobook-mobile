@@ -12,7 +12,8 @@ import {
    progressToSeekSeconds,
 } from '@/utils/playbackPosition';
 import { formatDuration } from '@/utils/duration';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 const PROGRESS_BAR_HEIGHT = 5;
 const PROGRESS_HANDLE_SIZE = 20;
@@ -48,6 +49,73 @@ export const AudioPlayerSeekBar: React.FC<AudioPlayerSeekBarProps> = ({
    onSeekEnd,
    onSeekComplete,
 }) => {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         progressContainer: {
+            marginBottom: spacing.md,
+         },
+         progressBarWrapper: {
+            marginBottom: spacing.xs,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: PROGRESS_BAR_HORIZONTAL_PADDING,
+         },
+         progressBarContainer: {
+            position: 'relative',
+            width: '100%',
+            minHeight: PROGRESS_TOUCH_MIN_HEIGHT,
+            justifyContent: 'center',
+         },
+         progressBarTrack: {
+            position: 'relative',
+            width: '100%',
+            height: PROGRESS_BAR_HEIGHT,
+         },
+         progressBar: {
+            height: PROGRESS_BAR_HEIGHT,
+            backgroundColor: t.colors.border.light,
+            borderRadius: borderRadius.sm,
+            overflow: 'hidden',
+            width: '100%',
+         },
+         progressFill: {
+            height: '100%',
+            backgroundColor: t.colors.accent.primary,
+         },
+         progressHandle: {
+            position: 'absolute',
+            width: PROGRESS_HANDLE_SIZE,
+            height: PROGRESS_HANDLE_SIZE,
+            borderRadius: PROGRESS_HANDLE_SIZE / 2,
+            backgroundColor: t.colors.accent.primary,
+            top: PROGRESS_HANDLE_TOP,
+            ...Platform.select({
+               ios: {
+                  shadowColor: '#ffffff',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.6,
+                  shadowRadius: 8,
+               },
+               android: {
+                  elevation: 5,
+               },
+            }),
+         },
+         timeContainer: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            paddingHorizontal: PROGRESS_BAR_HORIZONTAL_PADDING,
+         },
+         timeText: {
+            fontSize: TIME_TEXT_SIZE,
+            color: t.colors.text.secondaryDark,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '400' },
+               android: { fontFamily: 'sans-serif' },
+            }),
+         },
+      })
+   );
+
    const [displayedTime, setDisplayedTime] = useState(0);
 
    const onSeekStartRef = useRef(onSeekStart);
@@ -228,68 +296,3 @@ export const AudioPlayerSeekBar: React.FC<AudioPlayerSeekBarProps> = ({
       </View>
    );
 };
-
-const styles = StyleSheet.create({
-   progressContainer: {
-      marginBottom: spacing.md,
-   },
-   progressBarWrapper: {
-      marginBottom: spacing.xs,
-      paddingVertical: spacing.sm,
-      paddingHorizontal: PROGRESS_BAR_HORIZONTAL_PADDING,
-   },
-   progressBarContainer: {
-      position: 'relative',
-      width: '100%',
-      minHeight: PROGRESS_TOUCH_MIN_HEIGHT,
-      justifyContent: 'center',
-   },
-   progressBarTrack: {
-      position: 'relative',
-      width: '100%',
-      height: PROGRESS_BAR_HEIGHT,
-   },
-   progressBar: {
-      height: PROGRESS_BAR_HEIGHT,
-      backgroundColor: colors.border.light,
-      borderRadius: borderRadius.sm,
-      overflow: 'hidden',
-      width: '100%',
-   },
-   progressFill: {
-      height: '100%',
-      backgroundColor: colors.accent.primary,
-   },
-   progressHandle: {
-      position: 'absolute',
-      width: PROGRESS_HANDLE_SIZE,
-      height: PROGRESS_HANDLE_SIZE,
-      borderRadius: PROGRESS_HANDLE_SIZE / 2,
-      backgroundColor: colors.accent.primary,
-      top: PROGRESS_HANDLE_TOP,
-      ...Platform.select({
-         ios: {
-            shadowColor: '#ffffff',
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.6,
-            shadowRadius: 8,
-         },
-         android: {
-            elevation: 5,
-         },
-      }),
-   },
-   timeContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingHorizontal: PROGRESS_BAR_HORIZONTAL_PADDING,
-   },
-   timeText: {
-      fontSize: TIME_TEXT_SIZE,
-      color: colors.text.secondaryDark,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '400' },
-         android: { fontFamily: 'sans-serif' },
-      }),
-   },
-});

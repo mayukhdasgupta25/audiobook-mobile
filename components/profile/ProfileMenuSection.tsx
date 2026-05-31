@@ -7,7 +7,9 @@ import {
    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 export interface ProfileMenuItem {
    id: string;
@@ -33,6 +35,83 @@ export const ProfileMenuSection: React.FC<ProfileMenuSectionProps> = ({
    showViewAll = false,
    onViewAllPress,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         section: {
+            marginBottom: spacing.lg,
+         },
+         sectionHeader: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+         },
+         sectionTitle: {
+            fontSize: typography.fontSize.lg,
+            color: t.colors.text.primary,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
+            }),
+         },
+         viewAll: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.accent.primary,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '500' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         card: {
+            backgroundColor: t.colors.background.card,
+            marginHorizontal: spacing.md,
+            borderRadius: borderRadius.lg,
+            overflow: 'hidden',
+         },
+         row: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: spacing.md,
+            minHeight: 72,
+         },
+         iconSquare: {
+            width: 40,
+            height: 40,
+            borderRadius: borderRadius.md,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: spacing.md,
+         },
+         rowContent: {
+            flex: 1,
+            marginRight: spacing.sm,
+         },
+         rowTitle: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.primary,
+            marginBottom: 2,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '600' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         rowTitleDanger: {
+            color: t.colors.error,
+         },
+         rowSubtitle: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+         },
+         divider: {
+            height: 1,
+            backgroundColor: t.colors.border.light,
+            marginLeft: spacing.md + 40 + spacing.md,
+         },
+      })
+   );
+
    return (
       <View style={styles.section}>
          {title ? (
@@ -82,77 +161,3 @@ export const ProfileMenuSection: React.FC<ProfileMenuSectionProps> = ({
       </View>
    );
 };
-
-const styles = StyleSheet.create({
-   section: {
-      marginBottom: spacing.lg,
-   },
-   sectionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-   },
-   sectionTitle: {
-      fontSize: typography.fontSize.lg,
-      color: colors.text.primary,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
-      }),
-   },
-   viewAll: {
-      fontSize: typography.fontSize.sm,
-      color: colors.accent.primary,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '500' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   card: {
-      backgroundColor: colors.background.card,
-      marginHorizontal: spacing.md,
-      borderRadius: borderRadius.lg,
-      overflow: 'hidden',
-   },
-   row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: spacing.md,
-      minHeight: 72,
-   },
-   iconSquare: {
-      width: 40,
-      height: 40,
-      borderRadius: borderRadius.md,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: spacing.md,
-   },
-   rowContent: {
-      flex: 1,
-      marginRight: spacing.sm,
-   },
-   rowTitle: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.primary,
-      marginBottom: 2,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '600' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   rowTitleDanger: {
-      color: colors.error,
-   },
-   rowSubtitle: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-   },
-   divider: {
-      height: 1,
-      backgroundColor: colors.border.light,
-      marginLeft: spacing.md + 40 + spacing.md,
-   },
-});

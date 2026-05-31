@@ -7,6 +7,7 @@ import {
    type IndianLanguage,
 } from '@/constants/indianLanguages';
 import { spacing } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 /** Subtle per-pill rotation for an organic, non-grid feel */
 const SCATTER_ROTATIONS = [
@@ -59,6 +60,28 @@ export const ScatteredLanguagePills: React.FC<ScatteredLanguagePillsProps> = ({
    const shuffledLanguages = useMemo(() => shuffleLanguages(languages), [languages]);
    const atMaxSelection = selectedCodes.length >= maxSelections;
 
+   const styles = useThemedStyles(() =>
+      StyleSheet.create({
+         container: {
+            flex: 1,
+            width: '100%',
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         wrap: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: spacing.sm,
+            width: '100%',
+         },
+         pillWrap: {
+            // Wrapper keeps rotation from affecting sibling layout bounds
+         },
+      })
+   );
+
    return (
       <View style={styles.container}>
          <View style={styles.wrap}>
@@ -95,23 +118,3 @@ export const ScatteredLanguagePills: React.FC<ScatteredLanguagePillsProps> = ({
       </View>
    );
 };
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      width: '100%',
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   wrap: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: spacing.sm,
-      width: '100%',
-   },
-   pillWrap: {
-      // Wrapper keeps rotation from affecting sibling layout bounds
-   },
-});

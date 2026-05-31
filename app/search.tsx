@@ -16,7 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SearchBar } from '@/components/SearchBar';
 import { TrendingChip } from '@/components/TrendingChip';
 import { PopularStoryItem, PopularStory } from '@/components/PopularStoryItem';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { RootState } from '@/store';
 
 /**
@@ -24,6 +26,100 @@ import { RootState } from '@/store';
  * Full-screen modal page with slide-up animation
  */
 export default function SearchScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+   container: {
+      flex: 1,
+      backgroundColor: t.colors.background.dark,
+   },
+   keyboardAvoid: {
+      flex: 1,
+   },
+   header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      backgroundColor: t.colors.background.dark,
+   },
+   headerDivider: {
+      height: 1,
+      backgroundColor: t.colors.background.highlight,
+   },
+   backButton: {
+      marginRight: spacing.sm,
+      padding: spacing.xs,
+   },
+   scrollView: {
+      flex: 1,
+   },
+   scrollContent: {
+      paddingBottom: spacing.xl,
+   },
+   section: {
+      marginTop: spacing.lg,
+   },
+   sectionTitle: {
+      fontSize: typography.fontSize.xl,
+      fontWeight: '600',
+      color: t.colors.text.dark,
+      letterSpacing: -0.3,
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.md,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   trendingContainer: {
+      paddingHorizontal: spacing.md,
+   },
+   resultsContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingTop: spacing.xxl,
+      paddingHorizontal: spacing.lg,
+   },
+   resultsText: {
+      fontSize: typography.fontSize.lg,
+      fontWeight: '600',
+      color: t.colors.text.dark,
+      textAlign: 'center',
+      marginBottom: spacing.sm,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   resultsSubtext: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.secondaryDark,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+      })
+   );
+
    const [searchQuery, setSearchQuery] = useState('');
    const isAuthenticated = useSelector(
       (state: RootState) => state.auth.isAuthenticated
@@ -226,95 +322,4 @@ export default function SearchScreen() {
       </>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.dark,
-   },
-   keyboardAvoid: {
-      flex: 1,
-   },
-   header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      backgroundColor: colors.background.dark,
-   },
-   headerDivider: {
-      height: 1,
-      backgroundColor: colors.background.highlight,
-   },
-   backButton: {
-      marginRight: spacing.sm,
-      padding: spacing.xs,
-   },
-   scrollView: {
-      flex: 1,
-   },
-   scrollContent: {
-      paddingBottom: spacing.xl,
-   },
-   section: {
-      marginTop: spacing.lg,
-   },
-   sectionTitle: {
-      fontSize: typography.fontSize.xl,
-      fontWeight: '600',
-      color: colors.text.dark,
-      letterSpacing: -0.3,
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.md,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   trendingContainer: {
-      paddingHorizontal: spacing.md,
-   },
-   resultsContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingTop: spacing.xxl,
-      paddingHorizontal: spacing.lg,
-   },
-   resultsText: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.dark,
-      textAlign: 'center',
-      marginBottom: spacing.sm,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   resultsSubtext: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-});
 

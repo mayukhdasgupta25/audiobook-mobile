@@ -12,7 +12,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { OtpInput } from '@/components/OtpInput';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { ApiError } from '@/services/api';
 import {
    confirmDeviceRemoval,
@@ -28,6 +30,107 @@ import { getAuthApiErrorMessage } from '@/utils/authApiErrors';
  * OTP verification screen for removing a registered device when device limit is exceeded.
  */
 export default function VerifyDeviceRemovalOtpScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+   container: {
+      flex: 1,
+      backgroundColor: t.colors.background.dark,
+   },
+   keyboardAvoid: {
+      flex: 1,
+   },
+   scrollView: {
+      flex: 1,
+   },
+   scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.xl,
+   },
+   backButton: {
+      alignSelf: 'flex-start',
+      marginBottom: spacing.lg,
+   },
+   backButtonText: {
+      color: t.colors.primary[400],
+      fontSize: typography.fontSize.base,
+   },
+   header: {
+      marginBottom: spacing.xl,
+      alignItems: 'center',
+   },
+   title: {
+      fontSize: typography.fontSize['3xl'],
+      fontWeight: '700',
+      color: t.colors.text.dark,
+      marginBottom: spacing.sm,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: { fontFamily: 'System' },
+         android: { fontFamily: 'sans-serif-medium' },
+      }),
+   },
+   subtitle: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.secondaryDark,
+      textAlign: 'center',
+      lineHeight: typography.fontSize.base * typography.lineHeight.normal,
+   },
+   otpContainer: {
+      marginBottom: spacing.lg,
+   },
+   errorContainer: {
+      backgroundColor: 'rgba(239, 68, 68, 0.12)',
+      borderRadius: 8,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+   },
+   errorText: {
+      color: t.colors.error,
+      fontSize: typography.fontSize.sm,
+      textAlign: 'center',
+   },
+   noteContainer: {
+      marginBottom: spacing.lg,
+      alignItems: 'center',
+   },
+   noteText: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondaryDark,
+   },
+   resendContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      alignItems: 'center',
+   },
+   resendLabel: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondaryDark,
+   },
+   resendCountdown: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondaryDark,
+   },
+   resendButton: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.primary[400],
+      fontWeight: '600',
+   },
+   loadingContainer: {
+      marginTop: spacing.xl,
+      alignItems: 'center',
+      gap: spacing.sm,
+   },
+   loadingText: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondaryDark,
+   },
+      })
+   );
+
    const params = useLocalSearchParams<{
       email: string;
       recordId: string;
@@ -244,100 +347,3 @@ export default function VerifyDeviceRemovalOtpScreen() {
    );
 }
 
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.dark,
-   },
-   keyboardAvoid: {
-      flex: 1,
-   },
-   scrollView: {
-      flex: 1,
-   },
-   scrollContent: {
-      flexGrow: 1,
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.lg,
-      paddingBottom: spacing.xl,
-   },
-   backButton: {
-      alignSelf: 'flex-start',
-      marginBottom: spacing.lg,
-   },
-   backButtonText: {
-      color: colors.primary[400],
-      fontSize: typography.fontSize.base,
-   },
-   header: {
-      marginBottom: spacing.xl,
-      alignItems: 'center',
-   },
-   title: {
-      fontSize: typography.fontSize['3xl'],
-      fontWeight: '700',
-      color: colors.text.dark,
-      marginBottom: spacing.sm,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: { fontFamily: 'System' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   subtitle: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      textAlign: 'center',
-      lineHeight: typography.fontSize.base * typography.lineHeight.normal,
-   },
-   otpContainer: {
-      marginBottom: spacing.lg,
-   },
-   errorContainer: {
-      backgroundColor: 'rgba(239, 68, 68, 0.12)',
-      borderRadius: 8,
-      padding: spacing.md,
-      marginBottom: spacing.md,
-   },
-   errorText: {
-      color: colors.error,
-      fontSize: typography.fontSize.sm,
-      textAlign: 'center',
-   },
-   noteContainer: {
-      marginBottom: spacing.lg,
-      alignItems: 'center',
-   },
-   noteText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-   },
-   resendContainer: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   resendLabel: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-   },
-   resendCountdown: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-   },
-   resendButton: {
-      fontSize: typography.fontSize.sm,
-      color: colors.primary[400],
-      fontWeight: '600',
-   },
-   loadingContainer: {
-      marginTop: spacing.xl,
-      alignItems: 'center',
-      gap: spacing.sm,
-   },
-   loadingText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-   },
-});

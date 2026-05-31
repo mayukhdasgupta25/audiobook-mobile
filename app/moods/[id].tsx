@@ -17,15 +17,107 @@ import { MoodAboutSection } from '@/components/moods/MoodAboutSection';
 import { SkeletonMoodDetailPage, SkeletonMoodAudiobookRow } from '@/components/skeleton';
 import { useMood } from '@/hooks/useMood';
 import { useMoodAudiobooks } from '@/hooks/useMoodAudiobooks';
-import { colors, spacing, typography } from '@/theme';
-import { normalizeHexCode } from '@/utils/moodAssets';
-import { Audiobook } from '@/services/audiobooks';
+import { spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import type { Audiobook } from '@/services/audiobooks';
 
 const PREVIEW_LIMIT = 4;
 
 const BACK_BUTTON_SIZE = 40;
 
 export default function MoodDetailScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flex: 1,
+            backgroundColor: t.colors.background.screen,
+         },
+         centered: {
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: t.colors.background.screen,
+            paddingHorizontal: spacing.lg,
+         },
+         backButtonOverlay: {
+            ...StyleSheet.absoluteFillObject,
+            zIndex: 10,
+         },
+         actionButton: {
+            position: 'absolute',
+            width: BACK_BUTTON_SIZE,
+            height: BACK_BUTTON_SIZE,
+            borderRadius: BACK_BUTTON_SIZE / 2,
+            backgroundColor: t.colors.background.card,
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         scrollView: {
+            flex: 1,
+         },
+         scrollContent: {
+            flexGrow: 1,
+         },
+         section: {
+            marginBottom: spacing.lg,
+         },
+         sectionHeader: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+         },
+         sectionTitle: {
+            fontSize: typography.fontSize.lg,
+            color: t.colors.text.primary,
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
+            }),
+         },
+         viewAll: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.accent.primary,
+            paddingHorizontal: spacing.md,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '500' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         bestForRow: {
+            paddingHorizontal: spacing.md,
+         },
+         recommendationsCard: {
+            marginHorizontal: spacing.md,
+            backgroundColor: t.colors.background.card,
+            borderRadius: spacing.md,
+            paddingHorizontal: spacing.md,
+         },
+         loadingBlock: {
+            paddingVertical: spacing.lg,
+            alignItems: 'center',
+         },
+         emptyText: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+         },
+         errorText: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.secondary,
+            marginBottom: spacing.sm,
+            textAlign: 'center',
+         },
+         retryText: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.accent.primary,
+         },
+      })
+   );
    const insets = useSafeAreaInsets();
    const params = useLocalSearchParams<{ id: string }>();
    const moodId = params.id ?? '';
@@ -46,7 +138,7 @@ export default function MoodDetailScreen() {
       isFetching: isAudiobooksFetching,
    } = useMoodAudiobooks(moodId, recommendationsPage);
 
-   const moodColor = normalizeHexCode(mood?.hexCode ?? '#6F431B');
+   const moodColor = mood?.hexCode ?? '#6F431B';
    const pagination = audiobooksData?.pagination;
 
    useEffect(() => {
@@ -141,6 +233,7 @@ export default function MoodDetailScreen() {
                               key={`${attribute.iconName}-${index}`}
                               attribute={attribute}
                               moodColor={moodColor}
+                              moodName={mood.name}
                            />
                         ))}
                      </ScrollView>
@@ -210,92 +303,3 @@ export default function MoodDetailScreen() {
       </>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.screen,
-   },
-   centered: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: colors.background.screen,
-      paddingHorizontal: spacing.lg,
-   },
-   backButtonOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      zIndex: 10,
-   },
-   actionButton: {
-      position: 'absolute',
-      width: BACK_BUTTON_SIZE,
-      height: BACK_BUTTON_SIZE,
-      borderRadius: BACK_BUTTON_SIZE / 2,
-      backgroundColor: colors.background.card,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   scrollView: {
-      flex: 1,
-   },
-   scrollContent: {
-      flexGrow: 1,
-   },
-   section: {
-      marginBottom: spacing.lg,
-   },
-   sectionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-   },
-   sectionTitle: {
-      fontSize: typography.fontSize.lg,
-      color: colors.text.primary,
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
-      }),
-   },
-   viewAll: {
-      fontSize: typography.fontSize.sm,
-      color: colors.accent.primary,
-      paddingHorizontal: spacing.md,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '500' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   bestForRow: {
-      paddingHorizontal: spacing.md,
-   },
-   recommendationsCard: {
-      marginHorizontal: spacing.md,
-      backgroundColor: colors.background.card,
-      borderRadius: spacing.md,
-      paddingHorizontal: spacing.md,
-   },
-   loadingBlock: {
-      paddingVertical: spacing.lg,
-      alignItems: 'center',
-   },
-   emptyText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-   },
-   errorText: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondary,
-      marginBottom: spacing.sm,
-      textAlign: 'center',
-   },
-   retryText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.accent.primary,
-   },
-});

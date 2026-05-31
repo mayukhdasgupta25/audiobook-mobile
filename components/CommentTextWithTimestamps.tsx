@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react';
 import { Text, StyleSheet } from 'react-native';
-import { colors, typography, timestampMentionStyles } from '@/theme';
+import { typography } from '@/theme';
+import { getTimestampMentionStyles } from '@/theme/timestampMention';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import {
    splitTextForAtHighlights,
    parseAtTimestampLabelToSeconds,
@@ -23,6 +26,22 @@ export const CommentTextWithTimestamps: React.FC<CommentTextWithTimestampsProps>
    canSeek,
    onTimestampPress,
 }) => {
+   const { colors } = useTheme();
+   const mentionStyles = useMemo(
+      () => getTimestampMentionStyles(colors),
+      [colors]
+   );
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         content: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.secondary,
+            lineHeight: 22,
+            marginTop: 4,
+         },
+      })
+   );
+
    const segments = useMemo(() => splitTextForAtHighlights(content), [content]);
 
    return (
@@ -34,7 +53,7 @@ export const CommentTextWithTimestamps: React.FC<CommentTextWithTimestampsProps>
                return (
                   <Text
                      key={`${index}-${segment.value}`}
-                     style={tappable ? timestampMentionStyles.tappable : timestampMentionStyles.complete}
+                     style={tappable ? mentionStyles.tappable : mentionStyles.complete}
                      onPress={
                         tappable
                            ? () => onTimestampPress(seconds!)
@@ -49,7 +68,7 @@ export const CommentTextWithTimestamps: React.FC<CommentTextWithTimestampsProps>
 
             if (segment.type === 'at-partial' || segment.type === 'at-bare') {
                return (
-                  <Text key={`${index}-${segment.value}`} style={timestampMentionStyles.typing}>
+                  <Text key={`${index}-${segment.value}`} style={mentionStyles.typing}>
                      {segment.value}
                   </Text>
                );
@@ -60,12 +79,3 @@ export const CommentTextWithTimestamps: React.FC<CommentTextWithTimestampsProps>
       </Text>
    );
 };
-
-const styles = StyleSheet.create({
-   content: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondary,
-      lineHeight: 22,
-      marginTop: 4,
-   },
-});

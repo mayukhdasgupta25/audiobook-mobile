@@ -1,111 +1,15 @@
 /**
- * Design tokens — light cream/brown audiobook theme
+ * Design tokens — light cream/brown audiobook theme with dark mode support
  */
 
-export const colors = {
-   app: {
-      /** @deprecated Use accent.primary */
-      red: '#6F431B',
-      /** @deprecated Use accent.primaryDark */
-      darkRed: '#4B2C20',
-   },
-   accent: {
-      primary: '#6F431B',
-      primaryDark: '#4B2C20',
-   },
-   primary: {
-      50: '#FAF6F1',
-      100: '#F0E6D8',
-      200: '#E0CCB0',
-      300: '#C9A882',
-      400: '#A67C52',
-      500: '#6F431B',
-      600: '#5C3817',
-      700: '#4B2C20',
-      800: '#3D2319',
-      900: '#2A1810',
-   },
-   neutral: {
-      50: '#FAFAFA',
-      100: '#F3F4F6',
-      200: '#E5E7EB',
-      300: '#D1D5DB',
-      400: '#9CA3AF',
-      500: '#6B7280',
-      600: '#4B5563',
-      700: '#374151',
-      800: '#1F2937',
-      900: '#111827',
-   },
-   success: '#10b981',
-   error: '#EF4444',
-   warning: '#f59e0b',
-   info: '#3b82f6',
-   /** Favorited heart — muted rose, lower contrast on light backgrounds */
-   like: '#B57373',
-   background: {
-      screen: '#FFFFFF',
-      player: '#FDF8F2',
-      input: '#F3F4F6',
-      card: '#FFFFFF',
-      highlight: '#F5F0E8',
-      /** Legacy: maps to screen */
-      light: '#FFFFFF',
-      /** Legacy: maps to screen */
-      dark: '#FFFFFF',
-      /** Legacy: maps to card / tab bar */
-      darkGray: '#FFFFFF',
-      /** Legacy: maps to input */
-      darkGrayLight: '#F3F4F6',
-   },
-   text: {
-      primary: '#111111',
-      secondary: '#6B7280',
-      muted: '#9CA3AF',
-      /** Legacy: maps to primary */
-      dark: '#111111',
-      /** Legacy */
-      light: '#111111',
-      secondaryDark: '#9CA3AF',
-   },
-   border: {
-      light: '#E5E7EB',
-      medium: '#D1D5DB',
-   },
-   /** Colored icon circle backgrounds and foregrounds for profile/settings UI */
-   iconBackgrounds: {
-      brown: '#F5E6D3',
-      green: '#E6F4EA',
-      pink: '#FCE7F3',
-      purple: '#EDE9FE',
-      yellow: '#FEF9C3',
-      blue: '#DBEAFE',
-      greenShield: '#DCFCE7',
-      orange: '#FFEDD5',
-      red: '#FEE2E2',
-      peach: '#FEF3E2',
-      neutral: '#F3F4F6',
-   },
-   iconForegrounds: {
-      brown: '#6F431B',
-      green: '#16A34A',
-      pink: '#DB2777',
-      purple: '#7C3AED',
-      yellow: '#CA8A04',
-      blue: '#2563EB',
-      orange: '#EA580C',
-      red: '#DC2626',
-      muted: '#9CA3AF',
-   },
-   membership: {
-      bannerBg: '#FEF3E2',
-      bannerText: '#6F431B',
-      badgeBg: '#FEF3E2',
-      badgeText: '#6F431B',
-      noneBadgeBg: '#F3F4F6',
-      noneBadgeText: '#6B7280',
-   },
-} as const;
+import { darkColors, lightColors, type ThemeColors } from './colors';
+
+export type ColorScheme = 'light' | 'dark';
+
+/** @deprecated Use useTheme().colors instead — kept for non-UI modules during migration */
+export const colors = lightColors;
+
+export type { ThemeColors };
 
 export const spacing = {
    xs: 4,
@@ -114,11 +18,8 @@ export const spacing = {
    lg: 24,
    xl: 32,
    xxl: 48,
-   /** Gap between scroll content and bottom tab bar */
    tabBarGap: 12,
-   /** Horizontal inset for floating tab bar pill */
    tabBarFloatHorizontal: 16,
-   /** Bottom inset below floating tab bar pill (above home indicator) */
    tabBarFloatBottom: 10,
 } as const;
 
@@ -193,16 +94,95 @@ export const shadows = {
    },
 } as const;
 
-export { timestampMentionStyles } from './timestampMention';
+export const darkShadows = {
+   sm: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.3,
+      shadowRadius: 2,
+      elevation: 1,
+   },
+   md: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.35,
+      shadowRadius: 6,
+      elevation: 3,
+   },
+   lg: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.4,
+      shadowRadius: 12,
+      elevation: 6,
+   },
+   tabBar: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.35,
+      shadowRadius: 8,
+      elevation: 8,
+   },
+} as const;
 
-export const lightTheme = {
-   colors,
+export { getTimestampMentionStyles } from './timestampMention';
+export { lightColors, darkColors } from './colors';
+
+export type ThemeShadows = {
+   sm: {
+      shadowColor: string;
+      shadowOffset: { width: number; height: number };
+      shadowOpacity: number;
+      shadowRadius: number;
+      elevation: number;
+   };
+   md: {
+      shadowColor: string;
+      shadowOffset: { width: number; height: number };
+      shadowOpacity: number;
+      shadowRadius: number;
+      elevation: number;
+   };
+   lg: {
+      shadowColor: string;
+      shadowOffset: { width: number; height: number };
+      shadowOpacity: number;
+      shadowRadius: number;
+      elevation: number;
+   };
+   tabBar: {
+      shadowColor: string;
+      shadowOffset: { width: number; height: number };
+      shadowOpacity: number;
+      shadowRadius: number;
+      elevation: number;
+   };
+};
+
+export type Theme = {
+   colors: ThemeColors;
+   spacing: typeof spacing;
+   typography: typeof typography;
+   borderRadius: typeof borderRadius;
+   shadows: ThemeShadows;
+};
+
+export const lightTheme: Theme = {
+   colors: lightColors,
    spacing,
    typography,
    borderRadius,
    shadows,
-} as const;
+} ;
 
-export const darkTheme = lightTheme;
+export const darkTheme: Theme = {
+   colors: darkColors,
+   spacing,
+   typography,
+   borderRadius,
+   shadows: darkShadows,
+};
 
-export type Theme = typeof lightTheme;
+export function getTheme(colorScheme: ColorScheme): Theme {
+   return colorScheme === 'dark' ? darkTheme : lightTheme;
+}

@@ -6,7 +6,9 @@ import {
    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import {
    SubscriptionPlan,
    getPlanFeatureDescriptions,
@@ -32,6 +34,88 @@ export function SubscriptionPlanCard({
    isActionDisabled = false,
    onUpgradePress,
 }: SubscriptionPlanCardProps) {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         card: {
+            backgroundColor: t.colors.background.darkGrayLight,
+            borderRadius: borderRadius.lg,
+            padding: spacing.lg,
+         },
+         cardCurrent: {
+            backgroundColor: t.colors.background.highlight,
+         },
+         planName: {
+            fontSize: typography.fontSize.xl,
+            fontWeight: '600',
+            color: t.colors.text.dark,
+            marginBottom: spacing.xs,
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '600',
+               },
+               android: {
+                  fontFamily: 'sans-serif-medium',
+               },
+            }),
+         },
+         planDescription: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondaryDark,
+            marginBottom: spacing.sm,
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '400',
+               },
+               android: {
+                  fontFamily: 'sans-serif',
+               },
+            }),
+         },
+         planPrice: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.dark,
+            marginBottom: spacing.md,
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '600',
+               },
+               android: {
+                  fontFamily: 'sans-serif-medium',
+               },
+            }),
+         },
+         featureList: {
+            gap: spacing.sm,
+            marginBottom: spacing.lg,
+         },
+         featureItem: {
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: spacing.sm,
+         },
+         featureText: {
+            flex: 1,
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.dark,
+            lineHeight: typography.lineHeight.relaxed * typography.fontSize.base,
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '400',
+               },
+               android: {
+                  fontFamily: 'sans-serif',
+               },
+            }),
+         },
+      })
+   );
+
    const priceLabel =
       plan.billingInterval === 'MONTHLY'
          ? `${formatPlanPrice(plan.price, plan.currency)}/month`
@@ -71,82 +155,3 @@ export function SubscriptionPlanCard({
       </View>
    );
 }
-
-const styles = StyleSheet.create({
-   card: {
-      backgroundColor: colors.background.darkGrayLight,
-      borderRadius: borderRadius.lg,
-      padding: spacing.lg,
-   },
-   cardCurrent: {
-      backgroundColor: colors.background.highlight,
-   },
-   planName: {
-      fontSize: typography.fontSize.xl,
-      fontWeight: '600',
-      color: colors.text.dark,
-      marginBottom: spacing.xs,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   planDescription: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      marginBottom: spacing.sm,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   planPrice: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.dark,
-      marginBottom: spacing.md,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   featureList: {
-      gap: spacing.sm,
-      marginBottom: spacing.lg,
-   },
-   featureItem: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.sm,
-   },
-   featureText: {
-      flex: 1,
-      fontSize: typography.fontSize.base,
-      color: colors.text.dark,
-      lineHeight: typography.lineHeight.relaxed * typography.fontSize.base,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-});

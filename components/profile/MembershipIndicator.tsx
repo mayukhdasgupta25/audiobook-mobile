@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import {
    getMembershipCrownColor,
    type MembershipTier,
@@ -20,6 +20,8 @@ export const MembershipIndicator: React.FC<MembershipIndicatorProps> = ({
    tier,
    size = 18,
 }) => {
+   const { colors } = useTheme();
+
    if (tier === 'none') {
       return (
          <Ionicons

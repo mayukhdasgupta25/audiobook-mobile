@@ -15,8 +15,10 @@ import Animated, {
    useSharedValue,
    withSpring,
 } from 'react-native-reanimated';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
 import { TAB_UNDERLINE_SPRING } from '@/theme/tabAnimation';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 export interface TabUnderlineItem {
    key: string;
@@ -43,6 +45,8 @@ interface TabLabelProps {
    activeProgress: SharedValue<number>;
    onPress: () => void;
    onLayout: (event: LayoutChangeEvent) => void;
+   mutedColor: string;
+   accentColor: string;
 }
 
 function TabLabel({
@@ -51,6 +55,8 @@ function TabLabel({
    activeProgress,
    onPress,
    onLayout,
+   mutedColor,
+   accentColor,
 }: TabLabelProps) {
    const labelStyle = useAnimatedStyle(() => {
       const distance = Math.abs(activeProgress.value - index);
@@ -59,28 +65,68 @@ function TabLabel({
          color: interpolateColor(
             blend,
             [0, 1],
-            [colors.text.muted, colors.accent.primary]
+            [mutedColor, accentColor]
          ),
       };
    });
 
    return (
       <TouchableOpacity
-         style={styles.tab}
+         style={tabLabelStyles.tab}
          onPress={onPress}
          onLayout={onLayout}
          activeOpacity={0.7}
       >
-         <AnimatedText style={[styles.label, labelStyle]}>{label}</AnimatedText>
+         <AnimatedText style={[tabLabelStyles.label, labelStyle]}>{label}</AnimatedText>
       </TouchableOpacity>
    );
 }
+
+const tabLabelStyles = StyleSheet.create({
+   tab: {
+      marginRight: spacing.lg,
+      paddingVertical: spacing.sm,
+   },
+   label: {
+      fontSize: typography.fontSize.base,
+      fontWeight: '600',
+      ...Platform.select({
+         ios: { fontFamily: 'System', fontWeight: '600' },
+         android: { fontFamily: 'sans-serif-medium' },
+      }),
+   },
+});
 
 export const TabUnderline: React.FC<TabUnderlineProps> = ({
    tabs,
    activeKey,
    onTabPress,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            paddingHorizontal: spacing.md,
+         },
+         divider: {
+            height: 1,
+            backgroundColor: t.colors.background.highlight,
+         },
+         tabRow: {
+            flexDirection: 'row',
+            position: 'relative',
+         },
+         slidingUnderline: {
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            height: 2,
+            backgroundColor: t.colors.accent.primary,
+            borderRadius: 1,
+         },
+      })
+   );
+
    const tabLayouts = useRef<Record<string, TabLayout>>({});
    const underlineX = useSharedValue(0);
    const underlineWidth = useSharedValue(0);
@@ -155,6 +201,8 @@ export const TabUnderline: React.FC<TabUnderlineProps> = ({
                      activeProgress={activeProgress}
                      onPress={() => onTabPress(tab.key)}
                      onLayout={(event) => handleTabLayout(tab.key, index, event)}
+                     mutedColor={colors.text.muted}
+                     accentColor={colors.accent.primary}
                   />
                );
             })}
@@ -164,37 +212,3 @@ export const TabUnderline: React.FC<TabUnderlineProps> = ({
       </View>
    );
 };
-
-const styles = StyleSheet.create({
-   container: {
-      paddingHorizontal: spacing.md,
-   },
-   divider: {
-      height: 1,
-      backgroundColor: colors.background.highlight,
-   },
-   tabRow: {
-      flexDirection: 'row',
-      position: 'relative',
-   },
-   tab: {
-      marginRight: spacing.lg,
-      paddingVertical: spacing.sm,
-   },
-   label: {
-      fontSize: typography.fontSize.base,
-      fontWeight: '600',
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '600' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   slidingUnderline: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      height: 2,
-      backgroundColor: colors.accent.primary,
-      borderRadius: 1,
-   },
-});

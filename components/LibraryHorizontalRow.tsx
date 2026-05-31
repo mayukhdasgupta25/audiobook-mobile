@@ -10,7 +10,8 @@ import {
    SkeletonLibraryFavoriteRow,
    SkeletonLibraryPlaylistRow,
 } from '@/components/skeleton';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { LIBRARY_PREVIEW_LIMIT } from '@/constants/library';
 
 export type LibraryRowSkeletonVariant = 'playlist' | 'favorite' | 'bookmark';
@@ -42,6 +43,25 @@ export const LibraryHorizontalRow: React.FC<LibraryHorizontalRowProps> = ({
    skeletonVariant = 'playlist',
    children,
 }) => {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         scrollContent: {
+            paddingHorizontal: spacing.md,
+            paddingBottom: spacing.md,
+         },
+         center: {
+            paddingHorizontal: spacing.md,
+            paddingBottom: spacing.lg,
+            minHeight: 100,
+            justifyContent: 'center',
+         },
+         emptyText: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+         },
+      })
+   );
+
    if (isLoading) {
       return <LibraryRowSkeleton variant={skeletonVariant} />;
    }
@@ -64,20 +84,3 @@ export const LibraryHorizontalRow: React.FC<LibraryHorizontalRowProps> = ({
       </ScrollView>
    );
 };
-
-const styles = StyleSheet.create({
-   scrollContent: {
-      paddingHorizontal: spacing.md,
-      paddingBottom: spacing.md,
-   },
-   center: {
-      paddingHorizontal: spacing.md,
-      paddingBottom: spacing.lg,
-      minHeight: 100,
-      justifyContent: 'center',
-   },
-   emptyText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-   },
-});

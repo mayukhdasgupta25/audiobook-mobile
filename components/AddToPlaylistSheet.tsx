@@ -15,7 +15,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { SkeletonPlaylistPickRow } from '@/components/skeleton';
 import {
    BOTTOM_SHEET_SLIDE_SPRING,
@@ -46,6 +48,30 @@ function PlaylistPickRow({
    audiobookId: string;
    onAdded: () => void;
 }) {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         row: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.md,
+            gap: spacing.sm,
+         },
+         rowText: {
+            flex: 1,
+         },
+         rowTitle: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.primary,
+         },
+         rowHint: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+         },
+      })
+   );
+
    const { data: itemsData } = usePlaylistItems(playlist.id);
    const { addItem } = usePlaylistMutations();
    const items = itemsData?.data ?? [];
@@ -98,6 +124,66 @@ export const AddToPlaylistSheet: React.FC<AddToPlaylistSheetProps> = ({
    onClose,
 }) => {
    const insets = useSafeAreaInsets();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         modalRoot: {
+            flex: 1,
+            justifyContent: 'flex-end',
+         },
+         backdropPressable: {
+            ...StyleSheet.absoluteFillObject,
+         },
+         backdrop: {
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+         },
+         sheet: {
+            backgroundColor: t.colors.background.screen,
+            borderTopLeftRadius: borderRadius.xl,
+            borderTopRightRadius: borderRadius.xl,
+            maxHeight: '70%',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.12,
+            shadowRadius: 12,
+            elevation: 16,
+         },
+         handle: {
+            width: 40,
+            height: 4,
+            backgroundColor: t.colors.border.light,
+            borderRadius: 2,
+            alignSelf: 'center',
+            marginTop: spacing.sm,
+            marginBottom: spacing.md,
+         },
+         title: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '700',
+            color: t.colors.text.primary,
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+         },
+         list: {
+            flexGrow: 0,
+         },
+         empty: {
+            padding: spacing.lg,
+            color: t.colors.text.secondary,
+            textAlign: 'center',
+         },
+         closeBtn: {
+            marginTop: spacing.md,
+            padding: spacing.md,
+            alignItems: 'center',
+         },
+         closeText: {
+            color: t.colors.accent.primary,
+            fontWeight: '600',
+         },
+      })
+   );
+
    const { data, isLoading } = usePlaylists();
    const playlists = data?.data ?? [];
 
@@ -247,82 +333,3 @@ export const AddToPlaylistSheet: React.FC<AddToPlaylistSheetProps> = ({
       </Modal>
    );
 };
-
-const styles = StyleSheet.create({
-   modalRoot: {
-      flex: 1,
-      justifyContent: 'flex-end',
-   },
-   backdropPressable: {
-      ...StyleSheet.absoluteFillObject,
-   },
-   backdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.35)',
-   },
-   sheet: {
-      backgroundColor: colors.background.screen,
-      borderTopLeftRadius: borderRadius.xl,
-      borderTopRightRadius: borderRadius.xl,
-      maxHeight: '70%',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 12,
-      elevation: 16,
-   },
-   handle: {
-      width: 40,
-      height: 4,
-      backgroundColor: colors.border.light,
-      borderRadius: 2,
-      alignSelf: 'center',
-      marginTop: spacing.sm,
-      marginBottom: spacing.md,
-   },
-   title: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '700',
-      color: colors.text.primary,
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-   },
-   list: {
-      flexGrow: 0,
-   },
-   row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
-      gap: spacing.sm,
-   },
-   rowText: {
-      flex: 1,
-   },
-   rowTitle: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.primary,
-   },
-   rowHint: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-   },
-   loader: {
-      padding: spacing.xl,
-   },
-   empty: {
-      padding: spacing.lg,
-      color: colors.text.secondary,
-      textAlign: 'center',
-   },
-   closeBtn: {
-      marginTop: spacing.md,
-      padding: spacing.md,
-      alignItems: 'center',
-   },
-   closeText: {
-      color: colors.accent.primary,
-      fontWeight: '600',
-   },
-});

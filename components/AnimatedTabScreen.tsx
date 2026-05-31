@@ -7,7 +7,7 @@ import Animated, {
    Easing,
 } from 'react-native-reanimated';
 import { usePathname } from 'expo-router';
-import { colors } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import {
    useTabNavigation,
    isTabGroupPathname,
@@ -44,6 +44,16 @@ export const AnimatedTabScreen: React.FC<AnimatedTabScreenProps> = ({
    previousRoute,
    currentRoute,
 }) => {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flex: 1,
+            backgroundColor: t.colors.background.screen,
+            width: '100%',
+         },
+      })
+   );
+
    const pathname = usePathname();
    const { previousPathname: contextPreviousPathname, currentRoute: activeTabRoute } =
       useTabNavigation();
@@ -308,12 +318,3 @@ export const AnimatedTabScreen: React.FC<AnimatedTabScreenProps> = ({
 
 // Memoize component to prevent unnecessary re-renders
 export const AnimatedTabScreenMemo = React.memo(AnimatedTabScreen);
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.screen,
-      width: '100%',
-   },
-});
-

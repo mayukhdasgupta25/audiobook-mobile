@@ -2,7 +2,8 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SkeletonBox, type SkeletonShape } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
-import { borderRadius, colors, spacing } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { borderRadius, spacing } from '@/theme';
 
 interface SkeletonListItemProps {
    coverSize?: number;
@@ -27,6 +28,29 @@ export function SkeletonListItem({
 }: SkeletonListItemProps) {
    const width = coverWidth ?? coverSize;
    const height = coverHeight ?? coverSize;
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         row: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+            gap: spacing.md,
+         },
+         textBlock: {
+            flex: 1,
+            gap: spacing.xs,
+         },
+         subtitle: {
+            marginTop: spacing.xs,
+         },
+         divider: {
+            height: 1,
+            backgroundColor: t.colors.background.input,
+            marginHorizontal: spacing.md,
+         },
+      })
+   );
 
    return (
       <>
@@ -56,25 +80,3 @@ export function SkeletonListItem({
       </>
    );
 }
-
-const styles = StyleSheet.create({
-   row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      gap: spacing.md,
-   },
-   textBlock: {
-      flex: 1,
-      gap: spacing.xs,
-   },
-   subtitle: {
-      marginTop: spacing.xs,
-   },
-   divider: {
-      height: 1,
-      backgroundColor: colors.background.input,
-      marginHorizontal: spacing.md,
-   },
-});

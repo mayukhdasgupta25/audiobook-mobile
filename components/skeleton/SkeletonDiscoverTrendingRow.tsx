@@ -2,13 +2,36 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
-import { borderRadius, colors, spacing } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { borderRadius, spacing } from '@/theme';
 
 interface SkeletonDiscoverTrendingRowProps {
    count?: number;
 }
 
 export function SkeletonDiscoverTrendingRow({ count = 5 }: SkeletonDiscoverTrendingRowProps) {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         row: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+         },
+         info: {
+            flex: 1,
+            marginHorizontal: spacing.md,
+         },
+         subtitle: {
+            marginTop: 2,
+         },
+         divider: {
+            height: 1,
+            backgroundColor: t.colors.background.highlight,
+         },
+      })
+   );
+
    return (
       <>
          {Array.from({ length: count }).map((_, index) => (
@@ -27,23 +50,3 @@ export function SkeletonDiscoverTrendingRow({ count = 5 }: SkeletonDiscoverTrend
       </>
    );
 }
-
-const styles = StyleSheet.create({
-   row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-   },
-   info: {
-      flex: 1,
-      marginHorizontal: spacing.md,
-   },
-   subtitle: {
-      marginTop: 2,
-   },
-   divider: {
-      height: 1,
-      backgroundColor: colors.background.highlight,
-   },
-});

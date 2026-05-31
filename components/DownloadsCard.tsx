@@ -7,7 +7,9 @@ import {
    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 interface DownloadsCardProps {
    onPress?: () => void;
@@ -18,6 +20,62 @@ interface DownloadsCardProps {
  * Displays a card that navigates to the downloads screen
  */
 export const DownloadsCard: React.FC<DownloadsCardProps> = ({ onPress }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: t.colors.background.darkGrayLight,
+            marginHorizontal: spacing.md,
+            marginVertical: spacing.md,
+            padding: spacing.md,
+            borderRadius: borderRadius.md,
+            minHeight: 100,
+         },
+         iconContainer: {
+            marginRight: spacing.md,
+         },
+         textContainer: {
+            flex: 1,
+         },
+         title: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.dark,
+            marginBottom: spacing.xs,
+            letterSpacing: -0.2,
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '600',
+               },
+               android: {
+                  fontFamily: 'sans-serif-medium',
+               },
+            }),
+         },
+         subtitle: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondaryDark,
+            fontWeight: '400',
+            lineHeight: typography.fontSize.sm * typography.lineHeight.normal,
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '400',
+               },
+               android: {
+                  fontFamily: 'sans-serif',
+               },
+            }),
+         },
+         chevronContainer: {
+            marginLeft: spacing.sm,
+         },
+      })
+   );
+
    return (
       <TouchableOpacity
          style={styles.container}
@@ -52,57 +110,3 @@ export const DownloadsCard: React.FC<DownloadsCardProps> = ({ onPress }) => {
       </TouchableOpacity>
    );
 };
-
-const styles = StyleSheet.create({
-   container: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.background.darkGrayLight,
-      marginHorizontal: spacing.md,
-      marginVertical: spacing.md,
-      padding: spacing.md,
-      borderRadius: borderRadius.md,
-      minHeight: 100,
-   },
-   iconContainer: {
-      marginRight: spacing.md,
-   },
-   textContainer: {
-      flex: 1,
-   },
-   title: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.dark,
-      marginBottom: spacing.xs,
-      letterSpacing: -0.2,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   subtitle: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      fontWeight: '400',
-      lineHeight: typography.fontSize.sm * typography.lineHeight.normal,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   chevronContainer: {
-      marginLeft: spacing.sm,
-   },
-});
-

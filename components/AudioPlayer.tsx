@@ -40,7 +40,9 @@ import {
 import { usePlaybackSync } from '@/hooks/usePlaybackSync';
 import { useBookmark, useBookmarkMutations } from '@/hooks/useBookmark';
 import { syncPlayback, initializePlaybackSession } from '@/services/audiobooks';
-import { colors, spacing, typography, borderRadius, shadows } from '@/theme';
+import { spacing, typography, borderRadius, shadows } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import {
    getTabBarHeight,
    getTabBarFloatHorizontal,
@@ -91,6 +93,317 @@ const MINIMIZED_BAR = {
 } as const;
 
 export const AudioPlayer: React.FC = React.memo(() => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            position: 'absolute',
+            backgroundColor: 'transparent',
+            overflow: 'visible',
+         },
+         playerSheet: {
+            alignSelf: 'stretch',
+         },
+         hiddenVideo: {
+            width: 0,
+            height: 0,
+            position: 'absolute',
+         },
+         playerContainer: {
+            paddingHorizontal: FP.paddingHorizontal,
+            paddingTop: FP.paddingTop,
+            paddingBottom: FP.paddingBottom,
+            backgroundColor: t.colors.background.player,
+            borderRadius: borderRadius.xl,
+            overflow: 'hidden',
+            ...shadows.lg,
+            ...Platform.select({
+               android: { elevation: 12 },
+            }),
+         },
+         playerScrollContent: {
+            flexGrow: 0,
+            flexShrink: 1,
+            minHeight: 0,
+         },
+         playerScrollContentContainer: {
+            flexGrow: 1,
+         },
+         dragMinimizeZone: {
+            flexShrink: 0,
+         },
+         playerFixedFooter: {
+            flexShrink: 0,
+         },
+         header: {
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            marginBottom: FP.headerMarginBottom,
+         },
+         chapterLabel: {
+            fontSize: FP.chapterLabelSize,
+            color: t.colors.text.secondary,
+            textAlign: 'center',
+            marginBottom: spacing.xs,
+         },
+         chapterTitle: {
+            fontSize: FP.chapterTitleSize,
+            fontWeight: '700',
+            color: t.colors.accent.primaryDark,
+            textAlign: 'center',
+            marginBottom: spacing.sm,
+            paddingHorizontal: spacing.md,
+         },
+         bottomActionsDivider: {
+            height: 1,
+            backgroundColor: t.colors.background.highlight,
+            marginBottom: FP.bottomActionsPaddingTop,
+         },
+         bottomActions: {
+            flexDirection: 'row',
+            justifyContent: 'space-around',
+         },
+         bottomAction: {
+            alignItems: 'center',
+            padding: spacing.sm,
+         },
+         bottomActionText: {
+            fontSize: FP.bottomActionTextSize,
+            color: t.colors.text.secondary,
+            marginTop: spacing.xs,
+         },
+         title: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.dark,
+            flex: 1,
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '600',
+               },
+               android: {
+                  fontFamily: 'sans-serif-medium',
+               },
+            }),
+         },
+         headerButtons: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.xs,
+         },
+         dragHandlerContainer: {
+            alignItems: 'center',
+            paddingTop: spacing.sm,
+            paddingBottom: spacing.sm,
+            minHeight: FP.dragHandlerMinHeight,
+            justifyContent: 'center',
+         },
+         dragHandler: {
+            width: FP.dragHandlerWidth,
+            height: FP.dragHandlerHeight,
+            backgroundColor: t.colors.text.secondaryDark,
+            borderRadius: FP.dragHandlerHeight / 2,
+            opacity: 0.5,
+         },
+         closeButton: {
+            padding: spacing.xs,
+         },
+         coverContainer: {
+            alignSelf: 'center',
+            marginBottom: FP.coverMarginBottom,
+            borderRadius: borderRadius.xl,
+            overflow: 'hidden',
+         },
+         coverImage: {
+            width: '100%',
+            height: '100%',
+         },
+         controlsContainer: {
+            alignSelf: 'stretch',
+            width: '100%',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: FP.controlsMarginBottom,
+         },
+         controlsRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            alignSelf: 'stretch',
+            width: '100%',
+         },
+         playButton: {
+            width: FP.playButtonSize,
+            height: FP.playButtonSize,
+            borderRadius: FP.playButtonSize / 2,
+            backgroundColor: t.colors.accent.primary,
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         chapterButton: {
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 44,
+            paddingVertical: spacing.xs,
+         },
+         seekButton: {
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: 44,
+            paddingHorizontal: spacing.xs,
+            paddingVertical: spacing.xs,
+         },
+         seekButtonText: {
+            fontSize: FP.seekButtonTextSize,
+            color: t.colors.text.secondaryDark,
+            marginTop: spacing.xs,
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '400',
+               },
+               android: {
+                  fontFamily: 'sans-serif',
+               },
+            }),
+         },
+         errorContainer: {
+            alignItems: 'center',
+         },
+         errorText: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.app.red,
+            marginBottom: spacing.md,
+            textAlign: 'center',
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '400',
+               },
+               android: {
+                  fontFamily: 'sans-serif',
+               },
+            }),
+         },
+         retryButton: {
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.md,
+            backgroundColor: t.colors.app.red,
+            borderRadius: borderRadius.md,
+         },
+         retryButtonText: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.light,
+            fontWeight: '600',
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '600',
+               },
+               android: {
+                  fontFamily: 'sans-serif-medium',
+               },
+            }),
+         },
+         iconWrapper: {
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         playIconOffset: {
+            marginLeft: 1,
+         },
+         minimizedBarOuter: {
+            borderRadius: borderRadius.xl,
+            overflow: 'hidden',
+            ...shadows.lg,
+            ...Platform.select({
+               android: { elevation: 12 },
+            }),
+         },
+         minimizedBar: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            height: MINIMIZED_BAR.height,
+            paddingHorizontal: spacing.sm,
+            paddingVertical: spacing.sm,
+            backgroundColor: t.colors.background.player,
+            borderRadius: borderRadius.xl,
+            gap: spacing.sm,
+            ...shadows.lg,
+            ...Platform.select({
+               android: { elevation: 8 },
+            }),
+         },
+         minimizedCoverWrap: {
+            width: MINIMIZED_BAR.coverSize,
+            height: MINIMIZED_BAR.coverSize,
+            borderRadius: borderRadius.md,
+            overflow: 'hidden',
+            flexShrink: 0,
+         },
+         minimizedCoverImage: {
+            width: '100%',
+            height: '100%',
+            backgroundColor: t.colors.background.highlight,
+         },
+         minimizedCoverPlaceholder: {
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         minimizedInfo: {
+            flex: 1,
+            minWidth: 0,
+            justifyContent: 'center',
+            gap: 2,
+         },
+         minimizedTitle: {
+            fontSize: typography.fontSize.base,
+            fontWeight: '700',
+            color: t.colors.accent.primaryDark,
+         },
+         minimizedChapterMeta: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+         },
+         minimizedTimeText: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            marginBottom: spacing.xs / 2,
+         },
+         minimizedProgressTrack: {
+            height: 4,
+            borderRadius: borderRadius.sm,
+            backgroundColor: t.colors.border.light,
+            overflow: 'hidden',
+         },
+         minimizedProgressFill: {
+            height: '100%',
+            backgroundColor: t.colors.accent.primary,
+            borderRadius: borderRadius.sm,
+         },
+         minimizedPlayControl: {
+            width: 40,
+            height: 40,
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         minimizedTrailingControls: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            flexShrink: 0,
+            gap: spacing.xs,
+         },
+         minimizedCloseControl: {
+            width: 36,
+            height: 36,
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+      })
+   );
+
    const dispatch = useDispatch();
    const insets = useSafeAreaInsets();
    const segments = useSegments();
@@ -957,317 +1270,4 @@ export const AudioPlayer: React.FC = React.memo(() => {
 });
 
 AudioPlayer.displayName = 'AudioPlayer';
-
-const styles = StyleSheet.create({
-   container: {
-      position: 'absolute',
-      // bottom, left, right, width will be set dynamically based on minimized state
-      // When minimized: floating PiP window in bottom-right (left not set, right set inline)
-      // When maximized: full width above tab bar (left: 0, right: 0 set inline)
-      // Note: left is not set in base style so it can be undefined when minimized
-      backgroundColor: 'transparent',
-      // zIndex and elevation set conditionally based on minimized state
-      overflow: 'visible',
-   },
-   playerSheet: {
-      alignSelf: 'stretch',
-   },
-   hiddenVideo: {
-      width: 0,
-      height: 0,
-      position: 'absolute',
-   },
-   playerContainer: {
-      paddingHorizontal: FP.paddingHorizontal,
-      paddingTop: FP.paddingTop,
-      paddingBottom: FP.paddingBottom,
-      backgroundColor: colors.background.player,
-      borderRadius: borderRadius.xl,
-      overflow: 'hidden',
-      ...shadows.lg,
-      ...Platform.select({
-         android: { elevation: 12 },
-      }),
-   },
-   playerScrollContent: {
-      flexGrow: 0,
-      flexShrink: 1,
-      minHeight: 0,
-   },
-   playerScrollContentContainer: {
-      flexGrow: 1,
-   },
-   dragMinimizeZone: {
-      flexShrink: 0,
-   },
-   playerFixedFooter: {
-      flexShrink: 0,
-   },
-   header: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      alignItems: 'center',
-      marginBottom: FP.headerMarginBottom,
-   },
-   chapterLabel: {
-      fontSize: FP.chapterLabelSize,
-      color: colors.text.secondary,
-      textAlign: 'center',
-      marginBottom: spacing.xs,
-   },
-   chapterTitle: {
-      fontSize: FP.chapterTitleSize,
-      fontWeight: '700',
-      color: colors.accent.primaryDark,
-      textAlign: 'center',
-      marginBottom: spacing.sm,
-      paddingHorizontal: spacing.md,
-   },
-   bottomActionsDivider: {
-      height: 1,
-      backgroundColor: colors.background.highlight,
-      marginBottom: FP.bottomActionsPaddingTop,
-   },
-   bottomActions: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-   },
-   bottomAction: {
-      alignItems: 'center',
-      padding: spacing.sm,
-   },
-   bottomActionText: {
-      fontSize: FP.bottomActionTextSize,
-      color: colors.text.secondary,
-      marginTop: spacing.xs,
-   },
-   title: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.dark,
-      flex: 1,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   headerButtons: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-   },
-   dragHandlerContainer: {
-      alignItems: 'center',
-      paddingTop: spacing.sm,
-      paddingBottom: spacing.sm,
-      minHeight: FP.dragHandlerMinHeight,
-      justifyContent: 'center',
-   },
-   dragHandler: {
-      width: FP.dragHandlerWidth,
-      height: FP.dragHandlerHeight,
-      backgroundColor: colors.text.secondaryDark,
-      borderRadius: FP.dragHandlerHeight / 2,
-      opacity: 0.5,
-   },
-   closeButton: {
-      padding: spacing.xs,
-   },
-   coverContainer: {
-      alignSelf: 'center',
-      marginBottom: FP.coverMarginBottom,
-      borderRadius: borderRadius.xl,
-      overflow: 'hidden',
-   },
-   coverImage: {
-      width: '100%',
-      height: '100%',
-   },
-   controlsContainer: {
-      alignSelf: 'stretch',
-      width: '100%',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: FP.controlsMarginBottom,
-   },
-   controlsRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      alignSelf: 'stretch',
-      width: '100%',
-   },
-   playButton: {
-      width: FP.playButtonSize,
-      height: FP.playButtonSize,
-      borderRadius: FP.playButtonSize / 2,
-      backgroundColor: colors.accent.primary,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   chapterButton: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: 44,
-      paddingVertical: spacing.xs,
-   },
-   seekButton: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      minWidth: 44,
-      paddingHorizontal: spacing.xs,
-      paddingVertical: spacing.xs,
-   },
-   seekButtonText: {
-      fontSize: FP.seekButtonTextSize,
-      color: colors.text.secondaryDark,
-      marginTop: spacing.xs,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   errorContainer: {
-      alignItems: 'center',
-   },
-   errorText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.app.red,
-      marginBottom: spacing.md,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   retryButton: {
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
-      backgroundColor: colors.app.red,
-      borderRadius: borderRadius.md,
-   },
-   retryButtonText: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.dark,
-      fontWeight: '600',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   iconWrapper: {
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   playIconOffset: {
-      marginLeft: 1, // Slight offset to visually center the play triangle
-   },
-   minimizedBarOuter: {
-      borderRadius: borderRadius.xl,
-      overflow: 'hidden',
-      ...shadows.lg,
-      ...Platform.select({
-         android: { elevation: 12 },
-      }),
-   },
-   minimizedBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      height: MINIMIZED_BAR.height,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.sm,
-      backgroundColor: colors.background.player,
-      borderRadius: borderRadius.xl,
-      gap: spacing.sm,
-      ...shadows.lg,
-      ...Platform.select({
-         android: { elevation: 8 },
-      }),
-   },
-   minimizedCoverWrap: {
-      width: MINIMIZED_BAR.coverSize,
-      height: MINIMIZED_BAR.coverSize,
-      borderRadius: borderRadius.md,
-      overflow: 'hidden',
-      flexShrink: 0,
-   },
-   minimizedCoverImage: {
-      width: '100%',
-      height: '100%',
-      backgroundColor: colors.background.highlight,
-   },
-   minimizedCoverPlaceholder: {
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   minimizedInfo: {
-      flex: 1,
-      minWidth: 0,
-      justifyContent: 'center',
-      gap: 2,
-   },
-   minimizedTitle: {
-      fontSize: typography.fontSize.base,
-      fontWeight: '700',
-      color: colors.accent.primaryDark,
-   },
-   minimizedChapterMeta: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-   },
-   minimizedTimeText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      marginBottom: spacing.xs / 2,
-   },
-   minimizedProgressTrack: {
-      height: 4,
-      borderRadius: borderRadius.sm,
-      backgroundColor: colors.border.light,
-      overflow: 'hidden',
-   },
-   minimizedProgressFill: {
-      height: '100%',
-      backgroundColor: colors.accent.primary,
-      borderRadius: borderRadius.sm,
-   },
-   minimizedPlayControl: {
-      width: 40,
-      height: 40,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   minimizedTrailingControls: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flexShrink: 0,
-      gap: spacing.xs,
-   },
-   minimizedCloseControl: {
-      width: 36,
-      height: 36,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-});
 
