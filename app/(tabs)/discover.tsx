@@ -14,22 +14,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
 import { MoodChip } from '@/components/MoodChip';
+import { useMoods } from '@/hooks/useMoods';
 import { ContentRow, ContentItem } from '@/components/ContentRow';
 import { colors, spacing, typography, borderRadius } from '@/theme';
 import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { useHomeContent } from '@/hooks/useHomeContent';
 import { apiConfig } from '@/services/api';
 
-const MOOD_CHIPS = [
-   { label: 'Motivation', icon: 'flame-outline' as const },
-   { label: 'Focus', icon: 'eye-outline' as const },
-   { label: 'Calm', icon: 'leaf-outline' as const },
-   { label: 'Growth', icon: 'trending-up-outline' as const },
-];
-
 function DiscoverScreenContent() {
    const insets = useSafeAreaInsets();
    const { contentRows, isLoading, heroCarouselItems } = useHomeContent();
+   const { data: moods, isLoading: moodsLoading } = useMoods();
 
    const genreRows = useMemo(
       () => contentRows.filter((row) => row.type === 'genre' && row.items.length > 0),
@@ -71,9 +66,17 @@ function DiscoverScreenContent() {
                showsHorizontalScrollIndicator={false}
                contentContainerStyle={styles.moodRow}
             >
-               {MOOD_CHIPS.map((mood) => (
-                  <MoodChip key={mood.label} label={mood.label} icon={mood.icon} />
-               ))}
+               {moodsLoading ? (
+                  <ActivityIndicator size="small" color={colors.accent.primary} />
+               ) : (
+                  (moods ?? []).map((mood) => (
+                     <MoodChip
+                        key={mood.id}
+                        mood={mood}
+                        onPress={() => router.push(`/moods/${mood.id}` as never)}
+                     />
+                  ))
+               )}
             </ScrollView>
 
             <Text style={styles.sectionTitle}>Trending Now</Text>

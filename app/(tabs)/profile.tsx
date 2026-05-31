@@ -1,278 +1,215 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
+import React, { useMemo, useCallback } from 'react';
+import {
+   View,
+   Text,
+   StyleSheet,
+   ScrollView,
+   TouchableOpacity,
+   Platform,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useSelector } from 'react-redux';
-import { ProfileHeader } from '@/components/ProfileHeader';
-import { DownloadsCard } from '@/components/DownloadsCard';
-import { StoryCardWithShare } from '@/components/StoryCardWithShare';
-import { ContentRow, ContentItem } from '@/components/ContentRow';
-import { DrawerMenu } from '@/components/DrawerMenu';
+import { Ionicons } from '@expo/vector-icons';
 import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
+import { ProfileUserCard } from '@/components/profile/ProfileUserCard';
+import { ProfileStatsRow } from '@/components/profile/ProfileStatsRow';
+import { MembershipBanner } from '@/components/profile/MembershipBanner';
+import {
+   ProfileMenuSection,
+   type ProfileMenuItem,
+} from '@/components/profile/ProfileMenuSection';
 import { colors, spacing, typography } from '@/theme';
 import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { logout } from '@/utils/logout';
+import { resolveAvatarUrl } from '@/utils/resolveAvatarUrl';
+import { resolveMembershipTier } from '@/utils/membershipDisplay';
+import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { RootState } from '@/store';
 
-// Memoized section components to prevent re-renders when other sections update
-const MemoizedProfileHeader = React.memo<{
-   userName: string;
-   onAvatarPress: () => void;
-   onSearchPress: () => void;
-   onMenuPress: () => void;
-}>(({ userName, onAvatarPress, onSearchPress, onMenuPress }) => (
-   <ProfileHeader
-      userName={userName}
-      onAvatarPress={onAvatarPress}
-      onSearchPress={onSearchPress}
-      onMenuPress={onMenuPress}
-   />
-));
-MemoizedProfileHeader.displayName = 'MemoizedProfileHeader';
-
-const MemoizedDownloadsCard = React.memo<{
-   onPress: () => void;
-}>(({ onPress }) => <DownloadsCard onPress={onPress} />);
-MemoizedDownloadsCard.displayName = 'MemoizedDownloadsCard';
-
-const MemoizedContentRow = React.memo<{
-   title: string;
-   items: ContentItem[];
-   showMyListLink: boolean;
-   onItemPress: (item: ContentItem) => void;
-   onMyListPress: () => void;
-}>(({ title, items, showMyListLink, onItemPress, onMyListPress }) => (
-   <ContentRow
-      title={title}
-      items={items}
-      showMyListLink={showMyListLink}
-      onItemPress={onItemPress}
-      onMyListPress={onMyListPress}
-   />
-));
-MemoizedContentRow.displayName = 'MemoizedContentRow';
-
-// Memoized story card component to prevent re-renders
-const MemoizedStoryCard = React.memo<{
-   story: ContentItem;
-   shareMessage: string;
-   onPress: (item: ContentItem) => void;
-}>(({ story, shareMessage, onPress }) => {
-   const handlePress = useCallback(() => {
-      onPress(story);
-   }, [story, onPress]);
-
-   return (
-      <StoryCardWithShare
-         title={story.title}
-         imageUri={story.imageUri}
-         onPress={handlePress}
-         shareMessage={shareMessage}
-      />
-   );
-}, (prevProps, nextProps) => {
-   return (
-      prevProps.story.id === nextProps.story.id &&
-      prevProps.story.title === nextProps.story.title &&
-      prevProps.story.imageUri === nextProps.story.imageUri &&
-      prevProps.shareMessage === nextProps.shareMessage &&
-      prevProps.onPress === nextProps.onPress
-   );
-});
-MemoizedStoryCard.displayName = 'MemoizedStoryCard';
-
-// Sample data interfaces
-interface LikedStory extends ContentItem {
-   author?: string;
-}
-
-/**
- * Profile screen content - Netflix "My Netflix" style
- * Features user profile, downloads, liked stories, my list, and listened previews
- */
 function ProfileScreenContent() {
-   // Drawer menu state
-   const [drawerVisible, setDrawerVisible] = useState(false);
    const insets = useSafeAreaInsets();
-
-   // Get user profile from Redux
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
+   const user = useSelector((state: RootState) => state.auth.user);
+   const { activeSubscription } = useUserSubscription();
 
-   // Compute display name from user profile
-   // If firstName and lastName exist, use them; otherwise use username; fallback to "Mayukh"
    const displayName = useMemo(() => {
-      if (userProfile) {
-         if (userProfile.firstName && userProfile.lastName) {
-            return `${userProfile.firstName} ${userProfile.lastName}`;
-         }
-         if (userProfile.username) {
-            return userProfile.username;
-         }
+      if (userProfile?.firstName && userProfile?.lastName) {
+         return `${userProfile.firstName} ${userProfile.lastName}`;
       }
-      return 'Mayukh'; // Fallback if profile not loaded yet
+      if (userProfile?.firstName) {
+         return userProfile.firstName;
+      }
+      if (userProfile?.username) {
+         return userProfile.username;
+      }
+      return 'User';
    }, [userProfile]);
 
-   // Memoize sample data to prevent recreation on every render
-   const likedStories: LikedStory[] = useMemo(() => [
-      { id: 'l1', title: 'All of Us Are Dead', author: 'Mystery Author' },
-      { id: 'l2', title: 'Peaky Blinders', author: 'Drama Author' },
-   ], []);
+   const avatarUri = resolveAvatarUrl(userProfile?.avatar);
+   const membershipTier = resolveMembershipTier(activeSubscription?.plan);
+   const planName = activeSubscription?.plan.name;
 
-   const myListStories: ContentItem[] = useMemo(() => [
-      { id: 'm1', title: 'Lucifer' },
-      { id: 'm2', title: 'Dark' },
-      { id: 'm3', title: 'Manifest' },
-      { id: 'm4', title: 'Lupin' },
-   ], []);
-
-   const listenedPreviews: ContentItem[] = useMemo(() => [
-      { id: 'p1', title: 'The Silent Patient' },
-      { id: 'p2', title: 'Project Hail Mary' },
-      { id: 'p3', title: 'Atomic Habits' },
-   ], []);
-
-   // Memoize handlers to prevent unnecessary re-renders of child components
-   const handleStoryPress = useCallback((item: ContentItem) => {
-      console.log('Story pressed:', item.title);
-      // TODO: Navigate to story details
-   }, []);
-
-   const handleDownloadsPress = useCallback(() => {
-      console.log('Downloads pressed');
-      // TODO: Navigate to downloads screen
-   }, []);
-
-   const handleMyListSeeAll = useCallback(() => {
-      console.log('My List - See All pressed');
-      // TODO: Navigate to full My List screen
-   }, []);
-
-   // Drawer menu handlers - memoized
-   const handleMenuPress = useCallback(() => {
-      setDrawerVisible(true);
-   }, []);
-
-   const handleCloseDrawer = useCallback(() => {
-      setDrawerVisible(false);
-   }, []);
-
-   const handleAppSettingsPress = useCallback(() => {
-      console.log('App Settings pressed');
-      // TODO: Navigate to app settings screen
+   const handleSettingsPress = useCallback(() => {
+      router.push('/settings' as never);
    }, []);
 
    const handleAccountPress = useCallback(() => {
       router.push('/account');
    }, []);
 
-   const handleHelpPress = useCallback(() => {
-      console.log('Help pressed');
-      // TODO: Navigate to help/FAQ screen or open external link
+   const handleManagePlanPress = useCallback(() => {
+      router.push('/subscription-plans');
    }, []);
 
    const handleSignOutPress = useCallback(async () => {
-      // Clear all reducers and redirect to signin
       try {
          await logout();
       } catch (error) {
-         // Log error but don't show to user - logout API failure means state wasn't cleared
          console.error('[Profile] Logout failed:', error);
       }
    }, []);
 
-   const handleSearchPress = useCallback(() => {
-      router.push('/search');
-   }, []);
+   const activityItems: ProfileMenuItem[] = useMemo(
+      () => [
+         {
+            id: 'listening-history',
+            title: 'Listening History',
+            subtitle: "View all the titles you've listened to",
+            icon: 'time-outline',
+            iconBg: colors.iconBackgrounds.purple,
+            iconColor: colors.iconForegrounds.purple,
+         },
+         {
+            id: 'favorites',
+            title: 'Favorites',
+            subtitle: 'Your liked stories and shows',
+            icon: 'heart-outline',
+            iconBg: colors.iconBackgrounds.pink,
+            iconColor: colors.iconForegrounds.pink,
+            onPress: () => router.push('/library/favorites'),
+         },
+         {
+            id: 'downloads',
+            title: 'Downloads',
+            subtitle: "Stories you've downloaded",
+            icon: 'download-outline',
+            iconBg: colors.iconBackgrounds.green,
+            iconColor: colors.iconForegrounds.green,
+         },
+      ],
+      []
+   );
 
-   const handleAvatarPress = useCallback(() => {
-      console.log('Avatar pressed');
-   }, []);
+   const accountItems: ProfileMenuItem[] = useMemo(
+      () => [
+         {
+            id: 'edit-profile',
+            title: 'Edit Profile',
+            subtitle: 'Update your personal information',
+            icon: 'person-outline',
+            iconBg: colors.iconBackgrounds.brown,
+            iconColor: colors.iconForegrounds.brown,
+            onPress: handleAccountPress,
+         },
+         {
+            id: 'payment',
+            title: 'Payment & Billing',
+            subtitle: 'Manage your subscriptions and payments',
+            icon: 'card-outline',
+            iconBg: colors.iconBackgrounds.blue,
+            iconColor: colors.iconForegrounds.blue,
+            onPress: () => router.push('/subscription-plans'),
+         },
+         {
+            id: 'refer',
+            title: 'Refer & Earn',
+            subtitle: 'Invite friends and earn rewards',
+            icon: 'gift-outline',
+            iconBg: colors.iconBackgrounds.pink,
+            iconColor: colors.iconForegrounds.pink,
+         },
+         {
+            id: 'privacy',
+            title: 'Privacy & Security',
+            subtitle: 'Manage your privacy and security settings',
+            icon: 'shield-checkmark-outline',
+            iconBg: colors.iconBackgrounds.greenShield,
+            iconColor: colors.iconForegrounds.green,
+            onPress: handleAccountPress,
+         },
+      ],
+      [handleAccountPress]
+   );
 
-   // Calculate dynamic padding for scroll content
+   const logOutItems: ProfileMenuItem[] = useMemo(
+      () => [
+         {
+            id: 'logout',
+            title: 'Log Out',
+            subtitle: 'Sign out from your account',
+            icon: 'log-out-outline',
+            iconBg: colors.iconBackgrounds.red,
+            iconColor: colors.iconForegrounds.red,
+            onPress: handleSignOutPress,
+            isDanger: true,
+         },
+      ],
+      [handleSignOutPress]
+   );
+
    const scrollContentPadding = getTabScreenPaddingBottom(insets.bottom);
 
    return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
          <ScrollView
             style={styles.scrollView}
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollContentPadding }]}
+            contentContainerStyle={[
+               styles.scrollContent,
+               { paddingBottom: scrollContentPadding },
+            ]}
             showsVerticalScrollIndicator={false}
-            bounces={true}
-            removeClippedSubviews={true} // Optimize scrolling performance
-            scrollEventThrottle={16} // Optimize scroll event handling
          >
-            {/* Profile Header - Memoized to prevent re-renders */}
-            <MemoizedProfileHeader
-               userName={displayName}
-               onAvatarPress={handleAvatarPress}
-               onSearchPress={handleSearchPress}
-               onMenuPress={handleMenuPress}
+            <View style={styles.header}>
+               <Text style={styles.headerTitle}>Profile</Text>
+               <TouchableOpacity
+                  onPress={handleSettingsPress}
+                  style={styles.settingsButton}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Settings"
+               >
+                  <Ionicons name="settings-outline" size={24} color={colors.text.primary} />
+               </TouchableOpacity>
+            </View>
+
+            <ProfileUserCard
+               displayName={displayName}
+               email={user?.email}
+               avatarUri={avatarUri}
+               tier={membershipTier}
+               planName={planName}
+               onPress={handleAccountPress}
             />
 
-            {/* Downloads Card - Memoized to prevent re-renders */}
-            <MemoizedDownloadsCard onPress={handleDownloadsPress} />
+            <ProfileStatsRow />
 
-            {/* Stories You have Liked Section */}
-            {likedStories.length > 0 && (
-               <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Stories You have Liked</Text>
-                  <ScrollView
-                     horizontal
-                     showsHorizontalScrollIndicator={false}
-                     contentContainerStyle={styles.horizontalScrollContent}
-                  >
-                     {likedStories.map((story) => (
-                        <MemoizedStoryCard
-                           key={story.id}
-                           story={story}
-                           shareMessage={`Check out "${story.title}" on AudioBook!`}
-                           onPress={handleStoryPress}
-                        />
-                     ))}
-                  </ScrollView>
-               </View>
-            )}
-
-            {/* My List Section - Memoized to prevent re-renders */}
-            <MemoizedContentRow
-               title="My List"
-               items={myListStories}
-               showMyListLink={true}
-               onItemPress={handleStoryPress}
-               onMyListPress={handleMyListSeeAll}
+            <MembershipBanner
+               tier={membershipTier}
+               planName={planName}
+               onManagePlanPress={handleManagePlanPress}
+               onUpgradePress={handleManagePlanPress}
             />
 
-            {/* Previews You Have Listened Section */}
-            {listenedPreviews.length > 0 && (
-               <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Previews You Have Listened</Text>
-                  <ScrollView
-                     horizontal
-                     showsHorizontalScrollIndicator={false}
-                     contentContainerStyle={styles.horizontalScrollContent}
-                  >
-                     {listenedPreviews.map((preview) => (
-                        <MemoizedStoryCard
-                           key={preview.id}
-                           story={preview}
-                           shareMessage={`Listen to "${preview.title}" on AudioBook!`}
-                           onPress={handleStoryPress}
-                        />
-                     ))}
-                  </ScrollView>
-               </View>
-            )}
+            <ProfileMenuSection
+               title="Your Activity"
+               items={activityItems}
+               showViewAll
+            />
+
+            <ProfileMenuSection title="Account" items={accountItems} />
+
+            <ProfileMenuSection title="" items={logOutItems} />
          </ScrollView>
-
-         {/* Drawer Menu */}
-         <DrawerMenu
-            visible={drawerVisible}
-            onClose={handleCloseDrawer}
-            onAppSettingsPress={handleAppSettingsPress}
-            onAccountPress={handleAccountPress}
-            onHelpPress={handleHelpPress}
-            onSignOutPress={handleSignOutPress}
-         />
       </SafeAreaView>
    );
 }
@@ -285,39 +222,28 @@ const styles = StyleSheet.create({
    scrollView: {
       flex: 1,
    },
-   scrollContent: {
-      // Base style - paddingBottom will be set dynamically
-   },
-   section: {
-      marginBottom: spacing.lg,
-      backgroundColor: colors.background.screen,
-   },
-   sectionTitle: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.dark,
-      letterSpacing: -0.2,
+   scrollContent: {},
+   header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
       paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.md,
+   },
+   headerTitle: {
+      fontSize: typography.fontSize['3xl'],
+      color: colors.text.primary,
       ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
+         ios: { fontFamily: 'System', fontWeight: '700' },
+         android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
       }),
    },
-   horizontalScrollContent: {
-      paddingHorizontal: spacing.md,
+   settingsButton: {
+      padding: spacing.xs,
    },
 });
 
-/**
- * Profile screen wrapper with animation
- * Always transitions from right to left
- */
 export default function ProfileScreen() {
    return (
       <AnimatedTabScreen direction="right" currentRoute="profile">
