@@ -763,9 +763,6 @@ export const AudioPlayer: React.FC = React.memo(() => {
                         >
                            <Ionicons name="close" size={FP.headerMenuIconSize} color={colors.accent.primaryDark} />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.closeButton} activeOpacity={0.7}>
-                           <Ionicons name="ellipsis-horizontal" size={FP.headerMenuIconSize} color={colors.accent.primaryDark} />
-                        </TouchableOpacity>
                      </View>
                   </View>
 
@@ -1009,7 +1006,7 @@ const styles = StyleSheet.create({
    },
    header: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
+      justifyContent: 'flex-end',
       alignItems: 'center',
       marginBottom: FP.headerMarginBottom,
    },
