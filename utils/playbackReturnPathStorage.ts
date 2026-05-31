@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RETURN_PATH_KEY = '@audiobook/playbackReturnPath';
 const AUDIOBOOK_ID_KEY = '@audiobook/playbackAudiobookId';
+const CHAPTER_ID_KEY = '@audiobook/playbackChapterId';
 
 export async function persistPlaybackReturnPath(path: string | null): Promise<void> {
    if (path) {
@@ -31,6 +32,19 @@ export async function persistPlaybackAudiobookId(audiobookId: string | null): Pr
 
 export async function getPersistedPlaybackAudiobookId(): Promise<string | null> {
    const id = await AsyncStorage.getItem(AUDIOBOOK_ID_KEY);
+   return id && id.length > 0 ? id : null;
+}
+
+export async function persistPlaybackChapterId(chapterId: string | null): Promise<void> {
+   if (chapterId) {
+      await AsyncStorage.setItem(CHAPTER_ID_KEY, chapterId);
+   } else {
+      await AsyncStorage.removeItem(CHAPTER_ID_KEY);
+   }
+}
+
+export async function getPersistedPlaybackChapterId(): Promise<string | null> {
+   const id = await AsyncStorage.getItem(CHAPTER_ID_KEY);
    return id && id.length > 0 ? id : null;
 }
 

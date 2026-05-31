@@ -9,6 +9,7 @@ import { RootState } from '@/store';
 import { setPlaybackReturnPath } from '@/store/player';
 import {
    persistPlaybackAudiobookId,
+   persistPlaybackChapterId,
    persistPlaybackReturnPath,
 } from '@/utils/playbackReturnPathStorage';
 
@@ -34,4 +35,10 @@ export function usePlaybackReturnPathTracker(): void {
          void persistPlaybackAudiobookId(audiobookId);
       }
    }, [audiobookId]);
+
+   useEffect(() => {
+      if (currentChapterId) {
+         void persistPlaybackChapterId(currentChapterId);
+      }
+   }, [currentChapterId]);
 }

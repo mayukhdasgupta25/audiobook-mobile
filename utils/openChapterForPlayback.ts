@@ -8,6 +8,7 @@ import { getChapterProgress, type Chapter } from '@/services/audiobooks';
 import type { ChapterMetadata } from '@/store/player';
 import {
    persistPlaybackAudiobookId,
+   persistPlaybackChapterId,
    persistPlaybackReturnPath,
 } from '@/utils/playbackReturnPathStorage';
 
@@ -66,6 +67,7 @@ export async function openChapterForPlayback({
 
    void persistPlaybackReturnPath(detailsPath);
    void persistPlaybackAudiobookId(chapter.audiobookId);
+   void persistPlaybackChapterId(chapter.id);
 
    if (totalDurationSeconds != null && totalDurationSeconds > 0) {
       dispatch(setTotalDuration(totalDurationSeconds));

@@ -1,0 +1,221 @@
+/**
+ * Resolves Continue Listening data from live player state, persisted playback, or API progress.
+ */
+
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useSelector } from 'react-redux';
+import { getChapterProgress } from '@/services/audiobooks';
+import { ApiError } from '@/services/api';
+import { RootState } from '@/store';
+import { useAudiobook } from '@/hooks/useAudiobook';
+import { useChapters } from '@/hooks/useChapters';
+import {
+   buildContinueListeningProgress,
+   findMostRecentChapterProgress,
+} from '@/utils/continueListening';
+import {
+   getPersistedPlaybackAudiobookId,
+   getPersistedPlaybackChapterId,
+} from '@/utils/playbackReturnPathStorage';
+import { apiConfig } from '@/services/api';
+
+export interface ContinueListeningData {
+   id: string;
+   chapterId: string;
+   title: string;
+   author: string;
+   coverUri?: string;
+   chapterTitle: string;
+   chapterNumber?: number;
+   progress: number;
+   elapsedSeconds: number;
+   totalSeconds: number;
+   /** True when the player already has this chapter loaded. */
+   isLiveChapter: boolean;
+}
+
+export function useContinueListening() {
+   const isAuthenticated = useSelector(
+      (state: RootState) => state.auth.isAuthenticated
+   );
+   const isInitialized = useSelector(
+      (state: RootState) => state.auth.isInitialized
+   );
+   const playerAudiobookId = useSelector((state: RootState) => state.player.audiobookId);
+   const currentChapterId = useSelector(
+      (state: RootState) => state.player.currentChapterId
+   );
+   const chapterMetadata = useSelector(
+      (state: RootState) => state.player.chapterMetadata
+   );
+   const playbackPosition = useSelector(
+      (state: RootState) => state.player.playbackPosition
+   );
+   const totalDuration = useSelector((state: RootState) => state.player.totalDuration);
+
+   const [persistedAudiobookId, setPersistedAudiobookId] = useState<string | null>(null);
+   const [persistedChapterId, setPersistedChapterId] = useState<string | null>(null);
+   const [persistedLoaded, setPersistedLoaded] = useState(false);
+
+   useEffect(() => {
+      let cancelled = false;
+
+      void (async () => {
+         const [audiobookId, chapterId] = await Promise.all([
+            getPersistedPlaybackAudiobookId(),
+            getPersistedPlaybackChapterId(),
+         ]);
+
+         if (!cancelled) {
+            setPersistedAudiobookId(audiobookId);
+            setPersistedChapterId(chapterId);
+            setPersistedLoaded(true);
+         }
+      })();
+
+      return () => {
+         cancelled = true;
+      };
+   }, []);
+
+   const audiobookId = playerAudiobookId ?? persistedAudiobookId ?? null;
+
+   const liveChapterId =
+      playerAudiobookId && playerAudiobookId === audiobookId
+         ? currentChapterId
+         : null;
+
+   const candidateChapterId = liveChapterId ?? persistedChapterId;
+
+   const { data: audiobookData, isLoading: isAudiobookLoading } = useAudiobook(
+      audiobookId ?? ''
+   );
+   const { data: chaptersData, isLoading: isChaptersLoading } = useChapters(
+      audiobookId ?? ''
+   );
+
+   const chapters = chaptersData?.data ?? [];
+
+   const { data: discoveredChapter, isLoading: isDiscoveringChapter } = useQuery({
+      queryKey: ['continueListening', 'discover', audiobookId],
+      queryFn: () => findMostRecentChapterProgress(chapters),
+      enabled:
+         persistedLoaded &&
+         isAuthenticated &&
+         isInitialized &&
+         !!audiobookId &&
+         !candidateChapterId &&
+         chapters.length > 0,
+      staleTime: 60_000,
+   });
+
+   const resolvedChapterId =
+      candidateChapterId ?? discoveredChapter?.chapterId ?? null;
+
+   const useLiveProgress =
+      !!resolvedChapterId &&
+      resolvedChapterId === currentChapterId &&
+      playerAudiobookId === audiobookId &&
+      playbackPosition > 0;
+
+   const { data: savedProgress, isLoading: isProgressLoading } = useQuery({
+      queryKey: ['chapterProgress', resolvedChapterId],
+      queryFn: async () => {
+         const progress = await getChapterProgress(resolvedChapterId!);
+         return progress?.currentPosition ?? 0;
+      },
+      enabled:
+         persistedLoaded &&
+         isAuthenticated &&
+         isInitialized &&
+         !!resolvedChapterId &&
+         !useLiveProgress,
+      staleTime: 30_000,
+      retry: (failureCount, error) => {
+         if (error instanceof ApiError && error.status === 404) {
+            return false;
+         }
+         return failureCount < 2;
+      },
+   });
+
+   const chapterFromList = useMemo(
+      () => chapters.find((chapter) => chapter.id === resolvedChapterId),
+      [chapters, resolvedChapterId]
+   );
+
+   const data = useMemo((): ContinueListeningData | null => {
+      if (!audiobookId || !resolvedChapterId) {
+         return null;
+      }
+
+      const book = audiobookData?.data;
+      const chapter = chapterFromList ?? discoveredChapter?.chapter;
+
+      const chapterTitle =
+         (useLiveProgress && chapterMetadata?.title) ||
+         chapter?.title ||
+         chapterMetadata?.title ||
+         '';
+
+      const chapterNumber =
+         (useLiveProgress && chapterMetadata?.chapterNumber) ||
+         chapter?.chapterNumber ||
+         chapterMetadata?.chapterNumber;
+
+      const elapsedSeconds = useLiveProgress
+         ? playbackPosition
+         : savedProgress ?? discoveredChapter?.currentPosition ?? 0;
+
+      const totalSeconds =
+         useLiveProgress && totalDuration > 0
+            ? totalDuration
+            : chapter?.duration ?? totalDuration;
+
+      if (elapsedSeconds <= 0 && !liveChapterId) {
+         return null;
+      }
+
+      const title = book?.title ?? chapter?.audiobook?.title ?? chapterMetadata?.audiobookTitle ?? '';
+      const author = book?.author ?? chapter?.audiobook?.author ?? '';
+      const coverPath = book?.coverImage || book?.contentCardCoverImage;
+      const coverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
+
+      return {
+         id: audiobookId,
+         chapterId: resolvedChapterId,
+         title,
+         author,
+         coverUri,
+         chapterTitle,
+         chapterNumber,
+         progress: buildContinueListeningProgress(elapsedSeconds, totalSeconds),
+         elapsedSeconds,
+         totalSeconds,
+         isLiveChapter: liveChapterId === resolvedChapterId,
+      };
+   }, [
+      audiobookId,
+      resolvedChapterId,
+      audiobookData?.data,
+      chapterFromList,
+      discoveredChapter,
+      useLiveProgress,
+      chapterMetadata,
+      playbackPosition,
+      savedProgress,
+      totalDuration,
+      liveChapterId,
+   ]);
+
+   const isLoading =
+      !persistedLoaded ||
+      (!!audiobookId &&
+         (isAudiobookLoading ||
+            isChaptersLoading ||
+            isDiscoveringChapter ||
+            isProgressLoading));
+
+   return { data, isLoading };
+}
