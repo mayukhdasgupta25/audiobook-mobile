@@ -42,6 +42,7 @@ import {
    syncTrackProgressToPlayerStore,
    clearPlayerLoadingIfNeeded,
 } from '@/utils/playerStoreSync';
+import { clampPlaybackSeekSeconds } from '@/utils/playbackPosition';
 import { Platform } from 'react-native';
 import type { PlaybackSpeed } from '@/constants/playbackSpeed';
 import { applyPlaybackSpeed } from '@/utils/applyPlaybackSpeed';
@@ -479,9 +480,9 @@ export function useAudioPlayer() {
             return;
          }
 
-         const clampedTime = Math.max(
-            0,
-            Math.min(targetTime, freshTotalDuration > 0 ? freshTotalDuration : targetTime)
+         const clampedTime = clampPlaybackSeekSeconds(
+            targetTime,
+            freshTotalDuration > 0 ? freshTotalDuration : 0
          );
 
          dispatch(setPosition(clampedTime));
@@ -499,6 +500,8 @@ export function useAudioPlayer() {
                chapterId: freshChapterId,
                action: 'seek',
                position: clampedTime,
+               durationSeconds:
+                  freshTotalDuration > 0 ? freshTotalDuration : undefined,
             }).catch((err: unknown) => {
                console.error('[Audio Player] Failed to sync after seek:', err);
             });
