@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Chapter } from '@/services/audiobooks';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { formatDuration } from '@/utils/duration';
 
 interface ChapterListItemProps {
@@ -34,6 +36,87 @@ export const ChapterListItem: React.FC<ChapterListItemProps> = React.memo(
       isActive = false,
       onDownloadPress,
    }) => {
+      const { colors } = useTheme();
+      const styles = useThemedStyles((t) =>
+         StyleSheet.create({
+            container: {
+               flexDirection: 'row',
+               alignItems: 'center',
+               paddingVertical: spacing.md,
+               paddingHorizontal: spacing.md,
+               paddingLeft: spacing.md + 4,
+               backgroundColor: t.colors.background.screen,
+               position: 'relative',
+            },
+            containerActive: {
+               backgroundColor: t.colors.background.highlight,
+            },
+            divider: {
+               height: 1,
+               backgroundColor: t.colors.background.highlight,
+               marginLeft: spacing.md,
+            },
+            activeBar: {
+               position: 'absolute',
+               left: 0,
+               top: spacing.sm,
+               bottom: spacing.sm,
+               width: 3,
+               backgroundColor: t.colors.accent.primary,
+               borderRadius: 2,
+            },
+            chapterNumber: {
+               width: 28,
+               fontSize: typography.fontSize.sm,
+               fontWeight: '600',
+               color: t.colors.text.muted,
+               textAlign: 'center',
+               marginRight: spacing.sm,
+            },
+            infoContainer: {
+               flex: 1,
+               marginRight: spacing.sm,
+            },
+            title: {
+               fontSize: typography.fontSize.base,
+               fontWeight: '500',
+               color: t.colors.text.primary,
+               marginBottom: 2,
+               ...Platform.select({
+                  ios: { fontFamily: 'System', fontWeight: '500' },
+                  android: { fontFamily: 'sans-serif-medium' },
+               }),
+            },
+            titleActive: {
+               fontWeight: '600',
+               color: t.colors.accent.primaryDark,
+            },
+            duration: {
+               fontSize: typography.fontSize.xs,
+               color: t.colors.text.secondary,
+            },
+            actions: {
+               flexDirection: 'row',
+               alignItems: 'center',
+               gap: spacing.sm,
+            },
+            actionButton: {
+               padding: spacing.xs,
+            },
+            playButton: {
+               width: 32,
+               height: 32,
+               borderRadius: 16,
+               backgroundColor: t.colors.accent.primary,
+               alignItems: 'center',
+               justifyContent: 'center',
+            },
+            playIconOffset: {
+               marginLeft: 2,
+            },
+         })
+      );
+
       const formattedDuration = formatDuration(chapter.duration);
       const isHighlighted = isActive || isCurrentlyPlaying;
 
@@ -99,81 +182,3 @@ export const ChapterListItem: React.FC<ChapterListItemProps> = React.memo(
 );
 
 ChapterListItem.displayName = 'ChapterListItem';
-
-const styles = StyleSheet.create({
-   container: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.md,
-      paddingLeft: spacing.md + 4,
-      backgroundColor: colors.background.screen,
-      position: 'relative',
-   },
-   containerActive: {
-      backgroundColor: colors.background.highlight,
-   },
-   divider: {
-      height: 1,
-      backgroundColor: colors.background.highlight,
-      marginLeft: spacing.md,
-   },
-   activeBar: {
-      position: 'absolute',
-      left: 0,
-      top: spacing.sm,
-      bottom: spacing.sm,
-      width: 3,
-      backgroundColor: colors.accent.primary,
-      borderRadius: 2,
-   },
-   chapterNumber: {
-      width: 28,
-      fontSize: typography.fontSize.sm,
-      fontWeight: '600',
-      color: colors.text.muted,
-      textAlign: 'center',
-      marginRight: spacing.sm,
-   },
-   infoContainer: {
-      flex: 1,
-      marginRight: spacing.sm,
-   },
-   title: {
-      fontSize: typography.fontSize.base,
-      fontWeight: '500',
-      color: colors.text.primary,
-      marginBottom: 2,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '500' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   titleActive: {
-      fontWeight: '600',
-      color: colors.accent.primaryDark,
-   },
-   duration: {
-      fontSize: typography.fontSize.xs,
-      color: colors.text.secondary,
-   },
-   actions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-   },
-   actionButton: {
-      padding: spacing.xs,
-   },
-   playButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: colors.accent.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   playIconOffset: {
-      marginLeft: 2,
-   },
-});

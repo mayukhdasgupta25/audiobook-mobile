@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 interface ContentCardProps {
    title: string;
@@ -22,6 +23,71 @@ const ContentCardComponent: React.FC<ContentCardProps> = ({
    onPress,
    cardWidth = 140,
 }) => {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            marginRight: spacing.sm,
+         },
+         imageContainer: {
+            position: 'relative',
+            width: '100%',
+            aspectRatio: 0.7, // Portrait aspect ratio
+            borderRadius: borderRadius.md,
+            overflow: 'hidden',
+            backgroundColor: t.colors.background.highlight,
+         },
+         image: {
+            width: '100%',
+            height: '100%',
+            resizeMode: 'cover',
+         },
+         placeholder: {
+            backgroundColor: t.colors.background.highlight,
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         placeholderText: {
+            fontSize: typography.fontSize['2xl'],
+            color: t.colors.text.secondaryDark,
+            fontWeight: '700',
+         },
+         badge: {
+            position: 'absolute',
+            top: spacing.xs,
+            right: spacing.xs,
+            backgroundColor: t.colors.accent.primary,
+            paddingHorizontal: spacing.xs,
+            paddingVertical: 2,
+            borderRadius: borderRadius.sm,
+         },
+         badgeText: {
+            color: '#FFFFFF',
+            fontSize: typography.fontSize.xs,
+            fontWeight: '700',
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '700',
+               },
+               android: {
+                  fontFamily: 'sans-serif',
+                  fontWeight: 'bold',
+               },
+            }),
+         },
+         title: {
+            marginTop: spacing.xs,
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.primary,
+            fontWeight: '500',
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '500' },
+               android: { fontFamily: 'sans-serif' },
+            }),
+         },
+      })
+   );
+
    return (
       <TouchableOpacity
          onPress={onPress}
@@ -62,67 +128,3 @@ const ContentCardComponent: React.FC<ContentCardProps> = ({
 
 // Memoize component to prevent unnecessary re-renders when props haven't changed
 export const ContentCard = React.memo(ContentCardComponent);
-
-const styles = StyleSheet.create({
-   container: {
-      marginRight: spacing.sm,
-   },
-   imageContainer: {
-      position: 'relative',
-      width: '100%',
-      aspectRatio: 0.7, // Portrait aspect ratio
-      borderRadius: borderRadius.md,
-      overflow: 'hidden',
-      backgroundColor: colors.background.highlight,
-   },
-   image: {
-      width: '100%',
-      height: '100%',
-      resizeMode: 'cover',
-   },
-   placeholder: {
-      backgroundColor: colors.background.highlight,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   placeholderText: {
-      fontSize: typography.fontSize['2xl'],
-      color: colors.text.secondaryDark,
-      fontWeight: '700',
-   },
-   badge: {
-      position: 'absolute',
-      top: spacing.xs,
-      right: spacing.xs,
-      backgroundColor: colors.accent.primary,
-      paddingHorizontal: spacing.xs,
-      paddingVertical: 2,
-      borderRadius: borderRadius.sm,
-   },
-   badgeText: {
-      color: '#FFFFFF',
-      fontSize: typography.fontSize.xs,
-      fontWeight: '700',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '700',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-            fontWeight: 'bold',
-         },
-      }),
-   },
-   title: {
-      marginTop: spacing.xs,
-      fontSize: typography.fontSize.sm,
-      color: colors.text.primary,
-      fontWeight: '500',
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '500' },
-         android: { fontFamily: 'sans-serif' },
-      }),
-   },
-});
-

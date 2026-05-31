@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import {
    View,
    Text,
@@ -15,7 +15,12 @@ import {
    Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, shadows, borderRadius } from '@/theme';
+import { useDispatch, useSelector } from 'react-redux';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { RootState } from '@/store';
+import { setColorScheme } from '@/store/settings';
 import {
    DRAWER_SLIDE_SPRING,
    DRAWER_BACKDROP_FADE_MS,
@@ -75,10 +80,185 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
    onNavigate,
    onSignOut,
 }) => {
+   const dispatch = useDispatch();
+   const colorScheme = useSelector((state: RootState) => state.settings.colorScheme);
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         backdrop: {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+         },
+         backdropOverlay: {
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+         },
+         drawerContainer: {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            bottom: 0,
+            backgroundColor: t.colors.background.drawer,
+            ...t.shadows.lg,
+            shadowColor: '#000',
+            shadowOffset: { width: 2, height: 0 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 16,
+         },
+         scrollView: {
+            flex: 1,
+         },
+         scrollContent: {
+            paddingTop: Platform.OS === 'ios' ? 56 : 40,
+            paddingBottom: spacing.md,
+         },
+         userHeader: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.md,
+         },
+         avatar: {
+            width: 52,
+            height: 52,
+            borderRadius: borderRadius.full,
+            marginRight: spacing.md,
+         },
+         avatarPlaceholder: {
+            backgroundColor: t.colors.primary[200],
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         avatarText: {
+            fontSize: typography.fontSize.lg,
+            color: t.colors.accent.primary,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
+            }),
+         },
+         userInfo: {
+            flex: 1,
+            minWidth: 0,
+         },
+         nameRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.xs,
+         },
+         userName: {
+            fontSize: typography.fontSize.lg,
+            color: t.colors.text.primary,
+            flexShrink: 1,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
+            }),
+         },
+         membershipLabel: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            marginTop: 2,
+         },
+         navSection: {
+            paddingHorizontal: spacing.sm,
+         },
+         navItem: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm + 2,
+            borderRadius: borderRadius.md,
+            marginBottom: 2,
+            minHeight: 44,
+         },
+         navItemActive: {
+            backgroundColor: t.colors.background.highlight,
+         },
+         navIcon: {
+            marginRight: spacing.md,
+         },
+         navText: {
+            flex: 1,
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.primary,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '500' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         navTextActive: {
+            color: t.colors.accent.primary,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '600' },
+               android: { fontFamily: 'sans-serif-medium', fontWeight: '600' },
+            }),
+         },
+         notificationDot: {
+            width: 8,
+            height: 8,
+            borderRadius: borderRadius.full,
+            backgroundColor: t.colors.warning,
+         },
+         divider: {
+            height: 1,
+            backgroundColor: t.colors.border.light,
+            marginHorizontal: spacing.md,
+            marginVertical: spacing.sm,
+         },
+         signOutItem: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm + 2,
+            marginHorizontal: spacing.sm,
+            minHeight: 44,
+         },
+         signOutText: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.accent.primaryDark,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '600' },
+               android: { fontFamily: 'sans-serif-medium', fontWeight: '600' },
+            }),
+         },
+         footerDivider: {
+            height: 1,
+            backgroundColor: t.colors.background.highlight,
+            marginBottom: spacing.md,
+         },
+         footer: {
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.md,
+            paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.md,
+         },
+         darkModeRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: t.colors.background.card,
+            borderRadius: borderRadius.lg,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+         },
+         darkModeText: {
+            flex: 1,
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.primary,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '500' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+      })
+   );
+
    const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
    const backdropOpacity = useRef(new Animated.Value(0)).current;
    const [isAnimating, setIsAnimating] = React.useState(false);
-   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
    const openAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
    const closeAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
 
@@ -372,8 +552,10 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
                   />
                   <Text style={styles.darkModeText}>Dark Mode</Text>
                   <Switch
-                     value={darkModeEnabled}
-                     onValueChange={setDarkModeEnabled}
+                     value={colorScheme === 'dark'}
+                     onValueChange={(value) => {
+                        dispatch(setColorScheme(value ? 'dark' : 'light'));
+                     }}
                      trackColor={{
                         false: colors.border.medium,
                         true: colors.primary[300],
@@ -386,174 +568,3 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
       </Modal>
    );
 };
-
-const styles = StyleSheet.create({
-   backdrop: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-   },
-   backdropOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.45)',
-   },
-   drawerContainer: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      bottom: 0,
-      backgroundColor: colors.primary[50],
-      ...shadows.lg,
-      shadowColor: '#000',
-      shadowOffset: { width: 2, height: 0 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 16,
-   },
-   scrollView: {
-      flex: 1,
-   },
-   scrollContent: {
-      paddingTop: Platform.OS === 'ios' ? 56 : 40,
-      paddingBottom: spacing.md,
-   },
-   userHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.md,
-   },
-   avatar: {
-      width: 52,
-      height: 52,
-      borderRadius: borderRadius.full,
-      marginRight: spacing.md,
-   },
-   avatarPlaceholder: {
-      backgroundColor: colors.primary[200],
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   avatarText: {
-      fontSize: typography.fontSize.lg,
-      color: colors.accent.primary,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
-      }),
-   },
-   userInfo: {
-      flex: 1,
-      minWidth: 0,
-   },
-   nameRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-   },
-   userName: {
-      fontSize: typography.fontSize.lg,
-      color: colors.text.primary,
-      flexShrink: 1,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
-      }),
-   },
-   membershipLabel: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      marginTop: 2,
-   },
-   navSection: {
-      paddingHorizontal: spacing.sm,
-   },
-   navItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm + 2,
-      borderRadius: borderRadius.md,
-      marginBottom: 2,
-      minHeight: 44,
-   },
-   navItemActive: {
-      backgroundColor: colors.background.highlight,
-   },
-   navIcon: {
-      marginRight: spacing.md,
-   },
-   navText: {
-      flex: 1,
-      fontSize: typography.fontSize.base,
-      color: colors.text.primary,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '500' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   navTextActive: {
-      color: colors.accent.primary,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '600' },
-         android: { fontFamily: 'sans-serif-medium', fontWeight: '600' },
-      }),
-   },
-   notificationDot: {
-      width: 8,
-      height: 8,
-      borderRadius: borderRadius.full,
-      backgroundColor: colors.warning,
-   },
-   divider: {
-      height: 1,
-      backgroundColor: colors.border.light,
-      marginHorizontal: spacing.md,
-      marginVertical: spacing.sm,
-   },
-   signOutItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm + 2,
-      marginHorizontal: spacing.sm,
-      minHeight: 44,
-   },
-   signOutText: {
-      fontSize: typography.fontSize.base,
-      color: colors.accent.primaryDark,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '600' },
-         android: { fontFamily: 'sans-serif-medium', fontWeight: '600' },
-      }),
-   },
-   footerDivider: {
-      height: 1,
-      backgroundColor: colors.background.highlight,
-      marginBottom: spacing.md,
-   },
-   footer: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
-      paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.md,
-   },
-   darkModeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.background.card,
-      borderRadius: borderRadius.lg,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-   },
-   darkModeText: {
-      flex: 1,
-      fontSize: typography.fontSize.base,
-      color: colors.text.primary,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '500' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-});

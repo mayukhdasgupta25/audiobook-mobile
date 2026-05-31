@@ -8,7 +8,8 @@ import {
    Platform,
 } from 'react-native';
 import { ContentCard } from './ContentCard';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 export interface ContentItem {
    id: string;
@@ -77,6 +78,54 @@ const ContentRowComponent: React.FC<ContentRowProps> = ({
    onEndReached,
    onEndReachedThreshold = 0.5,
 }) => {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            marginBottom: spacing.lg,
+            backgroundColor: t.colors.background.screen,
+         },
+         header: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+         },
+         title: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.dark,
+            letterSpacing: -0.2,
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '600',
+               },
+               android: {
+                  fontFamily: 'sans-serif-medium',
+               },
+            }),
+         },
+         myListLink: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.dark,
+            fontWeight: '500',
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '500',
+               },
+               android: {
+                  fontFamily: 'sans-serif',
+               },
+            }),
+         },
+         scrollContent: {
+            paddingHorizontal: spacing.md,
+         },
+      })
+   );
+
    // Memoize items to prevent recreation on every render
    const memoizedItems = useMemo(() => items, [items]);
 
@@ -132,50 +181,3 @@ const ContentRowComponent: React.FC<ContentRowProps> = ({
 
 // Memoize component to prevent unnecessary re-renders when props haven't changed
 export const ContentRow = React.memo(ContentRowComponent);
-
-const styles = StyleSheet.create({
-   container: {
-      marginBottom: spacing.lg,
-      backgroundColor: colors.background.screen,
-   },
-   header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-   },
-   title: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.dark,
-      letterSpacing: -0.2,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   myListLink: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.dark,
-      fontWeight: '500',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '500',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   scrollContent: {
-      paddingHorizontal: spacing.md,
-   },
-});
-

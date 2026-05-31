@@ -11,7 +11,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import {
    ageFromScrollOffset,
    buildAgeRange,
@@ -41,6 +43,107 @@ export const AgeNumberPicker: React.FC<AgeNumberPickerProps> = ({
    maxAge,
    testID = 'age-number-picker',
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         wrapper: {
+            width: '100%',
+            alignItems: 'center',
+         },
+         pickerFrame: {
+            width: '100%',
+            maxWidth: 280,
+            height: AGE_PICKER_HEIGHT,
+            borderRadius: borderRadius.xl,
+            backgroundColor: t.colors.background.input,
+            overflow: 'hidden',
+         },
+         selectionBand: {
+            position: 'absolute',
+            left: spacing.md,
+            right: spacing.md,
+            top: WHEEL_PADDING,
+            height: AGE_PICKER_ITEM_HEIGHT,
+            borderRadius: borderRadius.lg,
+            backgroundColor: t.colors.background.highlight,
+            zIndex: 1,
+         },
+         list: {
+            flex: 1,
+         },
+         listContent: {
+            paddingVertical: WHEEL_PADDING,
+         },
+         item: {
+            height: AGE_PICKER_ITEM_HEIGHT,
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         itemText: {
+            fontSize: typography.fontSize.lg,
+            color: t.colors.text.secondaryDark,
+            fontWeight: '500',
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '500' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         itemTextAdjacent: {
+            fontSize: typography.fontSize.xl,
+            color: t.colors.text.muted,
+         },
+         itemTextSelected: {
+            fontSize: typography.fontSize['4xl'],
+            fontWeight: '700',
+            color: t.colors.text.primary,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-bold' },
+            }),
+         },
+         itemTextDistant: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.neutral[400],
+         },
+         fadeTop: {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: WHEEL_PADDING + spacing.sm,
+            zIndex: 2,
+         },
+         fadeBottom: {
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: WHEEL_PADDING + spacing.sm,
+            zIndex: 2,
+         },
+         unitLabel: {
+            marginTop: spacing.md,
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondaryDark,
+            letterSpacing: 0.6,
+            textTransform: 'uppercase',
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '500' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+      })
+   );
+
+   const fadeTopColors = useMemo(
+      () => [colors.background.input, 'transparent'] as [string, string],
+      [colors.background.input]
+   );
+   const fadeBottomColors = useMemo(
+      () => ['transparent', colors.background.input] as [string, string],
+      [colors.background.input]
+   );
+
    const ages = useMemo(() => buildAgeRange(minAge, maxAge), [minAge, maxAge]);
    const listRef = useRef<FlatList<number>>(null);
    const lastHapticAgeRef = useRef(value);
@@ -132,7 +235,7 @@ export const AgeNumberPicker: React.FC<AgeNumberPickerProps> = ({
             </View>
          );
       },
-      [highlightedAge]
+      [highlightedAge, styles]
    );
 
    return (
@@ -158,12 +261,12 @@ export const AgeNumberPicker: React.FC<AgeNumberPickerProps> = ({
                style={styles.list}
             />
             <LinearGradient
-               colors={['#000000', 'rgba(0,0,0,0)']}
+               colors={fadeTopColors}
                style={styles.fadeTop}
                pointerEvents="none"
             />
             <LinearGradient
-               colors={['rgba(0,0,0,0)', '#000000']}
+               colors={fadeBottomColors}
                style={styles.fadeBottom}
                pointerEvents="none"
             />
@@ -172,92 +275,3 @@ export const AgeNumberPicker: React.FC<AgeNumberPickerProps> = ({
       </View>
    );
 };
-
-const styles = StyleSheet.create({
-   wrapper: {
-      width: '100%',
-      alignItems: 'center',
-   },
-   pickerFrame: {
-      width: '100%',
-      maxWidth: 280,
-      height: AGE_PICKER_HEIGHT,
-      borderRadius: borderRadius.xl,
-      backgroundColor: colors.background.input,
-      overflow: 'hidden',
-   },
-   selectionBand: {
-      position: 'absolute',
-      left: spacing.md,
-      right: spacing.md,
-      top: WHEEL_PADDING,
-      height: AGE_PICKER_ITEM_HEIGHT,
-      borderRadius: borderRadius.lg,
-      backgroundColor: colors.background.highlight,
-      zIndex: 1,
-   },
-   list: {
-      flex: 1,
-   },
-   listContent: {
-      paddingVertical: WHEEL_PADDING,
-   },
-   item: {
-      height: AGE_PICKER_ITEM_HEIGHT,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   itemText: {
-      fontSize: typography.fontSize.lg,
-      color: colors.text.secondaryDark,
-      fontWeight: '500',
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '500' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   itemTextAdjacent: {
-      fontSize: typography.fontSize.xl,
-      color: 'rgba(255, 255, 255, 0.45)',
-   },
-   itemTextSelected: {
-      fontSize: typography.fontSize['4xl'],
-      fontWeight: '700',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-bold' },
-      }),
-   },
-   itemTextDistant: {
-      fontSize: typography.fontSize.base,
-      color: 'rgba(163, 163, 163, 0.35)',
-   },
-   fadeTop: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      height: WHEEL_PADDING + spacing.sm,
-      zIndex: 2,
-   },
-   fadeBottom: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      height: WHEEL_PADDING + spacing.sm,
-      zIndex: 2,
-   },
-   unitLabel: {
-      marginTop: spacing.md,
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      letterSpacing: 0.6,
-      textTransform: 'uppercase',
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '500' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-});

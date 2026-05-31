@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius, shadows } from '@/theme';
+import { spacing, typography, borderRadius, shadows } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { formatDuration } from '@/utils/duration';
 
 export interface ContinueListeningCardProps {
@@ -36,6 +37,95 @@ export const ContinueListeningCard: React.FC<ContinueListeningCardProps> = ({
    onPress,
    onPlayPress,
 }) => {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         card: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: t.colors.background.card,
+            borderRadius: borderRadius.xl,
+            padding: spacing.md,
+            marginHorizontal: spacing.md,
+            ...shadows.sm,
+         },
+         coverWrap: {
+            marginRight: spacing.md,
+         },
+         cover: {
+            width: 64,
+            height: 64,
+            borderRadius: borderRadius.md,
+         },
+         coverPlaceholder: {
+            backgroundColor: t.colors.background.highlight,
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         coverLetter: {
+            fontSize: typography.fontSize.xl,
+            fontWeight: '700',
+            color: t.colors.accent.primary,
+         },
+         content: {
+            flex: 1,
+            marginRight: spacing.sm,
+         },
+         title: {
+            fontSize: typography.fontSize.base,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '600' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         author: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            marginTop: 2,
+            marginBottom: spacing.sm,
+         },
+         progressTrack: {
+            height: 4,
+            backgroundColor: t.colors.background.input,
+            borderRadius: 2,
+            overflow: 'hidden',
+            marginBottom: spacing.xs,
+         },
+         progressFill: {
+            height: '100%',
+            backgroundColor: t.colors.accent.primary,
+            borderRadius: 2,
+         },
+         metaRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+         },
+         chapterMeta: {
+            flex: 1,
+            fontSize: typography.fontSize.xs,
+            color: t.colors.text.secondary,
+            marginRight: spacing.sm,
+         },
+         timeMeta: {
+            fontSize: typography.fontSize.xs,
+            color: t.colors.text.muted,
+         },
+         playButton: {
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: t.colors.accent.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         playIcon: {
+            marginLeft: 3,
+         },
+      })
+   );
+
    const progressPercent = Math.min(100, Math.max(0, progress * 100));
    const chapterMeta =
       chapterNumber && chapterTitle
@@ -91,90 +181,3 @@ export const ContinueListeningCard: React.FC<ContinueListeningCardProps> = ({
       </TouchableOpacity>
    );
 };
-
-const styles = StyleSheet.create({
-   card: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.background.card,
-      borderRadius: borderRadius.xl,
-      padding: spacing.md,
-      marginHorizontal: spacing.md,
-      ...shadows.sm,
-   },
-   coverWrap: {
-      marginRight: spacing.md,
-   },
-   cover: {
-      width: 64,
-      height: 64,
-      borderRadius: borderRadius.md,
-   },
-   coverPlaceholder: {
-      backgroundColor: colors.background.highlight,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   coverLetter: {
-      fontSize: typography.fontSize.xl,
-      fontWeight: '700',
-      color: colors.accent.primary,
-   },
-   content: {
-      flex: 1,
-      marginRight: spacing.sm,
-   },
-   title: {
-      fontSize: typography.fontSize.base,
-      fontWeight: '600',
-      color: colors.text.primary,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '600' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   author: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      marginTop: 2,
-      marginBottom: spacing.sm,
-   },
-   progressTrack: {
-      height: 4,
-      backgroundColor: colors.background.input,
-      borderRadius: 2,
-      overflow: 'hidden',
-      marginBottom: spacing.xs,
-   },
-   progressFill: {
-      height: '100%',
-      backgroundColor: colors.accent.primary,
-      borderRadius: 2,
-   },
-   metaRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-   },
-   chapterMeta: {
-      flex: 1,
-      fontSize: typography.fontSize.xs,
-      color: colors.text.secondary,
-      marginRight: spacing.sm,
-   },
-   timeMeta: {
-      fontSize: typography.fontSize.xs,
-      color: colors.text.muted,
-   },
-   playButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.accent.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   playIcon: {
-      marginLeft: 3,
-   },
-});

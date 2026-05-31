@@ -11,7 +11,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { store, persistor, initializeApp } from '@/store';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store';
-import { colors } from '@/theme';
 import SplashScreen from '@/components/SplashScreen';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { AudioPlaybackProvider } from '@/contexts/AudioPlaybackContext';
@@ -25,6 +24,7 @@ import { useUserLocationSync } from '@/hooks/useUserLocationSync';
 import { isTrackPlayerNotificationUrl } from '@/utils/playbackNotificationNavigation';
 import { resolvePersistedPlaybackRoute } from '@/utils/playbackReturnPathStorage';
 import { ToastProvider } from '@/contexts/ToastContext';
+import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { Toast } from '@/components/Toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { preloadAppAssets } from '@/utils/preloadAppAssets';
@@ -36,13 +36,24 @@ if (__DEV__) {
    require('../config/ReactotronConfig');
 }
 
+function ThemedAppShell({ children }: { children: React.ReactNode }) {
+   const { colors, isDark } = useTheme();
+
+   return (
+      <View style={{ flex: 1, backgroundColor: colors.background.screen }}>
+         <StatusBar style={isDark ? 'light' : 'dark'} />
+         {children}
+      </View>
+   );
+}
+
 /**
  * Inner layout component that handles auth-based routing
  */
 function InnerLayout() {
    useTrackPlayerSetup();
+   const { colors } = useTheme();
    const segments = useSegments();
-   // Memoize selectors to prevent unnecessary re-renders
    const isAuthenticated = useSelector(
       (state: RootState) => state.auth.isAuthenticated
    );
@@ -60,22 +71,21 @@ function InnerLayout() {
    const hasSetInitialRoute = useRef(false);
    const splashStartTime = useRef<number>(Date.now());
 
+   const screenBackground = { backgroundColor: colors.background.screen };
+
    usePlaybackReturnPathTracker();
    usePlaybackNotificationLinking(isAppReady && isInitialized && !showSplash);
    useDeviceLocationOnAppLoad(isAppReady);
    useUserLocationSync(isAppReady);
 
    useEffect(() => {
-      // Initialize auth state on app startup
       const init = async () => {
-         // Configure Google Sign-In
          configureGoogleSignIn();
          await Promise.all([initializeApp(), preloadAppAssets()]);
          setIsAppReady(true);
       };
       init();
 
-      // Fallback: ensure app renders after 2 seconds even if initialization fails
       const fallbackTimeout = setTimeout(() => {
          setIsAppReady(true);
       }, 2000);
@@ -83,12 +93,10 @@ function InnerLayout() {
       return () => clearTimeout(fallbackTimeout);
    }, []);
 
-   // Hide splash screen after auth initialization completes
-   // Ensure minimum splash display duration of 1 second for better UX
    useEffect(() => {
       if (isAppReady && isInitialized) {
          const elapsed = Date.now() - splashStartTime.current;
-         const minDisplayTime = 1000; // 1 second minimum
+         const minDisplayTime = 1000;
 
          if (elapsed < minDisplayTime) {
             const remainingTime = minDisplayTime - elapsed;
@@ -101,10 +109,9 @@ function InnerLayout() {
       }
    }, [isAppReady, isInitialized]);
 
-   // Set initial route based on auth state once initialized (only once)
    useEffect(() => {
       if (!isAppReady || !isInitialized || hasSetInitialRoute.current || showSplash) {
-         return; // Wait for app to initialize, auth to initialize, or splash to hide
+         return;
       }
 
       hasSetInitialRoute.current = true;
@@ -133,10 +140,9 @@ function InnerLayout() {
       })();
    }, [isAppReady, isInitialized, isAuthenticated, requiresOnboarding, showSplash]);
 
-   // Handle route changes after initial load
    useEffect(() => {
       if (!isAppReady || !isInitialized || showSplash) {
-         return; // Wait for app to initialize and splash to hide
+         return;
       }
 
       const inOnboarding = String(segments[0]) === 'onboarding';
@@ -165,12 +171,10 @@ function InnerLayout() {
          segments[0] === 'verify-otp';
 
       if (!isAuthenticated && inAuthGroup) {
-         // User is not authenticated but trying to access protected route
          router.replace('/signin');
       } else if (isAuthenticated && requiresOnboarding && !inOnboarding) {
          router.replace('/onboarding/age' as Href);
       } else if (isAuthenticated && !requiresOnboarding && (onAuthScreen || inOnboarding)) {
-         // Wait for profile after OAuth so incomplete profiles can trigger onboarding first
          if (onAuthScreen && !profileFetched) {
             return;
          }
@@ -186,7 +190,6 @@ function InnerLayout() {
       showSplash,
    ]);
 
-   // Show splash screen while initializing or during minimum display time
    if (showSplash) {
       return <SplashScreen />;
    }
@@ -196,193 +199,46 @@ function InnerLayout() {
          <Stack
             screenOptions={{
                headerShown: false,
-               contentStyle: {
-                  backgroundColor: colors.background.screen,
-               },
+               contentStyle: screenBackground,
             }}
          >
-            <Stack.Screen
-               name="(tabs)"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="details/[id]"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="search"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="signin"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="signup"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="verify-otp"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="verify-password-otp"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="verify-email-otp"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="change-password"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="change-email"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="update-first-name"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="update-last-name"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="update-avatar"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="account"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="subscription-plans"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="manage-devices"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="verify-device-removal-otp"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="chapter-comments"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="publisher/[id]"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
-            <Stack.Screen
-               name="playlists/[id]"
-               options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
-               }}
-            />
+            <Stack.Screen name="(tabs)" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="details/[id]" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="search" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="signin" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="signup" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="verify-otp" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="verify-password-otp" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="verify-email-otp" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="change-password" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="change-email" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="update-first-name" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="update-last-name" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="update-avatar" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="account" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="subscription-plans" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="manage-devices" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="verify-device-removal-otp" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="chapter-comments" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="publisher/[id]" options={{ contentStyle: screenBackground }} />
+            <Stack.Screen name="playlists/[id]" options={{ contentStyle: screenBackground }} />
             <Stack.Screen
                name="library"
                options={{
                   headerShown: false,
                   animation: 'slide_from_right',
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
+                  contentStyle: screenBackground,
                }}
             />
             <Stack.Screen
                name="onboarding"
                options={{
-                  contentStyle: {
-                     backgroundColor: colors.background.screen,
-                  },
+                  contentStyle: screenBackground,
                   gestureEnabled: false,
                }}
             />
          </Stack>
 
-         {/* Playback stays mounted app-wide; player UI hides when not visible */}
          <AudioPlayer />
       </AudioPlaybackProvider>
    );
@@ -394,21 +250,21 @@ export default function RootLayout() {
          <SafeAreaProvider initialMetrics={initialWindowMetrics}>
             <ToastProvider>
                <ErrorBoundary>
-                  <View style={{ flex: 1, backgroundColor: colors.background.screen }}>
-                     <Provider store={store}>
-                        <PersistGate loading={null} persistor={persistor}>
-                           <QueryClientProvider client={queryClient}>
-                              <StatusBar style="dark" />
-                              <InnerLayout />
-                              <Toast />
-                           </QueryClientProvider>
-                        </PersistGate>
-                     </Provider>
-                  </View>
+                  <Provider store={store}>
+                     <PersistGate loading={null} persistor={persistor}>
+                        <QueryClientProvider client={queryClient}>
+                           <ThemeProvider>
+                              <ThemedAppShell>
+                                 <InnerLayout />
+                                 <Toast />
+                              </ThemedAppShell>
+                           </ThemeProvider>
+                        </QueryClientProvider>
+                     </PersistGate>
+                  </Provider>
                </ErrorBoundary>
             </ToastProvider>
          </SafeAreaProvider>
       </GestureHandlerRootView>
    );
 }
-

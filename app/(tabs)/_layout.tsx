@@ -2,7 +2,8 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Platform, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography } from '@/theme';
+import { typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import {
    getTabBarInnerHeight,
    getTabBarPaddingTop,
@@ -15,6 +16,7 @@ import { createTabScrollToTopListener } from '@/utils/tabScrollToTopListener';
 const tabScrollListener = createTabScrollToTopListener;
 
 export default function TabLayout() {
+   const { colors } = useTheme();
    const tabBarInnerHeight = getTabBarInnerHeight();
    const sceneStyle = { backgroundColor: colors.background.screen };
 

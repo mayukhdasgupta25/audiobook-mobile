@@ -21,10 +21,98 @@ import {
    GRID_GAP,
    NUM_COLUMNS,
 } from '@/components/AudiobookGridCard';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { SkeletonGrid, SkeletonPublisherHeader } from '@/components/skeleton';
 
 export default function PublisherDetailScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flex: 1,
+            backgroundColor: t.colors.background.screen,
+         },
+         topBar: {
+            paddingHorizontal: spacing.md,
+         },
+         back: {
+            paddingVertical: spacing.sm,
+         },
+         center: {
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         error: {
+            color: t.colors.error,
+         },
+         listContent: {
+            paddingHorizontal: GRID_PADDING,
+            paddingBottom: spacing.xxl,
+         },
+         gridRow: {
+            gap: GRID_GAP,
+            marginBottom: GRID_GAP,
+         },
+         headerBlock: {
+            alignItems: 'center',
+            paddingBottom: spacing.lg,
+            width: '100%',
+         },
+         logo: {
+            width: 120,
+            height: 120,
+            borderRadius: borderRadius.xl,
+            marginBottom: spacing.md,
+         },
+         placeholder: {
+            backgroundColor: t.colors.background.input,
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         placeholderLetter: {
+            fontSize: 40,
+            fontWeight: '700',
+            color: t.colors.text.muted,
+         },
+         name: {
+            fontSize: typography.fontSize['2xl'],
+            fontWeight: '700',
+            color: t.colors.text.primary,
+            textAlign: 'center',
+            ...Platform.select({
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         description: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.secondary,
+            marginTop: spacing.sm,
+            lineHeight: 22,
+            textAlign: 'center',
+         },
+         sectionLabel: {
+            alignSelf: 'stretch',
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            marginTop: spacing.lg,
+         },
+         empty: {
+            padding: spacing.xl,
+            alignItems: 'center',
+         },
+         emptyText: {
+            color: t.colors.text.secondary,
+            textAlign: 'center',
+         },
+         footerLoader: {
+            padding: spacing.lg,
+         },
+      })
+   );
    const params = useLocalSearchParams<{
       id: string;
       name?: string;
@@ -93,7 +181,7 @@ export default function PublisherDetailScreen() {
             <Text style={styles.sectionLabel}>Audiobooks</Text>
          </View>
       ),
-      [imageUri, displayName, params.description]
+      [imageUri, displayName, params.description, styles]
    );
 
    const listEmpty = useMemo(() => {
@@ -143,87 +231,3 @@ export default function PublisherDetailScreen() {
       </SafeAreaView>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.screen,
-   },
-   topBar: {
-      paddingHorizontal: spacing.md,
-   },
-   back: {
-      paddingVertical: spacing.sm,
-   },
-   center: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   error: {
-      color: colors.error,
-   },
-   listContent: {
-      paddingHorizontal: GRID_PADDING,
-      paddingBottom: spacing.xxl,
-   },
-   gridRow: {
-      gap: GRID_GAP,
-      marginBottom: GRID_GAP,
-   },
-   headerBlock: {
-      alignItems: 'center',
-      paddingBottom: spacing.lg,
-      width: '100%',
-   },
-   logo: {
-      width: 120,
-      height: 120,
-      borderRadius: borderRadius.xl,
-      marginBottom: spacing.md,
-   },
-   placeholder: {
-      backgroundColor: colors.background.input,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   placeholderLetter: {
-      fontSize: 40,
-      fontWeight: '700',
-      color: colors.text.muted,
-   },
-   name: {
-      fontSize: typography.fontSize['2xl'],
-      fontWeight: '700',
-      color: colors.text.primary,
-      textAlign: 'center',
-      ...Platform.select({
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   description: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondary,
-      marginTop: spacing.sm,
-      lineHeight: 22,
-      textAlign: 'center',
-   },
-   sectionLabel: {
-      alignSelf: 'stretch',
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.primary,
-      marginTop: spacing.lg,
-   },
-   empty: {
-      padding: spacing.xl,
-      alignItems: 'center',
-   },
-   emptyText: {
-      color: colors.text.secondary,
-      textAlign: 'center',
-   },
-   footerLoader: {
-      padding: spacing.lg,
-   },
-});

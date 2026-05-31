@@ -15,7 +15,8 @@ import { BookmarkChapterCard } from '@/components/BookmarkChapterCard';
 import { CreatePlaylistModal } from '@/components/CreatePlaylistModal';
 import { LibrarySectionHeader } from '@/components/LibrarySectionHeader';
 import { LibraryHorizontalRow } from '@/components/LibraryHorizontalRow';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { LIBRARY_PREVIEW_LIMIT } from '@/constants/library';
 import { usePlaylists, usePlaylistMutations } from '@/hooks/usePlaylists';
@@ -28,6 +29,36 @@ import { getBookmarkAudiobookId } from '@/utils/bookmarkDisplay';
 import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
 
 function LibraryScreenContent() {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flex: 1,
+            backgroundColor: t.colors.background.screen,
+         },
+         header: {
+            paddingHorizontal: spacing.md,
+            paddingTop: spacing.md,
+            paddingBottom: spacing.sm,
+         },
+         title: {
+            fontSize: typography.fontSize['2xl'],
+            fontWeight: '700',
+            color: t.colors.text.primary,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         subtitle: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            marginTop: spacing.xs,
+         },
+         favoriteCardWrap: {
+            marginRight: spacing.sm,
+         },
+      })
+   );
    const scrollRef = useRef<ScrollView>(null);
    const insets = useSafeAreaInsets();
    const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -182,32 +213,3 @@ export default function LibraryScreen() {
       </AnimatedTabScreen>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.screen,
-   },
-   header: {
-      paddingHorizontal: spacing.md,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.sm,
-   },
-   title: {
-      fontSize: typography.fontSize['2xl'],
-      fontWeight: '700',
-      color: colors.text.primary,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   subtitle: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      marginTop: spacing.xs,
-   },
-   favoriteCardWrap: {
-      marginRight: spacing.sm,
-   },
-});

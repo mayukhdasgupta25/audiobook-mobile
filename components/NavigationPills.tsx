@@ -1,7 +1,9 @@
 import React, { useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 interface NavigationPillsProps {
    selectedTab?: 'shows' | 'movies' | 'categories';
@@ -16,6 +18,53 @@ const NavigationPillsComponent: React.FC<NavigationPillsProps> = ({
    selectedTab = 'shows',
    onTabChange,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flexDirection: 'row',
+            paddingHorizontal: spacing.md,
+            paddingTop: 0,
+            paddingBottom: spacing.lg,
+            gap: spacing.md,
+            backgroundColor: t.colors.background.dark,
+            marginBottom: spacing.sm,
+         },
+         pill: {
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.xs,
+            borderRadius: borderRadius.full,
+            backgroundColor: t.colors.background.darkGray,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.xs,
+         },
+         pillActive: {
+            backgroundColor: t.colors.background.darkGrayLight,
+         },
+         pillText: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondaryDark,
+            fontWeight: '500',
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '500',
+               },
+               android: {
+                  fontFamily: 'sans-serif',
+               },
+            }),
+         },
+         pillTextActive: {
+            color: t.colors.text.dark,
+         },
+         chevron: {
+            marginLeft: -spacing.xs,
+         },
+      })
+   );
+
    // Memoize tabs array to prevent recreation on every render
    const tabs = useMemo(() => [
       { id: 'shows' as const, label: 'Shows' },
@@ -68,48 +117,3 @@ const NavigationPillsComponent: React.FC<NavigationPillsProps> = ({
 
 // Memoize component to prevent unnecessary re-renders when props haven't changed
 export const NavigationPills = React.memo(NavigationPillsComponent);
-
-const styles = StyleSheet.create({
-   container: {
-      flexDirection: 'row',
-      paddingHorizontal: spacing.md,
-      paddingTop: 0,
-      paddingBottom: spacing.lg,
-      gap: spacing.md,
-      backgroundColor: colors.background.dark,
-      marginBottom: spacing.sm,
-   },
-   pill: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: borderRadius.full,
-      backgroundColor: colors.background.darkGray,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-   },
-   pillActive: {
-      backgroundColor: colors.background.darkGrayLight,
-   },
-   pillText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      fontWeight: '500',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '500',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   pillTextActive: {
-      color: colors.text.dark,
-   },
-   chevron: {
-      marginLeft: -spacing.xs,
-   },
-});
-

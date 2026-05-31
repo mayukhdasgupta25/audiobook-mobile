@@ -9,7 +9,8 @@ import {
 import { PublisherCard } from './PublisherCard';
 import { SkeletonPublisherRow } from '@/components/skeleton/SkeletonPublisherRow';
 import { Organization } from '@/services/organizations';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 interface PublisherRowProps {
    title?: string;
@@ -26,6 +27,31 @@ export const PublisherRow: React.FC<PublisherRowProps> = ({
    getImageUri,
    onPress,
 }) => {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         section: {
+            marginBottom: spacing.lg,
+         },
+         sectionTitle: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '700',
+            color: t.colors.text.primary,
+            marginBottom: spacing.sm,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         sectionTitlePadded: {
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+         },
+         scrollContent: {
+            paddingHorizontal: spacing.md,
+         },
+      })
+   );
+
    if (isLoading) {
       return (
          <View style={styles.section}>
@@ -59,26 +85,3 @@ export const PublisherRow: React.FC<PublisherRowProps> = ({
       </View>
    );
 };
-
-const styles = StyleSheet.create({
-   section: {
-      marginBottom: spacing.lg,
-   },
-   sectionTitle: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '700',
-      color: colors.text.primary,
-      marginBottom: spacing.sm,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   sectionTitlePadded: {
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-   },
-   scrollContent: {
-      paddingHorizontal: spacing.md,
-   },
-});

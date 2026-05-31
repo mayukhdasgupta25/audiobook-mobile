@@ -4,7 +4,8 @@ import { router, type Href } from 'expo-router';
 import { WizardScreenLayout } from '@/components/WizardScreenLayout';
 import { ScatteredLanguagePills } from '@/components/onboarding/ScatteredLanguagePills';
 import { useOnboardingStore, MAX_LANGUAGE_SELECTIONS } from '@/store/onboarding';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 const TOTAL_STEPS = 4;
 
@@ -12,6 +13,22 @@ const TOTAL_STEPS = 4;
  * Onboarding step 3: select up to 3 languages
  */
 export default function OnboardingLanguagesScreen() {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+   selectionHint: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondaryDark,
+      marginBottom: spacing.md,
+      textAlign: 'center',
+      width: '100%',
+   },
+   pillsContainer: {
+      flex: 1,
+      width: '100%',
+   },
+      })
+   );
+
    const languageCodes = useOnboardingStore((s) => s.languageCodes);
    const toggleLanguageCode = useOnboardingStore((s) => s.toggleLanguageCode);
 
@@ -66,16 +83,3 @@ export default function OnboardingLanguagesScreen() {
    );
 }
 
-const styles = StyleSheet.create({
-   selectionHint: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      marginBottom: spacing.md,
-      textAlign: 'center',
-      width: '100%',
-   },
-   pillsContainer: {
-      flex: 1,
-      width: '100%',
-   },
-});

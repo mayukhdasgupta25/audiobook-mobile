@@ -11,7 +11,9 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Audiobook } from '@/services/audiobooks';
 import { apiConfig } from '@/services/api';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 export const GRID_PADDING = spacing.md;
 export const GRID_GAP = spacing.sm;
@@ -35,6 +37,56 @@ export const AudiobookGridCard: React.FC<AudiobookGridCardProps> = ({
    footerText,
    onRemove,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         card: {
+            position: 'relative',
+            marginBottom: spacing.xs,
+            borderRadius: borderRadius.md,
+            overflow: 'hidden',
+            backgroundColor: t.colors.background.card,
+         },
+         cardImage: {
+            width: '100%',
+            aspectRatio: 0.7,
+            backgroundColor: t.colors.background.highlight,
+         },
+         cardImagePlaceholder: {
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: t.colors.background.input,
+         },
+         cardImageLetter: {
+            fontSize: typography.fontSize['2xl'],
+            fontWeight: '700',
+            color: t.colors.text.muted,
+         },
+         removeBadge: {
+            position: 'absolute',
+            top: spacing.xs,
+            right: spacing.xs,
+            zIndex: 2,
+            backgroundColor: t.colors.background.screen,
+            borderRadius: 11,
+         },
+         cardFooter: {
+            paddingHorizontal: spacing.sm,
+            paddingVertical: spacing.sm,
+            backgroundColor: t.colors.background.card,
+         },
+         cardFooterText: {
+            fontSize: typography.fontSize.sm,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            textAlign: 'center',
+            ...Platform.select({
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+      })
+   );
+
    const coverPath = item.contentCardCoverImage || item.coverImage;
    const coverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
    const label = footerText ?? item.author;
@@ -69,50 +121,3 @@ export const AudiobookGridCard: React.FC<AudiobookGridCardProps> = ({
       </View>
    );
 };
-
-const styles = StyleSheet.create({
-   card: {
-      position: 'relative',
-      marginBottom: spacing.xs,
-      borderRadius: borderRadius.md,
-      overflow: 'hidden',
-      backgroundColor: colors.background.card,
-   },
-   cardImage: {
-      width: '100%',
-      aspectRatio: 0.7,
-      backgroundColor: colors.background.highlight,
-   },
-   cardImagePlaceholder: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.background.input,
-   },
-   cardImageLetter: {
-      fontSize: typography.fontSize['2xl'],
-      fontWeight: '700',
-      color: colors.text.muted,
-   },
-   removeBadge: {
-      position: 'absolute',
-      top: spacing.xs,
-      right: spacing.xs,
-      zIndex: 2,
-      backgroundColor: colors.background.screen,
-      borderRadius: 11,
-   },
-   cardFooter: {
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.sm,
-      backgroundColor: colors.background.card,
-   },
-   cardFooterText: {
-      fontSize: typography.fontSize.sm,
-      fontWeight: '600',
-      color: colors.text.primary,
-      textAlign: 'center',
-      ...Platform.select({
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-});

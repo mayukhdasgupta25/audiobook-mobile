@@ -2,9 +2,39 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
-import { borderRadius, colors, spacing } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { borderRadius, spacing } from '@/theme';
 
 export function SkeletonMoodHero() {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            marginHorizontal: spacing.md,
+            borderRadius: borderRadius.lg,
+            backgroundColor: t.colors.background.highlight,
+            padding: spacing.lg,
+         },
+         content: {
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: spacing.md,
+         },
+         textBlock: {
+            flex: 1,
+            minWidth: 0,
+         },
+         line: {
+            marginTop: spacing.sm,
+         },
+         pillsRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: spacing.sm,
+            marginTop: spacing.md,
+         },
+      })
+   );
+
    return (
       <View style={styles.container}>
          <View style={styles.content}>
@@ -22,30 +52,3 @@ export function SkeletonMoodHero() {
       </View>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      marginHorizontal: spacing.md,
-      borderRadius: borderRadius.lg,
-      backgroundColor: colors.background.highlight,
-      padding: spacing.lg,
-   },
-   content: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.md,
-   },
-   textBlock: {
-      flex: 1,
-      minWidth: 0,
-   },
-   line: {
-      marginTop: spacing.sm,
-   },
-   pillsRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
-      marginTop: spacing.md,
-   },
-});

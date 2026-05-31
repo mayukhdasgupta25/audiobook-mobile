@@ -28,7 +28,9 @@ import {
    NUM_COLUMNS,
 } from '@/components/AudiobookGridCard';
 import { HomeStyleSearchBar } from '@/components/HomeStyleSearchBar';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import {
    SkeletonGrid,
    SkeletonPlaylistHeader,
@@ -38,6 +40,158 @@ import {
 const SEARCH_DEBOUNCE_MS = 350;
 
 export default function PlaylistDetailScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flex: 1,
+            backgroundColor: t.colors.background.screen,
+         },
+         flex: {
+            flex: 1,
+         },
+         header: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+         },
+         headerSpacer: {
+            flex: 1,
+         },
+         editHeader: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+         },
+         editHeaderDivider: {
+            height: 1,
+            backgroundColor: t.colors.background.highlight,
+         },
+         editHeaderSide: {
+            minWidth: 72,
+         },
+         editHeaderTitle: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            ...Platform.select({
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         cancelText: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.secondary,
+         },
+         saveHeaderText: {
+            fontSize: typography.fontSize.base,
+            fontWeight: '600',
+            color: t.colors.accent.primary,
+            textAlign: 'right',
+         },
+         saveHeaderTextDisabled: {
+            color: t.colors.text.muted,
+         },
+         editScroll: {
+            padding: spacing.md,
+            paddingBottom: spacing.xxl,
+         },
+         fieldLabel: {
+            fontSize: typography.fontSize.sm,
+            fontWeight: '600',
+            color: t.colors.text.secondary,
+            marginBottom: spacing.xs,
+            marginTop: spacing.md,
+         },
+         titleRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            alignSelf: 'flex-start',
+            paddingHorizontal: spacing.md,
+            paddingBottom: spacing.xs,
+            gap: spacing.xs,
+            maxWidth: '100%',
+         },
+         playlistName: {
+            flexShrink: 1,
+            fontSize: typography.fontSize['2xl'],
+            fontWeight: '700',
+            color: t.colors.text.primary,
+            ...Platform.select({
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         pencilBtn: {
+            padding: spacing.xs,
+         },
+         playlistDesc: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+         },
+         input: {
+            borderRadius: borderRadius.md,
+            padding: spacing.md,
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.primary,
+            backgroundColor: t.colors.background.input,
+         },
+         textArea: {
+            minHeight: 120,
+            textAlignVertical: 'top',
+         },
+         searchSection: {
+            paddingBottom: spacing.md,
+         },
+         searchSectionTitle: {
+            fontSize: typography.fontSize.sm,
+            fontWeight: '600',
+            color: t.colors.text.secondary,
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+         },
+         searchLoader: {
+            marginVertical: spacing.md,
+         },
+         searchEmpty: {
+            paddingHorizontal: spacing.md,
+            color: t.colors.text.muted,
+            fontSize: typography.fontSize.sm,
+         },
+         searchGrid: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            paddingHorizontal: GRID_PADDING,
+            gap: GRID_GAP,
+         },
+         sectionLabel: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+         },
+         loader: {
+            marginTop: spacing.xl,
+         },
+         listContent: {
+            paddingHorizontal: GRID_PADDING,
+            paddingBottom: spacing.xxl,
+         },
+         gridRow: {
+            gap: GRID_GAP,
+            marginBottom: GRID_GAP,
+         },
+         empty: {
+            textAlign: 'center',
+            color: t.colors.text.secondary,
+            padding: spacing.xl,
+         },
+      })
+   );
    const { id } = useLocalSearchParams<{ id: string }>();
    const playlistId = id ?? '';
 
@@ -254,6 +408,8 @@ export default function PlaylistDetailScreen() {
          searchResults,
          playlistAudiobookIds,
          handleAddAudiobook,
+         styles,
+         colors,
       ]
    );
 
@@ -359,153 +515,3 @@ export default function PlaylistDetailScreen() {
       </SafeAreaView>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.screen,
-   },
-   flex: {
-      flex: 1,
-   },
-   header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-   },
-   headerSpacer: {
-      flex: 1,
-   },
-   editHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-   },
-   editHeaderDivider: {
-      height: 1,
-      backgroundColor: colors.background.highlight,
-   },
-   editHeaderSide: {
-      minWidth: 72,
-   },
-   editHeaderTitle: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.primary,
-      ...Platform.select({
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   cancelText: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondary,
-   },
-   saveHeaderText: {
-      fontSize: typography.fontSize.base,
-      fontWeight: '600',
-      color: colors.accent.primary,
-      textAlign: 'right',
-   },
-   saveHeaderTextDisabled: {
-      color: colors.text.muted,
-   },
-   editScroll: {
-      padding: spacing.md,
-      paddingBottom: spacing.xxl,
-   },
-   fieldLabel: {
-      fontSize: typography.fontSize.sm,
-      fontWeight: '600',
-      color: colors.text.secondary,
-      marginBottom: spacing.xs,
-      marginTop: spacing.md,
-   },
-   titleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      paddingHorizontal: spacing.md,
-      paddingBottom: spacing.xs,
-      gap: spacing.xs,
-      maxWidth: '100%',
-   },
-   playlistName: {
-      flexShrink: 1,
-      fontSize: typography.fontSize['2xl'],
-      fontWeight: '700',
-      color: colors.text.primary,
-      ...Platform.select({
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   pencilBtn: {
-      padding: spacing.xs,
-   },
-   playlistDesc: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-   },
-   input: {
-      borderRadius: borderRadius.md,
-      padding: spacing.md,
-      fontSize: typography.fontSize.base,
-      color: colors.text.primary,
-      backgroundColor: colors.background.input,
-   },
-   textArea: {
-      minHeight: 120,
-      textAlignVertical: 'top',
-   },
-   searchSection: {
-      paddingBottom: spacing.md,
-   },
-   searchSectionTitle: {
-      fontSize: typography.fontSize.sm,
-      fontWeight: '600',
-      color: colors.text.secondary,
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-   },
-   searchLoader: {
-      marginVertical: spacing.md,
-   },
-   searchEmpty: {
-      paddingHorizontal: spacing.md,
-      color: colors.text.muted,
-      fontSize: typography.fontSize.sm,
-   },
-   searchGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      paddingHorizontal: GRID_PADDING,
-      gap: GRID_GAP,
-   },
-   sectionLabel: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.primary,
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-   },
-   loader: {
-      marginTop: spacing.xl,
-   },
-   listContent: {
-      paddingHorizontal: GRID_PADDING,
-      paddingBottom: spacing.xxl,
-   },
-   gridRow: {
-      gap: GRID_GAP,
-      marginBottom: GRID_GAP,
-   },
-   empty: {
-      textAlign: 'center',
-      color: colors.text.secondary,
-      padding: spacing.xl,
-   },
-});

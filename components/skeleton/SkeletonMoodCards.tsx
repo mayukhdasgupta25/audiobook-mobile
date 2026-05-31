@@ -2,7 +2,8 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
-import { borderRadius, colors, spacing } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { borderRadius, spacing } from '@/theme';
 
 const MOOD_CARD_WIDTH = 76;
 const MOOD_ICON_SIZE = 44;
@@ -13,6 +14,27 @@ interface SkeletonMoodCardsProps {
 
 /** Matches MoodChip variant="card" on the home screen (no nested ScrollView). */
 export function SkeletonMoodCards({ count = 5 }: SkeletonMoodCardsProps) {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         row: {
+            flexDirection: 'row',
+            paddingVertical: spacing.xs,
+         },
+         card: {
+            width: MOOD_CARD_WIDTH,
+            alignItems: 'center',
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.xs,
+            marginRight: spacing.sm,
+            borderRadius: borderRadius.lg,
+            backgroundColor: t.colors.background.screen,
+         },
+         label: {
+            marginTop: spacing.xs,
+         },
+      })
+   );
+
    return (
       <View style={styles.row}>
          {Array.from({ length: count }).map((_, index) => (
@@ -28,22 +50,3 @@ export function SkeletonMoodCards({ count = 5 }: SkeletonMoodCardsProps) {
       </View>
    );
 }
-
-const styles = StyleSheet.create({
-   row: {
-      flexDirection: 'row',
-      paddingVertical: spacing.xs,
-   },
-   card: {
-      width: MOOD_CARD_WIDTH,
-      alignItems: 'center',
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.xs,
-      marginRight: spacing.sm,
-      borderRadius: borderRadius.lg,
-      backgroundColor: colors.background.screen,
-   },
-   label: {
-      marginTop: spacing.xs,
-   },
-});

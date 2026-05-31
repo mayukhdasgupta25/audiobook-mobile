@@ -1,13 +1,9 @@
 /**
- * High-contrast styles for @timestamp mentions (composer + comments).
- * Color literals match theme/index.ts — kept local to avoid circular imports.
+ * Theme-aware styles for @timestamp mentions (composer + comments).
  */
 import { StyleSheet } from 'react-native';
+import type { ThemeColors } from './colors';
 
-const accentPrimary = '#6F431B';
-const accentPrimaryDark = '#4B2C20';
-const primary800 = '#3D2319';
-const primary900 = '#2A1810';
 const borderRadiusSm = 4;
 
 const mentionText = {
@@ -23,27 +19,29 @@ const mentionPill = {
    borderWidth: 1,
 };
 
-export const timestampMentionStyles = StyleSheet.create({
-   /** Bare @ or @digits while the user is still typing */
-   typing: {
-      ...mentionPill,
-      ...mentionText,
-      backgroundColor: accentPrimary,
-      borderColor: accentPrimaryDark,
-   },
-   /** Finished @m:ss mention */
-   complete: {
-      ...mentionPill,
-      ...mentionText,
-      backgroundColor: accentPrimaryDark,
-      borderColor: primary800,
-   },
-   /** Finished mention when playback seek is available */
-   tappable: {
-      ...mentionPill,
-      ...mentionText,
-      backgroundColor: primary800,
-      borderColor: primary900,
-      textDecorationLine: 'underline',
-   },
-});
+export function getTimestampMentionStyles(c: ThemeColors) {
+   return StyleSheet.create({
+      /** Bare @ or @digits while the user is still typing */
+      typing: {
+         ...mentionPill,
+         ...mentionText,
+         backgroundColor: c.accent.primary,
+         borderColor: c.accent.primaryDark,
+      },
+      /** Finished @m:ss mention */
+      complete: {
+         ...mentionPill,
+         ...mentionText,
+         backgroundColor: c.accent.primaryDark,
+         borderColor: c.primary[800],
+      },
+      /** Finished mention when playback seek is available */
+      tappable: {
+         ...mentionPill,
+         ...mentionText,
+         backgroundColor: c.primary[800],
+         borderColor: c.primary[900],
+         textDecorationLine: 'underline',
+      },
+   });
+}

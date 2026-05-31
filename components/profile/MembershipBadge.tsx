@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import {
    getMembershipLabel,
    hasPaidMembership,
@@ -14,8 +16,45 @@ interface MembershipBadgeProps {
 }
 
 export const MembershipBadge: React.FC<MembershipBadgeProps> = ({ tier, planName }) => {
+   const { colors } = useTheme();
    const isPaid = hasPaidMembership(tier);
    const label = getMembershipLabel(tier, planName);
+
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         badge: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            alignSelf: 'flex-start',
+            paddingHorizontal: spacing.sm,
+            paddingVertical: spacing.xs,
+            borderRadius: borderRadius.full,
+            marginTop: spacing.xs,
+         },
+         badgePaid: {
+            backgroundColor: t.colors.membership.badgeBg,
+         },
+         badgeNone: {
+            backgroundColor: t.colors.membership.noneBadgeBg,
+         },
+         starIcon: {
+            marginRight: 4,
+         },
+         text: {
+            fontSize: typography.fontSize.sm,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '500' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         textPaid: {
+            color: t.colors.membership.badgeText,
+         },
+         textNone: {
+            color: t.colors.membership.noneBadgeText,
+         },
+      })
+   );
 
    return (
       <View
@@ -38,37 +77,3 @@ export const MembershipBadge: React.FC<MembershipBadgeProps> = ({ tier, planName
       </View>
    );
 };
-
-const styles = StyleSheet.create({
-   badge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs,
-      borderRadius: borderRadius.full,
-      marginTop: spacing.xs,
-   },
-   badgePaid: {
-      backgroundColor: colors.membership.badgeBg,
-   },
-   badgeNone: {
-      backgroundColor: colors.membership.noneBadgeBg,
-   },
-   starIcon: {
-      marginRight: 4,
-   },
-   text: {
-      fontSize: typography.fontSize.sm,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '500' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   textPaid: {
-      color: colors.membership.badgeText,
-   },
-   textNone: {
-      color: colors.membership.noneBadgeText,
-   },
-});

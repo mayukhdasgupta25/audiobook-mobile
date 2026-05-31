@@ -11,7 +11,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 interface WizardScreenLayoutProps {
    step: number;
@@ -49,6 +51,106 @@ export const WizardScreenLayout: React.FC<WizardScreenLayoutProps> = ({
    scrollable = true,
    centerBody = true,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flex: 1,
+            backgroundColor: t.colors.background.dark,
+         },
+         keyboardAvoid: {
+            flex: 1,
+         },
+         scrollView: {
+            flex: 1,
+         },
+         scrollContent: {
+            flexGrow: 1,
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.xl,
+            paddingBottom: spacing.xl,
+            alignItems: 'stretch',
+         },
+         staticContent: {
+            flex: 1,
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.xl,
+            paddingBottom: spacing.xl,
+            alignItems: 'stretch',
+         },
+         staticContentCentered: {
+            justifyContent: 'center',
+         },
+         header: {
+            width: '100%',
+            alignSelf: 'stretch',
+            marginBottom: spacing.xl,
+         },
+         backButton: {
+            alignSelf: 'flex-start',
+            marginBottom: spacing.md,
+            padding: spacing.xs,
+         },
+         backPlaceholder: {
+            height: spacing.md + spacing.xs * 2,
+            marginBottom: spacing.md,
+         },
+         backButtonText: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.primary[400],
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '500' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         stepLabel: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondaryDark,
+            marginBottom: spacing.sm,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '500' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         title: {
+            fontSize: typography.fontSize['3xl'],
+            fontWeight: '700',
+            color: t.colors.text.dark,
+            marginBottom: spacing.sm,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-bold' },
+            }),
+         },
+         subtitle: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.secondaryDark,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '400' },
+               android: { fontFamily: 'sans-serif' },
+            }),
+         },
+         body: {
+            flex: 1,
+            width: '100%',
+            alignSelf: 'stretch',
+            marginBottom: spacing.lg,
+         },
+         bodyCentered: {
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         errorContainer: {
+            marginBottom: spacing.md,
+         },
+         errorText: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.error,
+            textAlign: 'center',
+         },
+      })
+   );
+
    const content = (
       <>
          <View style={styles.header}>
@@ -121,100 +223,3 @@ export const WizardScreenLayout: React.FC<WizardScreenLayoutProps> = ({
       </>
    );
 };
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.dark,
-   },
-   keyboardAvoid: {
-      flex: 1,
-   },
-   scrollView: {
-      flex: 1,
-   },
-   scrollContent: {
-      flexGrow: 1,
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.xl,
-      paddingBottom: spacing.xl,
-      alignItems: 'stretch',
-   },
-   staticContent: {
-      flex: 1,
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.xl,
-      paddingBottom: spacing.xl,
-      alignItems: 'stretch',
-   },
-   staticContentCentered: {
-      justifyContent: 'center',
-   },
-   header: {
-      width: '100%',
-      alignSelf: 'stretch',
-      marginBottom: spacing.xl,
-   },
-   backButton: {
-      alignSelf: 'flex-start',
-      marginBottom: spacing.md,
-      padding: spacing.xs,
-   },
-   backPlaceholder: {
-      height: spacing.md + spacing.xs * 2,
-      marginBottom: spacing.md,
-   },
-   backButtonText: {
-      fontSize: typography.fontSize.base,
-      color: colors.primary[400],
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '500' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   stepLabel: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      marginBottom: spacing.sm,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '500' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   title: {
-      fontSize: typography.fontSize['3xl'],
-      fontWeight: '700',
-      color: colors.text.dark,
-      marginBottom: spacing.sm,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-bold' },
-      }),
-   },
-   subtitle: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '400' },
-         android: { fontFamily: 'sans-serif' },
-      }),
-   },
-   body: {
-      flex: 1,
-      width: '100%',
-      alignSelf: 'stretch',
-      marginBottom: spacing.lg,
-   },
-   bodyCentered: {
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   errorContainer: {
-      marginBottom: spacing.md,
-   },
-   errorText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.error,
-      textAlign: 'center',
-   },
-});

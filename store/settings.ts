@@ -7,17 +7,20 @@ import {
    DEFAULT_PLAYBACK_SPEED,
    type PlaybackSpeed,
 } from '@/constants/playbackSpeed';
+import type { ColorScheme } from '@/theme';
 
 export type SkipDurationSeconds = 5 | 10 | 15;
 
 export interface SettingsState {
    skipDurationSeconds: SkipDurationSeconds;
    playbackSpeed: PlaybackSpeed;
+   colorScheme: ColorScheme;
 }
 
 const initialState: SettingsState = {
    skipDurationSeconds: 10,
    playbackSpeed: DEFAULT_PLAYBACK_SPEED,
+   colorScheme: 'light',
 };
 
 const settingsSlice = createSlice({
@@ -30,8 +33,12 @@ const settingsSlice = createSlice({
       setPlaybackSpeed: (state, action: PayloadAction<PlaybackSpeed>) => {
          state.playbackSpeed = action.payload;
       },
+      setColorScheme: (state, action: PayloadAction<ColorScheme>) => {
+         state.colorScheme = action.payload;
+      },
    },
 });
 
-export const { setSkipDurationSeconds, setPlaybackSpeed } = settingsSlice.actions;
+export const { setSkipDurationSeconds, setPlaybackSpeed, setColorScheme } =
+   settingsSlice.actions;
 export default settingsSlice.reducer;

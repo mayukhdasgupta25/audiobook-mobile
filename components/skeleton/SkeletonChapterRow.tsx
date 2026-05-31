@@ -2,7 +2,8 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
-import { colors, spacing } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { spacing } from '@/theme';
 
 interface SkeletonChapterRowProps {
    count?: number;
@@ -13,6 +14,36 @@ export function SkeletonChapterRow({
    count = 6,
    showDownloadAction = true,
 }: SkeletonChapterRowProps) {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         row: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: spacing.md,
+            paddingHorizontal: spacing.md,
+            paddingLeft: spacing.md + 4,
+            backgroundColor: t.colors.background.screen,
+         },
+         info: {
+            flex: 1,
+            marginHorizontal: spacing.sm,
+         },
+         duration: {
+            marginTop: 2,
+         },
+         actions: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.sm,
+         },
+         divider: {
+            height: 1,
+            backgroundColor: t.colors.background.highlight,
+            marginLeft: spacing.md,
+         },
+      })
+   );
+
    return (
       <>
          {Array.from({ length: count }).map((_, index) => (
@@ -36,31 +67,3 @@ export function SkeletonChapterRow({
       </>
    );
 }
-
-const styles = StyleSheet.create({
-   row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.md,
-      paddingLeft: spacing.md + 4,
-      backgroundColor: colors.background.screen,
-   },
-   info: {
-      flex: 1,
-      marginHorizontal: spacing.sm,
-   },
-   duration: {
-      marginTop: 2,
-   },
-   actions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-   },
-   divider: {
-      height: 1,
-      backgroundColor: colors.background.highlight,
-      marginLeft: spacing.md,
-   },
-});

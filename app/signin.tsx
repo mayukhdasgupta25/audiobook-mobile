@@ -16,7 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDispatch } from 'react-redux';
 import { TextInput } from '@/components/TextInput';
 import { SecondaryButton } from '@/components/SecondaryButton';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { login, googleAuth } from '@/services/auth';
 import { parseIsNewUserFlag } from '@/utils/onboardingProfile';
 import {
@@ -32,6 +34,191 @@ import { getAuthApiErrorMessage, isDeviceLimitExceededError } from '@/utils/auth
  * Sign in screen with email/password inputs, Google login, and navigation links
  */
 export default function SignInScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+   container: {
+      flex: 1,
+      backgroundColor: t.colors.background.dark,
+   },
+   keyboardAvoid: {
+      flex: 1,
+   },
+   scrollView: {
+      flex: 1,
+   },
+   scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.xxl,
+      paddingBottom: spacing.xl,
+   },
+   header: {
+      marginBottom: spacing.xl,
+      alignItems: 'center',
+   },
+   title: {
+      fontSize: typography.fontSize['4xl'],
+      fontWeight: '700',
+      color: t.colors.text.dark,
+      marginBottom: spacing.sm,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '700',
+         },
+         android: {
+            fontFamily: 'sans-serif-bold',
+         },
+      }),
+   },
+   subtitle: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.secondaryDark,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   form: {
+      flex: 1,
+      justifyContent: 'center',
+   },
+   errorContainer: {
+      marginBottom: spacing.md,
+      marginTop: -spacing.sm,
+   },
+   errorText: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.error,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   forgotPasswordLink: {
+      alignSelf: 'flex-end',
+      marginBottom: spacing.lg,
+      marginTop: -spacing.sm,
+   },
+   linkText: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.primary[400],
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '500',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   authButton: {
+      marginBottom: spacing.lg,
+   },
+   divider: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: spacing.lg,
+   },
+   dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: t.colors.border.light,
+   },
+   dividerText: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondaryDark,
+      marginHorizontal: spacing.md,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   googleButton: {
+      flexDirection: 'row',
+      borderRadius: borderRadius.md,
+      height: 48,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+      backgroundColor: t.colors.background.input,
+   },
+   googleButtonDisabled: {
+      opacity: 0.6,
+   },
+   googleIcon: {
+      marginRight: spacing.sm,
+   },
+   googleButtonText: {
+      fontSize: typography.fontSize.base,
+      fontWeight: '500',
+      color: t.colors.text.dark,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '500',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   signUpLinkContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: spacing.md,
+   },
+   signUpLinkText: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.secondaryDark,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   signUpLink: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.primary[400],
+      fontWeight: '600',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+      })
+   );
+
    const dispatch = useDispatch<AppDispatch>();
    const [email, setEmail] = useState('');
    const [password, setPassword] = useState('');
@@ -349,186 +536,4 @@ export default function SignInScreen() {
       </>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.dark,
-   },
-   keyboardAvoid: {
-      flex: 1,
-   },
-   scrollView: {
-      flex: 1,
-   },
-   scrollContent: {
-      flexGrow: 1,
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.xxl,
-      paddingBottom: spacing.xl,
-   },
-   header: {
-      marginBottom: spacing.xl,
-      alignItems: 'center',
-   },
-   title: {
-      fontSize: typography.fontSize['4xl'],
-      fontWeight: '700',
-      color: colors.text.dark,
-      marginBottom: spacing.sm,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '700',
-         },
-         android: {
-            fontFamily: 'sans-serif-bold',
-         },
-      }),
-   },
-   subtitle: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   form: {
-      flex: 1,
-      justifyContent: 'center',
-   },
-   errorContainer: {
-      marginBottom: spacing.md,
-      marginTop: -spacing.sm,
-   },
-   errorText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.error,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   forgotPasswordLink: {
-      alignSelf: 'flex-end',
-      marginBottom: spacing.lg,
-      marginTop: -spacing.sm,
-   },
-   linkText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.primary[400],
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '500',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   authButton: {
-      marginBottom: spacing.lg,
-   },
-   divider: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginVertical: spacing.lg,
-   },
-   dividerLine: {
-      flex: 1,
-      height: 1,
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-   },
-   dividerText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      marginHorizontal: spacing.md,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   googleButton: {
-      flexDirection: 'row',
-      borderRadius: borderRadius.md,
-      height: 48,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: spacing.lg,
-      backgroundColor: colors.background.input,
-   },
-   googleButtonDisabled: {
-      opacity: 0.6,
-   },
-   googleIcon: {
-      marginRight: spacing.sm,
-   },
-   googleButtonText: {
-      fontSize: typography.fontSize.base,
-      fontWeight: '500',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '500',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   signUpLinkContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: spacing.md,
-   },
-   signUpLinkText: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   signUpLink: {
-      fontSize: typography.fontSize.base,
-      color: colors.primary[400],
-      fontWeight: '600',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-});
 

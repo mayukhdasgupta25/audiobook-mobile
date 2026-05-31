@@ -3,7 +3,8 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useSelector } from 'react-redux';
 import { Comment } from '@/services/comments';
 import { RootState } from '@/store';
-import { colors, typography } from '@/theme';
+import { typography } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { getCommentAuthorLabel } from '@/utils/commentAuthor';
 
 interface CommentAuthorHeaderProps {
@@ -12,6 +13,21 @@ interface CommentAuthorHeaderProps {
 
 export const CommentAuthorHeader: React.FC<CommentAuthorHeaderProps> = ({ comment }) => {
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         column: {
+            alignItems: 'flex-end',
+            maxWidth: 96,
+            flexShrink: 0,
+         },
+         name: {
+            fontSize: typography.fontSize.xs,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            textAlign: 'right',
+         },
+      })
+   );
 
    const label = useMemo(
       () => getCommentAuthorLabel(comment, userProfile?.id),
@@ -26,17 +42,3 @@ export const CommentAuthorHeader: React.FC<CommentAuthorHeaderProps> = ({ commen
       </View>
    );
 };
-
-const styles = StyleSheet.create({
-   column: {
-      alignItems: 'flex-end',
-      maxWidth: 96,
-      flexShrink: 0,
-   },
-   name: {
-      fontSize: typography.fontSize.xs,
-      fontWeight: '600',
-      color: colors.text.primary,
-      textAlign: 'right',
-   },
-});

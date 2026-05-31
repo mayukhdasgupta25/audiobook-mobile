@@ -2,7 +2,8 @@ import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
-import { borderRadius, colors, spacing } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { borderRadius, spacing } from '@/theme';
 
 const CARD_WIDTH = 260;
 
@@ -11,6 +12,38 @@ interface SkeletonMoodBestForRowProps {
 }
 
 export function SkeletonMoodBestForRow({ count = 3 }: SkeletonMoodBestForRowProps) {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         section: {
+            marginTop: spacing.lg,
+         },
+         title: {
+            marginHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+         },
+         row: {
+            paddingHorizontal: spacing.md,
+         },
+         card: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            width: CARD_WIDTH,
+            minHeight: 88,
+            padding: spacing.md,
+            borderRadius: borderRadius.lg,
+            marginRight: spacing.md,
+            backgroundColor: t.colors.background.screen,
+         },
+         textBlock: {
+            flex: 1,
+            marginLeft: spacing.md,
+         },
+         line: {
+            marginTop: spacing.xs,
+         },
+      })
+   );
+
    return (
       <View style={styles.section}>
          <SkeletonText width={100} height={18} style={styles.title} />
@@ -33,33 +66,3 @@ export function SkeletonMoodBestForRow({ count = 3 }: SkeletonMoodBestForRowProp
       </View>
    );
 }
-
-const styles = StyleSheet.create({
-   section: {
-      marginTop: spacing.lg,
-   },
-   title: {
-      marginHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-   },
-   row: {
-      paddingHorizontal: spacing.md,
-   },
-   card: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      width: CARD_WIDTH,
-      minHeight: 88,
-      padding: spacing.md,
-      borderRadius: borderRadius.lg,
-      marginRight: spacing.md,
-      backgroundColor: colors.background.screen,
-   },
-   textBlock: {
-      flex: 1,
-      marginLeft: spacing.md,
-   },
-   line: {
-      marginTop: spacing.xs,
-   },
-});

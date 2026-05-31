@@ -7,7 +7,9 @@ import {
    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 interface SettingsMenuRowProps {
    title: string;
@@ -32,6 +34,48 @@ export const SettingsMenuRow: React.FC<SettingsMenuRowProps> = ({
    showChevron = true,
    isLast = false,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         row: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: spacing.md,
+            minHeight: 72,
+         },
+         iconCircle: {
+            width: 40,
+            height: 40,
+            borderRadius: borderRadius.full,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: spacing.md,
+         },
+         content: {
+            flex: 1,
+            marginRight: spacing.sm,
+         },
+         title: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.primary,
+            marginBottom: 2,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '600' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         subtitle: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+         },
+         divider: {
+            height: 1,
+            backgroundColor: t.colors.border.light,
+            marginLeft: spacing.md + 40 + spacing.md,
+         },
+      })
+   );
+
    const content = (
       <>
          <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
@@ -70,42 +114,3 @@ export const SettingsMenuRow: React.FC<SettingsMenuRowProps> = ({
       </>
    );
 };
-
-const styles = StyleSheet.create({
-   row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: spacing.md,
-      minHeight: 72,
-   },
-   iconCircle: {
-      width: 40,
-      height: 40,
-      borderRadius: borderRadius.full,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: spacing.md,
-   },
-   content: {
-      flex: 1,
-      marginRight: spacing.sm,
-   },
-   title: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.primary,
-      marginBottom: 2,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '600' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   subtitle: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-   },
-   divider: {
-      height: 1,
-      backgroundColor: colors.border.light,
-      marginLeft: spacing.md + 40 + spacing.md,
-   },
-});

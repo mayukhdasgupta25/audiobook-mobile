@@ -9,7 +9,9 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface StoryCardWithShareProps {
@@ -33,6 +35,101 @@ const StoryCardWithShareComponent: React.FC<StoryCardWithShareProps> = ({
    cardWidth = 140,
    shareMessage,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            marginRight: spacing.sm,
+         },
+         cardContent: {
+            width: '100%',
+         },
+         imageContainer: {
+            position: 'relative',
+            width: '100%',
+            aspectRatio: 0.7, // Portrait aspect ratio
+            borderRadius: borderRadius.md,
+            overflow: 'hidden',
+            backgroundColor: t.colors.background.darkGray,
+         },
+         image: {
+            width: '100%',
+            height: '100%',
+            resizeMode: 'cover',
+         },
+         placeholder: {
+            backgroundColor: t.colors.background.darkGray,
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         placeholderText: {
+            fontSize: typography.fontSize['2xl'],
+            color: t.colors.text.secondaryDark,
+            fontWeight: '700',
+         },
+         badge: {
+            position: 'absolute',
+            top: spacing.xs,
+            right: spacing.xs,
+            backgroundColor: t.colors.app.red,
+            paddingHorizontal: spacing.xs,
+            paddingVertical: 2,
+            borderRadius: borderRadius.sm,
+         },
+         badgeText: {
+            color: t.colors.text.dark,
+            fontSize: typography.fontSize.xs,
+            fontWeight: '700',
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '700',
+               },
+               android: {
+                  fontFamily: 'sans-serif',
+                  fontWeight: 'bold',
+               },
+            }),
+         },
+         gradient: {
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 80,
+            justifyContent: 'flex-end',
+            paddingBottom: spacing.sm,
+            paddingHorizontal: spacing.sm,
+         },
+         shareButton: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            paddingVertical: spacing.xs,
+            paddingHorizontal: spacing.sm,
+            borderRadius: borderRadius.sm,
+         },
+         shareIcon: {
+            marginRight: spacing.xs,
+         },
+         shareText: {
+            fontSize: typography.fontSize.sm,
+            fontWeight: '600',
+            color: t.colors.text.dark,
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '600',
+               },
+               android: {
+                  fontFamily: 'sans-serif-medium',
+               },
+            }),
+         },
+      })
+   );
+
    // Memoize share handler to prevent re-renders
    const handleShare = useCallback(async () => {
       try {
@@ -103,96 +200,3 @@ const StoryCardWithShareComponent: React.FC<StoryCardWithShareProps> = ({
 
 // Memoize component to prevent unnecessary re-renders when props haven't changed
 export const StoryCardWithShare = React.memo(StoryCardWithShareComponent);
-
-const styles = StyleSheet.create({
-   container: {
-      marginRight: spacing.sm,
-   },
-   cardContent: {
-      width: '100%',
-   },
-   imageContainer: {
-      position: 'relative',
-      width: '100%',
-      aspectRatio: 0.7, // Portrait aspect ratio
-      borderRadius: borderRadius.md,
-      overflow: 'hidden',
-      backgroundColor: colors.background.darkGray,
-   },
-   image: {
-      width: '100%',
-      height: '100%',
-      resizeMode: 'cover',
-   },
-   placeholder: {
-      backgroundColor: colors.background.darkGray,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   placeholderText: {
-      fontSize: typography.fontSize['2xl'],
-      color: colors.text.secondaryDark,
-      fontWeight: '700',
-   },
-   badge: {
-      position: 'absolute',
-      top: spacing.xs,
-      right: spacing.xs,
-      backgroundColor: colors.app.red,
-      paddingHorizontal: spacing.xs,
-      paddingVertical: 2,
-      borderRadius: borderRadius.sm,
-   },
-   badgeText: {
-      color: colors.text.dark,
-      fontSize: typography.fontSize.xs,
-      fontWeight: '700',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '700',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-            fontWeight: 'bold',
-         },
-      }),
-   },
-   gradient: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      height: 80,
-      justifyContent: 'flex-end',
-      paddingBottom: spacing.sm,
-      paddingHorizontal: spacing.sm,
-   },
-   shareButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      paddingVertical: spacing.xs,
-      paddingHorizontal: spacing.sm,
-      borderRadius: borderRadius.sm,
-   },
-   shareIcon: {
-      marginRight: spacing.xs,
-   },
-   shareText: {
-      fontSize: typography.fontSize.sm,
-      fontWeight: '600',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-});
-

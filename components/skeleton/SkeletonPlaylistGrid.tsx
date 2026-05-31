@@ -9,7 +9,8 @@ import {
 import { PLAYLIST_CARD_WIDTH } from '@/components/PlaylistCard';
 import { SkeletonBox } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
-import { borderRadius, colors, spacing } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { borderRadius, spacing } from '@/theme';
 
 interface SkeletonPlaylistGridProps {
    rows?: number;
@@ -18,6 +19,41 @@ interface SkeletonPlaylistGridProps {
 /** Grid of playlist icon cards (not cover art). */
 export function SkeletonPlaylistGrid({ rows = 3 }: SkeletonPlaylistGridProps) {
    const itemCount = rows * NUM_COLUMNS;
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         grid: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            paddingHorizontal: GRID_PADDING,
+            gap: GRID_GAP,
+         },
+         card: {
+            marginBottom: GRID_GAP,
+            backgroundColor: t.colors.background.card,
+            borderRadius: borderRadius.lg,
+            padding: spacing.md,
+         },
+         line: {
+            marginTop: spacing.sm,
+         },
+         searchGrid: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: GRID_GAP,
+         },
+         searchCard: {
+            borderRadius: borderRadius.md,
+            overflow: 'hidden',
+            backgroundColor: t.colors.background.card,
+            marginBottom: spacing.xs,
+         },
+         searchFooter: {
+            paddingHorizontal: spacing.sm,
+            paddingVertical: spacing.sm,
+            alignItems: 'center',
+         },
+      })
+   );
 
    return (
       <View style={styles.grid}>
@@ -36,6 +72,41 @@ export function SkeletonPlaylistGrid({ rows = 3 }: SkeletonPlaylistGridProps) {
 export function SkeletonPlaylistSearchGrid({ rows = 2 }: { rows?: number }) {
    const itemCount = rows * NUM_COLUMNS;
    const cardWidth = AUDIOBOOK_GRID_CARD_WIDTH;
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         grid: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            paddingHorizontal: GRID_PADDING,
+            gap: GRID_GAP,
+         },
+         card: {
+            marginBottom: GRID_GAP,
+            backgroundColor: t.colors.background.card,
+            borderRadius: borderRadius.lg,
+            padding: spacing.md,
+         },
+         line: {
+            marginTop: spacing.sm,
+         },
+         searchGrid: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: GRID_GAP,
+         },
+         searchCard: {
+            borderRadius: borderRadius.md,
+            overflow: 'hidden',
+            backgroundColor: t.colors.background.card,
+            marginBottom: spacing.xs,
+         },
+         searchFooter: {
+            paddingHorizontal: spacing.sm,
+            paddingVertical: spacing.sm,
+            alignItems: 'center',
+         },
+      })
+   );
 
    return (
       <View style={styles.searchGrid}>
@@ -54,37 +125,3 @@ export function SkeletonPlaylistSearchGrid({ rows = 2 }: { rows?: number }) {
       </View>
    );
 }
-
-const styles = StyleSheet.create({
-   grid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      paddingHorizontal: GRID_PADDING,
-      gap: GRID_GAP,
-   },
-   card: {
-      marginBottom: GRID_GAP,
-      backgroundColor: colors.background.card,
-      borderRadius: borderRadius.lg,
-      padding: spacing.md,
-   },
-   line: {
-      marginTop: spacing.sm,
-   },
-   searchGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: GRID_GAP,
-   },
-   searchCard: {
-      borderRadius: borderRadius.md,
-      overflow: 'hidden',
-      backgroundColor: colors.background.card,
-      marginBottom: spacing.xs,
-   },
-   searchFooter: {
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.sm,
-      alignItems: 'center',
-   },
-});

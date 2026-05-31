@@ -7,7 +7,9 @@ import {
    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 interface SearchBarProps {
    value: string;
@@ -30,6 +32,42 @@ export const SearchBar: React.FC<SearchBarProps> = ({
    placeholder = 'Search stories, authors, genres...',
    autoFocus = false,
 }) => {
+   const { colors, isDark } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: t.colors.background.input,
+            borderRadius: borderRadius.lg,
+            paddingHorizontal: spacing.md,
+            height: 48,
+            flex: 1,
+         },
+         searchIcon: {
+            marginRight: spacing.sm,
+         },
+         input: {
+            flex: 1,
+            fontSize: typography.fontSize.lg,
+            color: t.colors.text.dark,
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '400',
+               },
+               android: {
+                  fontFamily: 'sans-serif',
+               },
+            }),
+         },
+         clearButton: {
+            marginLeft: spacing.sm,
+            padding: spacing.xs,
+         },
+      })
+   );
+
    const inputRef = useRef<TextInput>(null);
 
    useEffect(() => {
@@ -61,7 +99,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             onChangeText={onChangeText}
             placeholder={placeholder}
             placeholderTextColor={colors.text.muted}
-            keyboardAppearance="light"
+            keyboardAppearance={isDark ? 'dark' : 'light'}
             returnKeyType="search"
             autoCorrect={false}
             autoCapitalize="none"
@@ -89,37 +127,3 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       </View>
    );
 };
-
-const styles = StyleSheet.create({
-   container: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.background.input,
-      borderRadius: borderRadius.lg,
-      paddingHorizontal: spacing.md,
-      height: 48,
-      flex: 1,
-   },
-   searchIcon: {
-      marginRight: spacing.sm,
-   },
-   input: {
-      flex: 1,
-      fontSize: typography.fontSize.lg,
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   clearButton: {
-      marginLeft: spacing.sm,
-      padding: spacing.xs,
-   },
-});
-

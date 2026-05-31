@@ -16,7 +16,9 @@ import { Stack, router } from 'expo-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { updateUserProfile } from '@/services/user';
 import { fetchUserProfile } from '@/store/auth';
 import { AppDispatch, RootState } from '@/store';
@@ -28,6 +30,204 @@ import { getMainApiUrl } from '@/services/api';
  * Allows user to update their avatar by selecting an image from device
  */
 export default function UpdateAvatarScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+   container: {
+      flex: 1,
+      backgroundColor: t.colors.background.dark,
+   },
+   keyboardAvoid: {
+      flex: 1,
+   },
+   scrollView: {
+      flex: 1,
+   },
+   scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.xxl,
+      paddingBottom: spacing.xl,
+   },
+   header: {
+      marginBottom: spacing.xl,
+   },
+   backButton: {
+      alignSelf: 'flex-start',
+      marginBottom: spacing.md,
+      padding: spacing.xs,
+   },
+   backButtonText: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.primary[400],
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '500',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   title: {
+      fontSize: typography.fontSize['4xl'],
+      fontWeight: '700',
+      color: t.colors.text.dark,
+      marginBottom: spacing.sm,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '700',
+         },
+         android: {
+            fontFamily: 'sans-serif-bold',
+         },
+      }),
+   },
+   subtitle: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.secondaryDark,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   avatarSection: {
+      alignItems: 'center',
+      marginBottom: spacing.xl,
+   },
+   avatarContainer: {
+      marginBottom: spacing.lg,
+   },
+   avatar: {
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: t.colors.background.darkGrayLight,
+   },
+   avatarPlaceholder: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: t.colors.primary[400],
+   },
+   avatarText: {
+      fontSize: typography.fontSize['3xl'],
+      fontWeight: '600',
+      color: t.colors.text.dark,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   pickImageButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: borderRadius.md,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      gap: spacing.sm,
+      backgroundColor: t.colors.background.input,
+   },
+   pickImageButtonDisabled: {
+      opacity: 0.6,
+   },
+   pickImageButtonText: {
+      fontSize: typography.fontSize.base,
+      fontWeight: '600',
+      color: t.colors.text.dark,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   errorContainer: {
+      marginBottom: spacing.md,
+   },
+   errorText: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.error,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   actionsContainer: {
+      gap: spacing.md,
+   },
+   updateButtonDisabled: {
+      opacity: 0.6,
+   },
+   updateButton: {
+      backgroundColor: t.colors.app.red,
+      borderRadius: borderRadius.md,
+      height: 48,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: spacing.md,
+   },
+   updateButtonText: {
+      fontSize: typography.fontSize.lg,
+      fontWeight: '600',
+      color: t.colors.text.dark,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   removeButtonDisabled: {
+      opacity: 0.6,
+   },
+   removeButton: {
+      borderRadius: borderRadius.md,
+      height: 48,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: t.colors.background.input,
+   },
+   removeButtonText: {
+      fontSize: typography.fontSize.base,
+      fontWeight: '600',
+      color: t.colors.error,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+      })
+   );
+
    const dispatch = useDispatch<AppDispatch>();
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
    const currentAvatar = userProfile?.avatar;
@@ -320,199 +520,4 @@ export default function UpdateAvatarScreen() {
       </>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.dark,
-   },
-   keyboardAvoid: {
-      flex: 1,
-   },
-   scrollView: {
-      flex: 1,
-   },
-   scrollContent: {
-      flexGrow: 1,
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.xxl,
-      paddingBottom: spacing.xl,
-   },
-   header: {
-      marginBottom: spacing.xl,
-   },
-   backButton: {
-      alignSelf: 'flex-start',
-      marginBottom: spacing.md,
-      padding: spacing.xs,
-   },
-   backButtonText: {
-      fontSize: typography.fontSize.base,
-      color: colors.primary[400],
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '500',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   title: {
-      fontSize: typography.fontSize['4xl'],
-      fontWeight: '700',
-      color: colors.text.dark,
-      marginBottom: spacing.sm,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '700',
-         },
-         android: {
-            fontFamily: 'sans-serif-bold',
-         },
-      }),
-   },
-   subtitle: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   avatarSection: {
-      alignItems: 'center',
-      marginBottom: spacing.xl,
-   },
-   avatarContainer: {
-      marginBottom: spacing.lg,
-   },
-   avatar: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      backgroundColor: colors.background.darkGrayLight,
-   },
-   avatarPlaceholder: {
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: colors.primary[400],
-   },
-   avatarText: {
-      fontSize: typography.fontSize['3xl'],
-      fontWeight: '600',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   pickImageButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderRadius: borderRadius.md,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      gap: spacing.sm,
-      backgroundColor: colors.background.input,
-   },
-   pickImageButtonDisabled: {
-      opacity: 0.6,
-   },
-   pickImageButtonText: {
-      fontSize: typography.fontSize.base,
-      fontWeight: '600',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   errorContainer: {
-      marginBottom: spacing.md,
-   },
-   errorText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.error,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   actionsContainer: {
-      gap: spacing.md,
-   },
-   updateButtonDisabled: {
-      opacity: 0.6,
-   },
-   updateButton: {
-      backgroundColor: colors.app.red,
-      borderRadius: borderRadius.md,
-      height: 48,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: spacing.md,
-   },
-   updateButtonText: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   removeButtonDisabled: {
-      opacity: 0.6,
-   },
-   removeButton: {
-      borderRadius: borderRadius.md,
-      height: 48,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: colors.background.input,
-   },
-   removeButtonText: {
-      fontSize: typography.fontSize.base,
-      fontWeight: '600',
-      color: colors.error,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-});
 

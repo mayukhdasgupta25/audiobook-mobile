@@ -12,7 +12,9 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { SubscriptionPlan } from '@/services/subscriptions';
 import { useSubscriptionPlans } from '@/hooks/useSubscriptionPlans';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
@@ -48,6 +50,105 @@ function getPlanActionLabel(
  * Subscription Plans screen — catalog of available plans with upgrade actions
  */
 export default function SubscriptionPlansScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+   container: {
+      flex: 1,
+      backgroundColor: t.colors.background.dark,
+   },
+   header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+   },
+   backButton: {
+      marginRight: spacing.md,
+      padding: spacing.xs,
+   },
+   headerContent: {
+      flex: 1,
+   },
+   title: {
+      fontSize: typography.fontSize['2xl'],
+      fontWeight: '700',
+      color: t.colors.text.dark,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '700',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   scrollView: {
+      flex: 1,
+   },
+   scrollContent: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+   },
+   plansList: {
+      gap: spacing.lg,
+   },
+   centered: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.xxl,
+      gap: spacing.md,
+   },
+   statusText: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.secondaryDark,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   errorText: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.app.red,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   retryButton: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+   },
+   retryText: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.primary[400],
+      fontWeight: '500',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '500',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+      })
+   );
+
    const insets = useSafeAreaInsets();
 
    const {
@@ -219,98 +320,3 @@ export default function SubscriptionPlansScreen() {
    );
 }
 
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.dark,
-   },
-   header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
-   },
-   backButton: {
-      marginRight: spacing.md,
-      padding: spacing.xs,
-   },
-   headerContent: {
-      flex: 1,
-   },
-   title: {
-      fontSize: typography.fontSize['2xl'],
-      fontWeight: '700',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '700',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   scrollView: {
-      flex: 1,
-   },
-   scrollContent: {
-      paddingHorizontal: spacing.md,
-      paddingTop: spacing.sm,
-   },
-   plansList: {
-      gap: spacing.lg,
-   },
-   centered: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: spacing.xxl,
-      gap: spacing.md,
-   },
-   statusText: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   errorText: {
-      fontSize: typography.fontSize.base,
-      color: colors.app.red,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   retryButton: {
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
-   },
-   retryText: {
-      fontSize: typography.fontSize.base,
-      color: colors.primary[400],
-      fontWeight: '500',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '500',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-});

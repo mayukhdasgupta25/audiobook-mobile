@@ -8,8 +8,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius, shadows } from '@/theme';
+import { spacing, typography, borderRadius, shadows } from '@/theme';
 import { getTabBarFloatBottom, getTabBarFloatHorizontal } from '@/theme/tabLayout';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { CommentTimestampInput } from './CommentTimestampInput';
 
 interface CommentInputBarProps {
@@ -34,6 +36,80 @@ export const CommentInputBar: React.FC<CommentInputBarProps> = ({
    highlightTimestamps = false,
 }) => {
    const insets = useSafeAreaInsets();
+   const { colors, isDark } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            backgroundColor: t.colors.background.screen,
+            paddingHorizontal: spacing.md,
+            paddingTop: spacing.md,
+            paddingBottom: spacing.sm,
+         },
+         floatingOuter: {
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 100,
+            ...Platform.select({
+               android: { elevation: 100 },
+            }),
+         },
+         divider: {
+            height: 1,
+            backgroundColor: t.colors.background.highlight,
+         },
+         floatingPill: {
+            borderRadius: borderRadius.xl,
+            backgroundColor: t.colors.background.screen,
+            paddingHorizontal: spacing.sm,
+            paddingVertical: spacing.sm,
+            ...shadows.lg,
+            ...Platform.select({
+               android: { elevation: 12 },
+            }),
+         },
+         row: {
+            flexDirection: 'row',
+            alignItems: 'center',
+         },
+         input: {
+            flex: 1,
+            minHeight: 48,
+            backgroundColor: t.colors.background.input,
+            borderRadius: borderRadius.lg,
+            marginRight: spacing.sm,
+            overflow: 'hidden',
+         },
+         highlightInputWrap: {
+            flex: 1,
+            minHeight: 48,
+            backgroundColor: t.colors.background.input,
+            borderRadius: borderRadius.lg,
+            marginRight: spacing.sm,
+            overflow: 'hidden',
+         },
+         plainInput: {
+            flex: 1,
+            minHeight: 48,
+            paddingHorizontal: spacing.md,
+            paddingVertical: Platform.OS === 'ios' ? spacing.md : spacing.sm,
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.primary,
+         },
+         sendButton: {
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            backgroundColor: t.colors.accent.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         sendDisabled: {
+            opacity: 0.4,
+         },
+      })
+   );
 
    const inputNode = highlightTimestamps ? (
       <CommentTimestampInput
@@ -50,7 +126,7 @@ export const CommentInputBar: React.FC<CommentInputBarProps> = ({
          editable={!disabled}
          value={value}
          onChangeText={onChangeText}
-         keyboardAppearance="light"
+         keyboardAppearance={isDark ? 'dark' : 'light'}
       />
    );
 
@@ -94,75 +170,3 @@ export const CommentInputBar: React.FC<CommentInputBarProps> = ({
       </View>
    );
 };
-
-const styles = StyleSheet.create({
-   container: {
-      backgroundColor: colors.background.screen,
-      paddingHorizontal: spacing.md,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.sm,
-   },
-   floatingOuter: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 100,
-      ...Platform.select({
-         android: { elevation: 100 },
-      }),
-   },
-   divider: {
-      height: 1,
-      backgroundColor: colors.background.highlight,
-   },
-   floatingPill: {
-      borderRadius: borderRadius.xl,
-      backgroundColor: colors.background.screen,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.sm,
-      ...shadows.lg,
-      ...Platform.select({
-         android: { elevation: 12 },
-      }),
-   },
-   row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-   },
-   input: {
-      flex: 1,
-      minHeight: 48,
-      backgroundColor: colors.background.input,
-      borderRadius: borderRadius.lg,
-      marginRight: spacing.sm,
-      overflow: 'hidden',
-   },
-   highlightInputWrap: {
-      flex: 1,
-      minHeight: 48,
-      backgroundColor: colors.background.input,
-      borderRadius: borderRadius.lg,
-      marginRight: spacing.sm,
-      overflow: 'hidden',
-   },
-   plainInput: {
-      flex: 1,
-      minHeight: 48,
-      paddingHorizontal: spacing.md,
-      paddingVertical: Platform.OS === 'ios' ? spacing.md : spacing.sm,
-      fontSize: typography.fontSize.base,
-      color: colors.text.primary,
-   },
-   sendButton: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.accent.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   sendDisabled: {
-      opacity: 0.4,
-   },
-});

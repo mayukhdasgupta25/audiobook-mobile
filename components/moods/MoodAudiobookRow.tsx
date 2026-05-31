@@ -10,7 +10,9 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Audiobook } from '@/services/audiobooks';
 import { apiConfig } from '@/services/api';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { formatDuration } from '@/utils/duration';
 
 interface MoodAudiobookRowProps {
@@ -24,10 +26,67 @@ export const MoodAudiobookRow: React.FC<MoodAudiobookRowProps> = ({
    onPress,
    onPlayPress,
 }) => {
+   const { colors } = useTheme();
    const coverPath = audiobook.contentCardCoverImage || audiobook.coverImage;
    const coverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
    const author = audiobook.author || audiobook.narrators?.[0] || 'Unknown author';
    const durationLabel = audiobook.duration ? formatDuration(audiobook.duration) : '';
+
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         row: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: spacing.md,
+         },
+         cover: {
+            width: 56,
+            height: 56,
+            borderRadius: borderRadius.md,
+            marginRight: spacing.md,
+         },
+         coverPlaceholder: {
+            backgroundColor: t.colors.background.input,
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         coverLetter: {
+            fontSize: typography.fontSize.xl,
+            color: t.colors.text.secondary,
+            fontWeight: '700',
+         },
+         body: {
+            flex: 1,
+            marginRight: spacing.sm,
+         },
+         title: {
+            fontSize: typography.fontSize.base,
+            color: t.colors.text.primary,
+            marginBottom: 2,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '600' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         author: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            marginBottom: 2,
+         },
+         meta: {
+            fontSize: typography.fontSize.xs,
+            color: t.colors.text.muted,
+         },
+         playButton: {
+            width: 36,
+            height: 36,
+            borderRadius: borderRadius.full,
+            backgroundColor: t.colors.accent.primary,
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+      })
+   );
 
    return (
       <TouchableOpacity
@@ -68,57 +127,3 @@ export const MoodAudiobookRow: React.FC<MoodAudiobookRowProps> = ({
       </TouchableOpacity>
    );
 };
-
-const styles = StyleSheet.create({
-   row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: spacing.md,
-   },
-   cover: {
-      width: 56,
-      height: 56,
-      borderRadius: borderRadius.md,
-      marginRight: spacing.md,
-   },
-   coverPlaceholder: {
-      backgroundColor: colors.background.input,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   coverLetter: {
-      fontSize: typography.fontSize.xl,
-      color: colors.text.secondary,
-      fontWeight: '700',
-   },
-   body: {
-      flex: 1,
-      marginRight: spacing.sm,
-   },
-   title: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.primary,
-      marginBottom: 2,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '600' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   author: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      marginBottom: 2,
-   },
-   meta: {
-      fontSize: typography.fontSize.xs,
-      color: colors.text.muted,
-   },
-   playButton: {
-      width: 36,
-      height: 36,
-      borderRadius: borderRadius.full,
-      backgroundColor: colors.accent.primary,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-});

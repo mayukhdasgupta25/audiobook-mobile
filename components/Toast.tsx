@@ -9,13 +9,51 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useToastContext } from '@/contexts/ToastContext';
-import { borderRadius, colors, spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { borderRadius, spacing, typography } from '@/theme';
 
 export function Toast() {
    const insets = useSafeAreaInsets();
+   const { colors } = useTheme();
    const { toast, clear } = useToastContext();
    const translateY = useSharedValue(80);
    const opacity = useSharedValue(0);
+
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         host: {
+            position: 'absolute',
+            left: spacing.md,
+            right: spacing.md,
+            zIndex: 9999,
+            elevation: 9999,
+         },
+         banner: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.sm,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm + 2,
+            borderRadius: borderRadius.lg,
+            backgroundColor: t.colors.background.player,
+            shadowColor: t.colors.accent.primaryDark,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.12,
+            shadowRadius: 8,
+            elevation: 6,
+         },
+         bannerSuccess: {},
+         bannerError: {},
+         message: {
+            flex: 1,
+            fontSize: typography.fontSize.sm,
+            fontFamily: typography.fontFamily.medium,
+            color: t.colors.text.primary,
+            lineHeight: typography.fontSize.sm * typography.lineHeight.normal,
+         },
+      })
+   );
 
    useEffect(() => {
       if (toast?.visible) {
@@ -69,36 +107,3 @@ export function Toast() {
       </View>
    );
 }
-
-const styles = StyleSheet.create({
-   host: {
-      position: 'absolute',
-      left: spacing.md,
-      right: spacing.md,
-      zIndex: 9999,
-      elevation: 9999,
-   },
-   banner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm + 2,
-      borderRadius: borderRadius.lg,
-      backgroundColor: colors.background.player,
-      shadowColor: colors.accent.primaryDark,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 8,
-      elevation: 6,
-   },
-   bannerSuccess: {},
-   bannerError: {},
-   message: {
-      flex: 1,
-      fontSize: typography.fontSize.sm,
-      fontFamily: typography.fontFamily.medium,
-      color: colors.text.primary,
-      lineHeight: typography.fontSize.sm * typography.lineHeight.normal,
-   },
-});

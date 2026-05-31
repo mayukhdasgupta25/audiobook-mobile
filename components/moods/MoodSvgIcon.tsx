@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import {
    getMoodAttributeIconComponent,
    getMoodDescriptionIconComponent,
@@ -35,6 +35,7 @@ export const MoodSvgIcon: React.FC<MoodSvgIconProps> = ({
    color,
    size = 24,
 }) => {
+   const { colors } = useTheme();
    const IconComponent = resolveIconComponent(source, name);
    const tintColor = normalizeHexCode(color);
 

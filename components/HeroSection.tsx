@@ -17,7 +17,9 @@ import Animated, {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = SCREEN_WIDTH * 1.4; // Aspect ratio for hero section
@@ -57,6 +59,193 @@ const HeroSectionComponent: React.FC<HeroSectionProps> = ({
    paused = false, // Default to not paused
    onIndexChange,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            width: SCREEN_WIDTH,
+            height: HERO_HEIGHT,
+            position: 'relative',
+            backgroundColor: t.colors.background.dark,
+         },
+         posterContainer: {
+            width: '100%',
+            height: '100%',
+            position: 'relative',
+            overflow: 'hidden', // Clip animated content
+         },
+         posterWrapper: {
+            width: '100%',
+            height: '100%',
+         },
+         poster: {
+            width: '100%',
+            height: '100%',
+            resizeMode: 'cover',
+         },
+         posterPlaceholder: {
+            backgroundColor: t.colors.background.darkGray,
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         gradient: {
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '60%',
+            zIndex: 1, // Ensure gradient is above carousel images
+         },
+         contentOverlay: {
+            position: 'absolute',
+            bottom: spacing.xl,
+            left: spacing.md,
+            right: spacing.md,
+            zIndex: 2, // Ensure content is above gradient
+         },
+         textWrapper: {
+            position: 'relative',
+            marginBottom: 0, // No margin between text and buttons
+            minHeight: 120, // Ensure minimum height for text area (2 lines title + 1 line author)
+         },
+         textPlaceholder: {
+            opacity: 0, // Invisible but maintains layout space
+            flexShrink: 0, // Prevent shrinking
+         },
+         textContainer: {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            flexShrink: 0, // Prevent container from shrinking
+         },
+         title: {
+            fontSize: typography.fontSize['4xl'],
+            fontWeight: '700',
+            color: t.colors.text.dark,
+            marginBottom: spacing.sm,
+            letterSpacing: -0.5,
+            flexShrink: 0, // Prevent text from shrinking
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '700',
+               },
+               android: {
+                  fontFamily: 'sans-serif',
+                  fontWeight: 'bold',
+               },
+            }),
+         },
+         author: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.dark,
+            marginBottom: 0, // Remove bottom margin - spacing handled by textWrapper
+            opacity: 0.9,
+            flexShrink: 0, // Prevent text from shrinking
+         },
+         actionsContainer: {
+            flexDirection: 'row',
+            gap: spacing.md, // Gap between buttons only, not between text and buttons
+            marginTop: 0, // No margin - buttons should be directly below text
+         },
+         playButton: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: t.colors.text.dark,
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.md,
+            borderRadius: borderRadius.md,
+            gap: spacing.xs,
+         },
+         playButtonText: {
+            color: t.colors.background.dark,
+            fontSize: typography.fontSize.base,
+            fontWeight: '600',
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '600',
+               },
+               android: {
+                  fontFamily: 'sans-serif-medium',
+               },
+            }),
+         },
+         myListButton: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: t.colors.background.darkGray,
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.md,
+            borderRadius: borderRadius.md,
+            gap: spacing.xs,
+         },
+         myListButtonText: {
+            color: t.colors.text.dark,
+            fontSize: typography.fontSize.base,
+            fontWeight: '600',
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '600',
+               },
+               android: {
+                  fontFamily: 'sans-serif-medium',
+               },
+            }),
+         },
+         // Navigation arrow styles
+         leftArrow: {
+            position: 'absolute',
+            left: spacing.md,
+            top: '50%',
+            transform: [{ translateY: -20 }], // Center vertically
+            zIndex: 3, // Above carousel but below content overlay
+         },
+         rightArrow: {
+            position: 'absolute',
+            right: spacing.md,
+            top: '50%',
+            transform: [{ translateY: -20 }], // Center vertically
+            zIndex: 3, // Above carousel but below content overlay
+         },
+         arrowButton: {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         // Pagination dots styles
+         paginationContainer: {
+            position: 'absolute',
+            bottom: spacing.xl + 100, // Position above content overlay (text + buttons area)
+            left: 0,
+            right: 0,
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 3, // Above gradient but below content overlay
+            gap: spacing.xs,
+            paddingHorizontal: spacing.md,
+         },
+         paginationDot: {
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: 'rgba(255, 255, 255, 0.4)',
+         },
+         paginationDotActive: {
+            width: 24,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: t.colors.text.dark,
+         },
+      })
+   );
+
    const carouselRef = React.useRef<ICarouselInstance>(null);
    const [currentIndex, setCurrentIndex] = useState(0);
    // Shared value for text fade animation
@@ -162,7 +351,7 @@ const HeroSectionComponent: React.FC<HeroSectionProps> = ({
             </View>
          );
       },
-      [] // Empty dependency array - function doesn't depend on any props/state
+      [styles, colors.neutral]
    );
 
    return (
@@ -299,187 +488,3 @@ const HeroSectionComponent: React.FC<HeroSectionProps> = ({
 
 // Memoize component to prevent unnecessary re-renders when props haven't changed
 export const HeroSection = React.memo(HeroSectionComponent);
-
-const styles = StyleSheet.create({
-   container: {
-      width: SCREEN_WIDTH,
-      height: HERO_HEIGHT,
-      position: 'relative',
-      backgroundColor: colors.background.dark,
-   },
-   posterContainer: {
-      width: '100%',
-      height: '100%',
-      position: 'relative',
-      overflow: 'hidden', // Clip animated content
-   },
-   posterWrapper: {
-      width: '100%',
-      height: '100%',
-   },
-   poster: {
-      width: '100%',
-      height: '100%',
-      resizeMode: 'cover',
-   },
-   posterPlaceholder: {
-      backgroundColor: colors.background.darkGray,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   gradient: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      height: '60%',
-      zIndex: 1, // Ensure gradient is above carousel images
-   },
-   contentOverlay: {
-      position: 'absolute',
-      bottom: spacing.xl,
-      left: spacing.md,
-      right: spacing.md,
-      zIndex: 2, // Ensure content is above gradient
-   },
-   textWrapper: {
-      position: 'relative',
-      marginBottom: 0, // No margin between text and buttons
-      minHeight: 120, // Ensure minimum height for text area (2 lines title + 1 line author)
-   },
-   textPlaceholder: {
-      opacity: 0, // Invisible but maintains layout space
-      flexShrink: 0, // Prevent shrinking
-   },
-   textContainer: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      flexShrink: 0, // Prevent container from shrinking
-   },
-   title: {
-      fontSize: typography.fontSize['4xl'],
-      fontWeight: '700',
-      color: colors.text.dark,
-      marginBottom: spacing.sm,
-      letterSpacing: -0.5,
-      flexShrink: 0, // Prevent text from shrinking
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '700',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-            fontWeight: 'bold',
-         },
-      }),
-   },
-   author: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.dark,
-      marginBottom: 0, // Remove bottom margin - spacing handled by textWrapper
-      opacity: 0.9,
-      flexShrink: 0, // Prevent text from shrinking
-   },
-   actionsContainer: {
-      flexDirection: 'row',
-      gap: spacing.md, // Gap between buttons only, not between text and buttons
-      marginTop: 0, // No margin - buttons should be directly below text
-   },
-   playButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.text.dark,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
-      borderRadius: borderRadius.md,
-      gap: spacing.xs,
-   },
-   playButtonText: {
-      color: colors.background.dark,
-      fontSize: typography.fontSize.base,
-      fontWeight: '600',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   myListButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.background.darkGray,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
-      borderRadius: borderRadius.md,
-      gap: spacing.xs,
-   },
-   myListButtonText: {
-      color: colors.text.dark,
-      fontSize: typography.fontSize.base,
-      fontWeight: '600',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   // Navigation arrow styles
-   leftArrow: {
-      position: 'absolute',
-      left: spacing.md,
-      top: '50%',
-      transform: [{ translateY: -20 }], // Center vertically
-      zIndex: 3, // Above carousel but below content overlay
-   },
-   rightArrow: {
-      position: 'absolute',
-      right: spacing.md,
-      top: '50%',
-      transform: [{ translateY: -20 }], // Center vertically
-      zIndex: 3, // Above carousel but below content overlay
-   },
-   arrowButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   // Pagination dots styles
-   paginationContainer: {
-      position: 'absolute',
-      bottom: spacing.xl + 100, // Position above content overlay (text + buttons area)
-      left: 0,
-      right: 0,
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 3, // Above gradient but below content overlay
-      gap: spacing.xs,
-      paddingHorizontal: spacing.md,
-   },
-   paginationDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: 'rgba(255, 255, 255, 0.4)',
-   },
-   paginationDotActive: {
-      width: 24,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: colors.text.dark,
-   },
-});

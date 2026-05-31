@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 interface SelectableChipProps {
    label: string;
@@ -23,6 +24,38 @@ export const SelectableChip: React.FC<SelectableChipProps> = ({
    testID,
    compact = false,
 }) => {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         chip: {
+            backgroundColor: t.colors.background.input,
+            borderRadius: borderRadius.full,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            marginRight: spacing.sm,
+            marginBottom: spacing.sm,
+         },
+         chipCompact: {
+            marginRight: 0,
+            marginBottom: 0,
+         },
+         chipSelected: {
+            backgroundColor: t.colors.background.highlight,
+         },
+         chipDisabled: {
+            opacity: 0.4,
+         },
+         chipText: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.primary,
+            fontWeight: '500',
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '500' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+      })
+   );
+
    return (
       <TouchableOpacity
          style={[
@@ -43,33 +76,3 @@ export const SelectableChip: React.FC<SelectableChipProps> = ({
       </TouchableOpacity>
    );
 };
-
-const styles = StyleSheet.create({
-   chip: {
-      backgroundColor: colors.background.input,
-      borderRadius: borderRadius.full,
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
-      marginRight: spacing.sm,
-      marginBottom: spacing.sm,
-   },
-   chipCompact: {
-      marginRight: 0,
-      marginBottom: 0,
-   },
-   chipSelected: {
-      backgroundColor: colors.background.highlight,
-   },
-   chipDisabled: {
-      opacity: 0.4,
-   },
-   chipText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.primary,
-      fontWeight: '500',
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '500' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-});

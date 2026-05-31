@@ -19,9 +19,46 @@ import { SkeletonGrid } from '@/components/skeleton';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useFavoriteAudiobooks } from '@/hooks/useFavoriteAudiobooks';
 import { Audiobook } from '@/services/audiobooks';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 export default function LibraryFavoritesScreen() {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flex: 1,
+            backgroundColor: t.colors.background.screen,
+         },
+         listContent: {
+            paddingHorizontal: GRID_PADDING,
+            paddingBottom: spacing.xxl,
+         },
+         columnWrapper: {
+            gap: GRID_GAP,
+            marginBottom: GRID_GAP,
+         },
+         center: {
+            flex: 1,
+            padding: spacing.xxl,
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         emptyText: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            ...Platform.select({
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         emptyHint: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            marginTop: spacing.sm,
+            textAlign: 'center',
+         },
+      })
+   );
    const { data, isLoading } = useFavorites();
    const favorites = data?.data ?? [];
    const { books, isLoading: booksLoading } = useFavoriteAudiobooks(favorites);
@@ -65,38 +102,3 @@ export default function LibraryFavoritesScreen() {
       </SafeAreaView>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.screen,
-   },
-   listContent: {
-      paddingHorizontal: GRID_PADDING,
-      paddingBottom: spacing.xxl,
-   },
-   columnWrapper: {
-      gap: GRID_GAP,
-      marginBottom: GRID_GAP,
-   },
-   center: {
-      flex: 1,
-      padding: spacing.xxl,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   emptyText: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.primary,
-      ...Platform.select({
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   emptyHint: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      marginTop: spacing.sm,
-      textAlign: 'center',
-   },
-});

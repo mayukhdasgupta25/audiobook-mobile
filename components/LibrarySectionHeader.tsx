@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 interface LibrarySectionHeaderProps {
    title: string;
@@ -14,6 +16,35 @@ export const LibrarySectionHeader: React.FC<LibrarySectionHeaderProps> = ({
    onSeeAll,
    onAdd,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         row: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: spacing.md,
+            marginBottom: spacing.sm,
+         },
+         title: {
+            fontSize: typography.fontSize.lg,
+            fontWeight: '600',
+            color: t.colors.text.primary,
+            ...Platform.select({
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         actions: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.xs,
+         },
+         iconButton: {
+            padding: spacing.xs,
+         },
+      })
+   );
+
    return (
       <View style={styles.row}>
          <Text style={styles.title}>{title}</Text>
@@ -45,29 +76,3 @@ export const LibrarySectionHeader: React.FC<LibrarySectionHeaderProps> = ({
       </View>
    );
 };
-
-const styles = StyleSheet.create({
-   row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing.md,
-      marginBottom: spacing.sm,
-   },
-   title: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.primary,
-      ...Platform.select({
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   actions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-   },
-   iconButton: {
-      padding: spacing.xs,
-   },
-});

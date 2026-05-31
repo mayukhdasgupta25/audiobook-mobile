@@ -8,7 +8,9 @@ import {
    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 export interface PopularStory {
    id: string;
@@ -29,6 +31,92 @@ interface PopularStoryItemProps {
  */
 export const PopularStoryItem: React.FC<PopularStoryItemProps> = React.memo(
    ({ story, onPress }) => {
+      const { colors } = useTheme();
+      const styles = useThemedStyles((t) =>
+         StyleSheet.create({
+            divider: {
+               height: 1,
+               backgroundColor: t.colors.background.highlight,
+            },
+            container: {
+               flexDirection: 'row',
+               alignItems: 'center',
+               paddingVertical: spacing.md,
+               paddingHorizontal: spacing.md,
+               backgroundColor: t.colors.background.dark,
+            },
+            imageContainer: {
+               marginRight: spacing.md,
+            },
+            image: {
+               width: 80,
+               height: 120,
+               borderRadius: borderRadius.md,
+               resizeMode: 'cover',
+            },
+            placeholder: {
+               backgroundColor: t.colors.background.darkGray,
+               justifyContent: 'center',
+               alignItems: 'center',
+            },
+            placeholderText: {
+               fontSize: typography.fontSize.xl,
+               color: t.colors.text.secondaryDark,
+               fontWeight: '700',
+            },
+            infoContainer: {
+               flex: 1,
+               justifyContent: 'center',
+            },
+            title: {
+               fontSize: typography.fontSize.lg,
+               fontWeight: '600',
+               color: t.colors.text.dark,
+               marginBottom: spacing.xs,
+               letterSpacing: -0.2,
+               ...Platform.select({
+                  ios: {
+                     fontFamily: 'System',
+                     fontWeight: '600',
+                  },
+                  android: {
+                     fontFamily: 'sans-serif-medium',
+                  },
+               }),
+            },
+            author: {
+               fontSize: typography.fontSize.sm,
+               color: t.colors.text.secondaryDark,
+               marginBottom: spacing.xs / 2,
+               ...Platform.select({
+                  ios: {
+                     fontFamily: 'System',
+                     fontWeight: '400',
+                  },
+                  android: {
+                     fontFamily: 'sans-serif',
+                  },
+               }),
+            },
+            category: {
+               fontSize: typography.fontSize.xs,
+               color: t.colors.text.secondaryDark,
+               ...Platform.select({
+                  ios: {
+                     fontFamily: 'System',
+                     fontWeight: '400',
+                  },
+                  android: {
+                     fontFamily: 'sans-serif',
+                  },
+               }),
+            },
+            chevron: {
+               marginLeft: spacing.sm,
+            },
+         })
+      );
+
       return (
          <View>
          <TouchableOpacity
@@ -82,87 +170,3 @@ export const PopularStoryItem: React.FC<PopularStoryItemProps> = React.memo(
 );
 
 PopularStoryItem.displayName = 'PopularStoryItem';
-
-const styles = StyleSheet.create({
-   divider: {
-      height: 1,
-      backgroundColor: colors.background.highlight,
-   },
-   container: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.md,
-      backgroundColor: colors.background.dark,
-   },
-   imageContainer: {
-      marginRight: spacing.md,
-   },
-   image: {
-      width: 80,
-      height: 120,
-      borderRadius: borderRadius.md,
-      resizeMode: 'cover',
-   },
-   placeholder: {
-      backgroundColor: colors.background.darkGray,
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   placeholderText: {
-      fontSize: typography.fontSize.xl,
-      color: colors.text.secondaryDark,
-      fontWeight: '700',
-   },
-   infoContainer: {
-      flex: 1,
-      justifyContent: 'center',
-   },
-   title: {
-      fontSize: typography.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text.dark,
-      marginBottom: spacing.xs,
-      letterSpacing: -0.2,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   author: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      marginBottom: spacing.xs / 2,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   category: {
-      fontSize: typography.fontSize.xs,
-      color: colors.text.secondaryDark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   chevron: {
-      marginLeft: spacing.sm,
-   },
-});
-

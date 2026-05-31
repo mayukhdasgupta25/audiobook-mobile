@@ -13,7 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { OtpInput } from '@/components/OtpInput';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import {
    verifyPasswordChangeOtp,
    requestPasswordChangeOtp,
@@ -26,6 +28,167 @@ import { ApiError } from '@/services/api';
  * Displays 6-digit OTP input with auto-submit and resend functionality
  */
 export default function VerifyPasswordOtpScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+   container: {
+      flex: 1,
+      backgroundColor: t.colors.background.dark,
+   },
+   keyboardAvoid: {
+      flex: 1,
+   },
+   scrollView: {
+      flex: 1,
+   },
+   scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.xxl,
+      paddingBottom: spacing.xl,
+   },
+   header: {
+      marginBottom: spacing.xl,
+      alignItems: 'center',
+   },
+   title: {
+      fontSize: typography.fontSize['4xl'],
+      fontWeight: '700',
+      color: t.colors.text.dark,
+      marginBottom: spacing.sm,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '700',
+         },
+         android: {
+            fontFamily: 'sans-serif-bold',
+         },
+      }),
+   },
+   subtitle: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.secondaryDark,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   otpContainer: {
+      marginBottom: spacing.xl,
+      alignItems: 'center',
+   },
+   errorContainer: {
+      marginBottom: spacing.md,
+      marginTop: -spacing.sm,
+   },
+   errorText: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.error,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   noteContainer: {
+      marginBottom: spacing.lg,
+      alignItems: 'center',
+   },
+   noteText: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondaryDark,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   resendContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: spacing.xl,
+   },
+   resendLabel: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.secondaryDark,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+   resendCountdown: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.secondaryDark,
+      fontWeight: '600',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   resendButton: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.primary[400],
+      fontWeight: '600',
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '600',
+         },
+         android: {
+            fontFamily: 'sans-serif-medium',
+         },
+      }),
+   },
+   loadingContainer: {
+      alignItems: 'center',
+      marginTop: spacing.lg,
+   },
+   loadingText: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.secondaryDark,
+      marginTop: spacing.md,
+      ...Platform.select({
+         ios: {
+            fontFamily: 'System',
+            fontWeight: '400',
+         },
+         android: {
+            fontFamily: 'sans-serif',
+         },
+      }),
+   },
+      })
+   );
+
    const user = useSelector((state: RootState) => state.auth.user);
    const email = user?.email || '';
 
@@ -267,162 +430,4 @@ export default function VerifyPasswordOtpScreen() {
       </>
    );
 }
-
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.dark,
-   },
-   keyboardAvoid: {
-      flex: 1,
-   },
-   scrollView: {
-      flex: 1,
-   },
-   scrollContent: {
-      flexGrow: 1,
-      paddingHorizontal: spacing.lg,
-      paddingTop: spacing.xxl,
-      paddingBottom: spacing.xl,
-   },
-   header: {
-      marginBottom: spacing.xl,
-      alignItems: 'center',
-   },
-   title: {
-      fontSize: typography.fontSize['4xl'],
-      fontWeight: '700',
-      color: colors.text.dark,
-      marginBottom: spacing.sm,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '700',
-         },
-         android: {
-            fontFamily: 'sans-serif-bold',
-         },
-      }),
-   },
-   subtitle: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   otpContainer: {
-      marginBottom: spacing.xl,
-      alignItems: 'center',
-   },
-   errorContainer: {
-      marginBottom: spacing.md,
-      marginTop: -spacing.sm,
-   },
-   errorText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.error,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   noteContainer: {
-      marginBottom: spacing.lg,
-      alignItems: 'center',
-   },
-   noteText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   resendContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: spacing.xl,
-   },
-   resendLabel: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-   resendCountdown: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      fontWeight: '600',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   resendButton: {
-      fontSize: typography.fontSize.base,
-      color: colors.primary[400],
-      fontWeight: '600',
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   loadingContainer: {
-      alignItems: 'center',
-      marginTop: spacing.lg,
-   },
-   loadingText: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      marginTop: spacing.md,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
-   },
-});
 

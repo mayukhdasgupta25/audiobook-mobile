@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { router, type Href } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
+import { useTheme } from '@/contexts/ThemeContext';
 import { AgeNumberPicker } from '@/components/AgeNumberPicker';
 import { WizardScreenLayout } from '@/components/WizardScreenLayout';
 import { fetchUserProfile } from '@/store/auth';
@@ -32,6 +33,7 @@ function resolveInitialAge(
  * Onboarding step 1: select age via scroll wheel and load profile for pre-fill
  */
 export default function OnboardingAgeScreen() {
+   const { colors } = useTheme();
    const dispatch = useDispatch<AppDispatch>();
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
    const profileFetched = useSelector((state: RootState) => state.auth.profileFetched);
@@ -99,7 +101,7 @@ export default function OnboardingAgeScreen() {
       >
          {isLoadingProfile ? (
             <View style={styles.loading}>
-               <ActivityIndicator size="large" />
+               <ActivityIndicator size="large" color={colors.accent.primary} />
             </View>
          ) : (
             <AgeNumberPicker

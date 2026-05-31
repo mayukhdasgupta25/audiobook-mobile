@@ -3,13 +3,33 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { PLAYLIST_CARD_WIDTH } from '@/components/PlaylistCard';
 import { SkeletonBox } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
-import { borderRadius, colors, spacing } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { borderRadius, spacing } from '@/theme';
 
 interface SkeletonLibraryPlaylistRowProps {
    count?: number;
 }
 
 export function SkeletonLibraryPlaylistRow({ count = 8 }: SkeletonLibraryPlaylistRowProps) {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         row: {
+            paddingHorizontal: spacing.md,
+            paddingBottom: spacing.md,
+         },
+         card: {
+            width: PLAYLIST_CARD_WIDTH,
+            marginRight: spacing.sm,
+            backgroundColor: t.colors.background.card,
+            borderRadius: borderRadius.lg,
+            padding: spacing.md,
+         },
+         line: {
+            marginTop: spacing.sm,
+         },
+      })
+   );
+
    return (
       <ScrollView
          horizontal
@@ -26,20 +46,3 @@ export function SkeletonLibraryPlaylistRow({ count = 8 }: SkeletonLibraryPlaylis
       </ScrollView>
    );
 }
-
-const styles = StyleSheet.create({
-   row: {
-      paddingHorizontal: spacing.md,
-      paddingBottom: spacing.md,
-   },
-   card: {
-      width: PLAYLIST_CARD_WIDTH,
-      marginRight: spacing.sm,
-      backgroundColor: colors.background.card,
-      borderRadius: borderRadius.lg,
-      padding: spacing.md,
-   },
-   line: {
-      marginTop: spacing.sm,
-   },
-});

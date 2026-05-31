@@ -9,7 +9,9 @@ import {
    ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 interface SecondaryButtonProps {
    title: string;
@@ -31,6 +33,45 @@ export const SecondaryButton: React.FC<SecondaryButtonProps> = ({
    testID,
    icon,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         button: {
+            backgroundColor: t.colors.primary[50],
+            borderRadius: borderRadius.lg,
+            paddingVertical: spacing.md,
+            paddingHorizontal: spacing.lg,
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 48,
+         },
+         buttonDisabled: {
+            backgroundColor: t.colors.background.input,
+            opacity: 1,
+         },
+         content: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+         },
+         icon: {
+            marginRight: spacing.sm,
+         },
+         text: {
+            color: t.colors.accent.primary,
+            fontSize: typography.fontSize.base,
+            fontWeight: '600',
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '600' },
+               android: { fontFamily: 'sans-serif-medium' },
+            }),
+         },
+         textDisabled: {
+            color: t.colors.text.muted,
+         },
+      })
+   );
+
    const isInactive = disabled || loading;
    const iconColor = disabled ? colors.text.muted : colors.accent.primary;
 
@@ -55,39 +96,3 @@ export const SecondaryButton: React.FC<SecondaryButtonProps> = ({
       </TouchableOpacity>
    );
 };
-
-const styles = StyleSheet.create({
-   button: {
-      backgroundColor: colors.primary[50],
-      borderRadius: borderRadius.lg,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 48,
-   },
-   buttonDisabled: {
-      backgroundColor: colors.background.input,
-      opacity: 1,
-   },
-   content: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   icon: {
-      marginRight: spacing.sm,
-   },
-   text: {
-      color: colors.accent.primary,
-      fontSize: typography.fontSize.base,
-      fontWeight: '600',
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '600' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   textDisabled: {
-      color: colors.text.muted,
-   },
-});

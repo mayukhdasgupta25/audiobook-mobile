@@ -16,7 +16,9 @@ import * as Application from 'expo-application';
 import { ProfileUserCard } from '@/components/profile/ProfileUserCard';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsMenuRow } from '@/components/settings/SettingsMenuRow';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { resolveAvatarUrl } from '@/utils/resolveAvatarUrl';
 import { resolveMembershipTier } from '@/utils/membershipDisplay';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
@@ -35,6 +37,52 @@ function formatLanguageLabel(language?: string): string | undefined {
 }
 
 export default function SettingsScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+   container: {
+      flex: 1,
+      backgroundColor: t.colors.background.screen,
+   },
+   scrollView: {
+      flex: 1,
+   },
+   scrollContent: {},
+   header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.md,
+   },
+   backButton: {
+      padding: spacing.xs,
+      marginRight: spacing.sm,
+   },
+   headerTitle: {
+      flex: 1,
+      fontSize: typography.fontSize['3xl'],
+      color: t.colors.text.primary,
+      textAlign: 'center',
+      ...Platform.select({
+         ios: { fontFamily: 'System', fontWeight: '700' },
+         android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
+      }),
+   },
+   headerSpacer: {
+      width: 32,
+   },
+   languageTrailing: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+   },
+   languageText: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondary,
+   },
+      })
+   );
+
    const insets = useSafeAreaInsets();
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
    const user = useSelector((state: RootState) => state.auth.user);
@@ -244,45 +292,3 @@ export default function SettingsScreen() {
    );
 }
 
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.screen,
-   },
-   scrollView: {
-      flex: 1,
-   },
-   scrollContent: {},
-   header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingBottom: spacing.md,
-   },
-   backButton: {
-      padding: spacing.xs,
-      marginRight: spacing.sm,
-   },
-   headerTitle: {
-      flex: 1,
-      fontSize: typography.fontSize['3xl'],
-      color: colors.text.primary,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
-      }),
-   },
-   headerSpacer: {
-      width: 32,
-   },
-   languageTrailing: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-   },
-   languageText: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-   },
-});

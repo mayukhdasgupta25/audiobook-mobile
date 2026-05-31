@@ -1,46 +1,68 @@
 import {
-   normalizeMoodKey,
-   getMoodIconComponent,
-   getMoodAttributeIconComponent,
-   normalizeHexCode,
+   getHexLuminance,
    hexToRgba,
-   toSentenceCase,
+   isLowContrastMoodColor,
+   resolveMoodDisplayColor,
+   resolveMoodTintBackground,
 } from '@/utils/moodAssets';
 
-describe('moodAssets utils', () => {
-   it('normalizes mood keys to kebab-case slugs', () => {
-      expect(normalizeMoodKey(undefined)).toBe('');
-      expect(normalizeMoodKey('Calm')).toBe('calm');
-      expect(normalizeMoodKey('Feel Good')).toBe('feel-good');
-      expect(normalizeMoodKey('Memory Filled')).toBe('memory-filled');
-      expect(normalizeMoodKey('feel_good')).toBe('feel-good');
+describe('moodAssets contrast helpers', () => {
+   const accent = '#C9A882';
+
+   it('computes relative luminance for known hex values', () => {
+      expect(getHexLuminance('#FFFFFF')).toBeCloseTo(1, 2);
+      expect(getHexLuminance('#000000')).toBeCloseTo(0, 2);
+      expect(getHexLuminance('#111111')).toBeLessThan(0.02);
    });
 
-   it('resolves known mood icons', () => {
-      expect(getMoodIconComponent('Calm')).not.toBeNull();
-      expect(getMoodIconComponent('Suspenseful')).not.toBeNull();
-      expect(getMoodIconComponent('Unknown Mood')).toBeNull();
+   it('flags low-contrast mood colors only in dark mode', () => {
+      expect(isLowContrastMoodColor('#111111', true)).toBe(true);
+      expect(isLowContrastMoodColor('#111111', false)).toBe(false);
+      expect(isLowContrastMoodColor('#C9A882', true)).toBe(false);
    });
 
-   it('resolves known attribute icons', () => {
-      expect(getMoodAttributeIconComponent('Feel Good')).not.toBeNull();
-      expect(getMoodAttributeIconComponent('memory-filled')).not.toBeNull();
-      expect(getMoodAttributeIconComponent(undefined)).toBeNull();
-      expect(getMoodAttributeIconComponent('Unknown')).toBeNull();
+   it('uses accent fallback for mood named Dark in dark mode', () => {
+      const resolved = resolveMoodDisplayColor('#111111', {
+         isDark: true,
+         moodName: 'Dark',
+         fallbackAccent: accent,
+      });
+      expect(resolved).toBe(accent);
    });
 
-   it('normalizes hex codes', () => {
-      expect(normalizeHexCode('3B82F6')).toBe('#3B82F6');
-      expect(normalizeHexCode('#3B82F6')).toBe('#3B82F6');
+   it('lightens low-luminance hex in dark mode', () => {
+      const resolved = resolveMoodDisplayColor('#111111', {
+         isDark: true,
+         fallbackAccent: accent,
+      });
+      expect(getHexLuminance(resolved)).toBeGreaterThan(getHexLuminance('#111111'));
+      expect(getHexLuminance(resolved)).toBeGreaterThanOrEqual(0.35);
    });
 
-   it('converts hex to rgba', () => {
-      expect(hexToRgba('#3B82F6', 0.12)).toBe('rgba(59, 130, 246, 0.12)');
+   it('returns normalized hex unchanged in light mode', () => {
+      expect(
+         resolveMoodDisplayColor('111111', {
+            isDark: false,
+            moodName: 'Dark',
+            fallbackAccent: accent,
+         })
+      ).toBe('#111111');
    });
 
-   it('formats labels in sentence case', () => {
-      expect(toSentenceCase('Relaxing')).toBe('Relaxing');
-      expect(toSentenceCase('FEEL GOOD')).toBe('Feel good');
-      expect(toSentenceCase('memory-filled')).toBe('Memory filled');
+   it('boosts pill tint alpha for low-contrast dark-mode moods', () => {
+      const normal = resolveMoodTintBackground('#C9A882', {
+         isDark: true,
+         variant: 'pill',
+         fallbackAccent: accent,
+      });
+      const boosted = resolveMoodTintBackground('#111111', {
+         isDark: true,
+         moodName: 'Dark',
+         variant: 'pill',
+         fallbackAccent: accent,
+      });
+
+      expect(normal).toBe(hexToRgba('#C9A882', 0.12));
+      expect(boosted).toBe(hexToRgba(accent, 0.32));
    });
 });

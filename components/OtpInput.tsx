@@ -8,7 +8,8 @@ import {
    TextInputKeyPressEventData,
    Dimensions,
 } from 'react-native';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 /**
  * Props for OTP Input component
@@ -44,6 +45,40 @@ export function OtpInput({
 }: OtpInputProps) {
    const [otp, setOtp] = useState<string[]>(Array(length).fill(''));
    const inputRefs = useRef<(TextInput | null)[]>([]);
+
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: gapBetweenBoxes,
+            paddingHorizontal: spacing.xs, // Small padding to prevent edge overflow
+         },
+         input: {
+            width: finalBoxWidth,
+            height: 56,
+            borderRadius: borderRadius.md,
+            backgroundColor: t.colors.background.input,
+            textAlign: 'center',
+            fontSize: typography.fontSize['2xl'],
+            fontWeight: '600',
+            color: t.colors.text.dark,
+            ...Platform.select({
+               ios: {
+                  fontFamily: 'System',
+                  fontWeight: '600',
+               },
+               android: {
+                  fontFamily: 'sans-serif-medium',
+               },
+            }),
+         },
+         inputDisabled: {
+            opacity: 0.5,
+         },
+      })
+   );
 
    /**
     * Focus on a specific input box
@@ -154,36 +189,3 @@ const boxWidth = Math.floor((availableWidth - totalGaps) / 6);
 const MIN_BOX_WIDTH = 40;
 const MAX_BOX_WIDTH = 50;
 const finalBoxWidth = Math.max(MIN_BOX_WIDTH, Math.min(MAX_BOX_WIDTH, boxWidth));
-
-const styles = StyleSheet.create({
-   container: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: gapBetweenBoxes,
-      paddingHorizontal: spacing.xs, // Small padding to prevent edge overflow
-   },
-   input: {
-      width: finalBoxWidth,
-      height: 56,
-      borderRadius: borderRadius.md,
-      backgroundColor: colors.background.input,
-      textAlign: 'center',
-      fontSize: typography.fontSize['2xl'],
-      fontWeight: '600',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   inputDisabled: {
-      opacity: 0.5,
-   },
-});
-

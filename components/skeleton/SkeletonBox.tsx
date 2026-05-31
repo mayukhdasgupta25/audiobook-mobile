@@ -7,7 +7,8 @@ import Animated, {
    withRepeat,
    withTiming,
 } from 'react-native-reanimated';
-import { borderRadius, colors } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { borderRadius } from '@/theme';
 
 export type SkeletonShape = 'rectangle' | 'square' | 'circle';
 
@@ -63,6 +64,13 @@ function resolveSkeletonDimensions(props: SkeletonBoxProps): {
 export function SkeletonBox(props: SkeletonBoxProps) {
    const { width, height, radius } = resolveSkeletonDimensions(props);
    const opacity = useSharedValue(0.45);
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         box: {
+            backgroundColor: t.colors.background.input,
+         },
+      })
+   );
 
    useEffect(() => {
       opacity.value = withRepeat(
@@ -87,9 +95,3 @@ export function SkeletonBox(props: SkeletonBoxProps) {
       />
    );
 }
-
-const styles = StyleSheet.create({
-   box: {
-      backgroundColor: colors.background.input,
-   },
-});

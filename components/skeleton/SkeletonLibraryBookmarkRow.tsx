@@ -3,7 +3,8 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { BOOKMARK_CARD_WIDTH } from '@/components/BookmarkChapterCard';
 import { SkeletonBox } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
-import { borderRadius, colors, spacing } from '@/theme';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { borderRadius, spacing } from '@/theme';
 
 const COVER_HEIGHT = 88;
 
@@ -13,6 +14,29 @@ interface SkeletonLibraryBookmarkRowProps {
 
 /** Horizontal bookmark card skeleton for the library tab preview row. */
 export function SkeletonLibraryBookmarkRow({ count = 8 }: SkeletonLibraryBookmarkRowProps) {
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         row: {
+            paddingHorizontal: spacing.md,
+            paddingBottom: spacing.md,
+         },
+         card: {
+            width: BOOKMARK_CARD_WIDTH,
+            marginRight: spacing.sm,
+            backgroundColor: t.colors.background.card,
+            borderRadius: borderRadius.lg,
+            overflow: 'hidden',
+         },
+         textBlock: {
+            padding: spacing.sm,
+            gap: spacing.xs,
+         },
+         line: {
+            marginTop: spacing.xs,
+         },
+      })
+   );
+
    return (
       <ScrollView
          horizontal
@@ -36,24 +60,3 @@ export function SkeletonLibraryBookmarkRow({ count = 8 }: SkeletonLibraryBookmar
       </ScrollView>
    );
 }
-
-const styles = StyleSheet.create({
-   row: {
-      paddingHorizontal: spacing.md,
-      paddingBottom: spacing.md,
-   },
-   card: {
-      width: BOOKMARK_CARD_WIDTH,
-      marginRight: spacing.sm,
-      backgroundColor: colors.background.card,
-      borderRadius: borderRadius.lg,
-      overflow: 'hidden',
-   },
-   textBlock: {
-      padding: spacing.sm,
-      gap: spacing.xs,
-   },
-   line: {
-      marginTop: spacing.xs,
-   },
-});

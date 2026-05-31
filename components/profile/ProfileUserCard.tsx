@@ -8,7 +8,9 @@ import {
    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { MembershipIndicator } from '@/components/profile/MembershipIndicator';
 import { MembershipBadge } from '@/components/profile/MembershipBadge';
 import type { MembershipTier } from '@/utils/membershipDisplay';
@@ -38,6 +40,65 @@ export const ProfileUserCard: React.FC<ProfileUserCardProps> = ({
    planName,
    onPress,
 }) => {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+         container: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: t.colors.background.card,
+            marginHorizontal: spacing.md,
+            marginBottom: spacing.lg,
+            padding: spacing.md,
+            borderRadius: borderRadius.lg,
+         },
+         avatarContainer: {
+            marginRight: spacing.md,
+         },
+         avatar: {
+            width: 64,
+            height: 64,
+            borderRadius: borderRadius.full,
+         },
+         avatarPlaceholder: {
+            backgroundColor: t.colors.primary[200],
+            justifyContent: 'center',
+            alignItems: 'center',
+         },
+         avatarText: {
+            fontSize: typography.fontSize.xl,
+            color: t.colors.accent.primary,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
+            }),
+         },
+         content: {
+            flex: 1,
+            minWidth: 0,
+         },
+         nameRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.xs,
+         },
+         name: {
+            fontSize: typography.fontSize.lg,
+            color: t.colors.text.primary,
+            flexShrink: 1,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
+            }),
+         },
+         email: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.secondary,
+            marginTop: 2,
+         },
+      })
+   );
+
    return (
       <TouchableOpacity
          style={styles.container}
@@ -74,59 +135,3 @@ export const ProfileUserCard: React.FC<ProfileUserCardProps> = ({
       </TouchableOpacity>
    );
 };
-
-const styles = StyleSheet.create({
-   container: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.background.card,
-      marginHorizontal: spacing.md,
-      marginBottom: spacing.lg,
-      padding: spacing.md,
-      borderRadius: borderRadius.lg,
-   },
-   avatarContainer: {
-      marginRight: spacing.md,
-   },
-   avatar: {
-      width: 64,
-      height: 64,
-      borderRadius: borderRadius.full,
-   },
-   avatarPlaceholder: {
-      backgroundColor: colors.primary[200],
-      justifyContent: 'center',
-      alignItems: 'center',
-   },
-   avatarText: {
-      fontSize: typography.fontSize.xl,
-      color: colors.accent.primary,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
-      }),
-   },
-   content: {
-      flex: 1,
-      minWidth: 0,
-   },
-   nameRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-   },
-   name: {
-      fontSize: typography.fontSize.lg,
-      color: colors.text.primary,
-      flexShrink: 1,
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
-      }),
-   },
-   email: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondary,
-      marginTop: 2,
-   },
-});

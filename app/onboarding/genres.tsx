@@ -15,7 +15,9 @@ import {
 } from '@/store/onboarding';
 import { AppDispatch } from '@/store';
 import { ApiError } from '@/services/api';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 const TOTAL_STEPS = 4;
 
@@ -23,6 +25,28 @@ const TOTAL_STEPS = 4;
  * Onboarding step 3: select up to 3 genres and submit profile update
  */
 export default function OnboardingGenresScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+   selectionHint: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondaryDark,
+      marginBottom: spacing.md,
+      textAlign: 'center',
+      width: '100%',
+   },
+   loading: {
+      paddingVertical: spacing.xl,
+      alignItems: 'center',
+   },
+   chipGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+   },
+      })
+   );
+
    const dispatch = useDispatch<AppDispatch>();
 
    const age = useOnboardingStore((s) => s.age);
@@ -120,7 +144,7 @@ export default function OnboardingGenresScreen() {
 
          {isLoadingGenres ? (
             <View style={styles.loading}>
-               <ActivityIndicator size="large" />
+               <ActivityIndicator size="large" color={colors.accent.primary} />
             </View>
          ) : (
             <View style={styles.chipGrid}>
@@ -144,21 +168,3 @@ export default function OnboardingGenresScreen() {
    );
 }
 
-const styles = StyleSheet.create({
-   selectionHint: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      marginBottom: spacing.md,
-      textAlign: 'center',
-      width: '100%',
-   },
-   loading: {
-      paddingVertical: spacing.xl,
-      alignItems: 'center',
-   },
-   chipGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-   },
-});

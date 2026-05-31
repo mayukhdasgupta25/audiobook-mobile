@@ -14,7 +14,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { TextInput } from '@/components/TextInput';
-import { colors, spacing, typography, borderRadius } from '@/theme';
+import { spacing, typography, borderRadius } from '@/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { getAuthDevices, requestDeviceRemovalOtp } from '@/services/devices';
 import { useDeviceLimitStore } from '@/store/deviceLimit';
 import type { RegisteredDevice } from '@/utils/authApiErrors';
@@ -42,6 +44,178 @@ function getPlatformIcon(platform: string): keyof typeof Ionicons.glyphMap {
  * Device management screen shown when the subscription device limit is reached during login.
  */
 export default function ManageDevicesScreen() {
+   const { colors } = useTheme();
+   const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+   container: {
+      flex: 1,
+      backgroundColor: t.colors.background.dark,
+   },
+   header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.sm,
+   },
+   backButton: {
+      padding: spacing.sm,
+      marginLeft: -spacing.sm,
+   },
+   headerTitle: {
+      flex: 1,
+      textAlign: 'center',
+      fontSize: typography.fontSize.lg,
+      fontWeight: typography.fontWeight.semiBold as '600',
+      color: t.colors.text.dark,
+      ...Platform.select({
+         ios: { fontFamily: 'System' },
+         android: { fontFamily: 'sans-serif-medium' },
+      }),
+   },
+   headerSpacer: {
+      width: 40,
+   },
+   scrollView: {
+      flex: 1,
+   },
+   scrollContent: {
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.xl,
+   },
+   description: {
+      fontSize: typography.fontSize.base,
+      color: t.colors.text.secondaryDark,
+      lineHeight: typography.fontSize.base * typography.lineHeight.normal,
+      marginBottom: spacing.sm,
+   },
+   limitHint: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondaryDark,
+      marginBottom: spacing.lg,
+   },
+   errorContainer: {
+      backgroundColor: 'rgba(239, 68, 68, 0.12)',
+      borderRadius: borderRadius.md,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+   },
+   errorText: {
+      color: t.colors.error,
+      fontSize: typography.fontSize.sm,
+   },
+   loadingContainer: {
+      paddingVertical: spacing.xxl,
+      alignItems: 'center',
+   },
+   emptyContainer: {
+      alignItems: 'center',
+      paddingVertical: spacing.xxl,
+      gap: spacing.md,
+   },
+   emptyText: {
+      color: t.colors.text.secondaryDark,
+      fontSize: typography.fontSize.base,
+      textAlign: 'center',
+   },
+   deviceList: {
+      gap: spacing.sm,
+   },
+   deviceCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: t.colors.background.darkGrayLight,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      gap: spacing.md,
+   },
+   deviceIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: borderRadius.md,
+      backgroundColor: t.colors.background.darkGray,
+      alignItems: 'center',
+      justifyContent: 'center',
+   },
+   deviceInfo: {
+      flex: 1,
+      gap: 2,
+   },
+   deviceName: {
+      fontSize: typography.fontSize.base,
+      fontWeight: typography.fontWeight.semiBold as '600',
+      color: t.colors.text.dark,
+   },
+   deviceMeta: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondaryDark,
+   },
+   removeButton: {
+      minWidth: 72,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+   },
+   removeButtonText: {
+      color: t.colors.app.red,
+      fontSize: typography.fontSize.sm,
+      fontWeight: typography.fontWeight.semiBold as '600',
+   },
+   modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+   },
+   modalContent: {
+      backgroundColor: t.colors.background.darkGrayLight,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      gap: spacing.md,
+   },
+   modalTitle: {
+      fontSize: typography.fontSize.xl,
+      fontWeight: typography.fontWeight.semiBold as '600',
+      color: t.colors.text.dark,
+      textAlign: 'center',
+   },
+   modalDescription: {
+      fontSize: typography.fontSize.sm,
+      color: t.colors.text.secondaryDark,
+      lineHeight: typography.fontSize.sm * typography.lineHeight.normal,
+      textAlign: 'center',
+   },
+   modalActions: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+   },
+   modalCancelButton: {
+      flex: 1,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      borderRadius: borderRadius.md,
+      backgroundColor: t.colors.background.input,
+   },
+   modalCancelText: {
+      color: t.colors.text.dark,
+      fontSize: typography.fontSize.base,
+   },
+   modalConfirmButton: {
+      flex: 1,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      borderRadius: borderRadius.md,
+      backgroundColor: t.colors.app.red,
+   },
+   modalConfirmText: {
+      color: t.colors.text.dark,
+      fontSize: typography.fontSize.base,
+      fontWeight: typography.fontWeight.semiBold as '600',
+   },
+      })
+   );
+
    const insets = useSafeAreaInsets();
    const limitMessage = useDeviceLimitStore((state) => state.message);
    const maxDevices = useDeviceLimitStore((state) => state.maxDevices);
@@ -313,171 +487,3 @@ export default function ManageDevicesScreen() {
    );
 }
 
-const styles = StyleSheet.create({
-   container: {
-      flex: 1,
-      backgroundColor: colors.background.dark,
-   },
-   header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingBottom: spacing.sm,
-   },
-   backButton: {
-      padding: spacing.sm,
-      marginLeft: -spacing.sm,
-   },
-   headerTitle: {
-      flex: 1,
-      textAlign: 'center',
-      fontSize: typography.fontSize.lg,
-      fontWeight: typography.fontWeight.semiBold as '600',
-      color: colors.text.dark,
-      ...Platform.select({
-         ios: { fontFamily: 'System' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   headerSpacer: {
-      width: 40,
-   },
-   scrollView: {
-      flex: 1,
-   },
-   scrollContent: {
-      paddingHorizontal: spacing.md,
-      paddingBottom: spacing.xl,
-   },
-   description: {
-      fontSize: typography.fontSize.base,
-      color: colors.text.secondaryDark,
-      lineHeight: typography.fontSize.base * typography.lineHeight.normal,
-      marginBottom: spacing.sm,
-   },
-   limitHint: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      marginBottom: spacing.lg,
-   },
-   errorContainer: {
-      backgroundColor: 'rgba(239, 68, 68, 0.12)',
-      borderRadius: borderRadius.md,
-      padding: spacing.md,
-      marginBottom: spacing.md,
-   },
-   errorText: {
-      color: colors.error,
-      fontSize: typography.fontSize.sm,
-   },
-   loadingContainer: {
-      paddingVertical: spacing.xxl,
-      alignItems: 'center',
-   },
-   emptyContainer: {
-      alignItems: 'center',
-      paddingVertical: spacing.xxl,
-      gap: spacing.md,
-   },
-   emptyText: {
-      color: colors.text.secondaryDark,
-      fontSize: typography.fontSize.base,
-      textAlign: 'center',
-   },
-   deviceList: {
-      gap: spacing.sm,
-   },
-   deviceCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.background.darkGrayLight,
-      borderRadius: borderRadius.lg,
-      padding: spacing.md,
-      gap: spacing.md,
-   },
-   deviceIconWrap: {
-      width: 44,
-      height: 44,
-      borderRadius: borderRadius.md,
-      backgroundColor: colors.background.darkGray,
-      alignItems: 'center',
-      justifyContent: 'center',
-   },
-   deviceInfo: {
-      flex: 1,
-      gap: 2,
-   },
-   deviceName: {
-      fontSize: typography.fontSize.base,
-      fontWeight: typography.fontWeight.semiBold as '600',
-      color: colors.text.dark,
-   },
-   deviceMeta: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-   },
-   removeButton: {
-      minWidth: 72,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.sm,
-   },
-   removeButtonText: {
-      color: colors.app.red,
-      fontSize: typography.fontSize.sm,
-      fontWeight: typography.fontWeight.semiBold as '600',
-   },
-   modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.75)',
-      justifyContent: 'center',
-      paddingHorizontal: spacing.lg,
-   },
-   modalContent: {
-      backgroundColor: colors.background.darkGrayLight,
-      borderRadius: borderRadius.lg,
-      padding: spacing.lg,
-      gap: spacing.md,
-   },
-   modalTitle: {
-      fontSize: typography.fontSize.xl,
-      fontWeight: typography.fontWeight.semiBold as '600',
-      color: colors.text.dark,
-      textAlign: 'center',
-   },
-   modalDescription: {
-      fontSize: typography.fontSize.sm,
-      color: colors.text.secondaryDark,
-      lineHeight: typography.fontSize.sm * typography.lineHeight.normal,
-      textAlign: 'center',
-   },
-   modalActions: {
-      flexDirection: 'row',
-      gap: spacing.sm,
-      marginTop: spacing.sm,
-   },
-   modalCancelButton: {
-      flex: 1,
-      paddingVertical: spacing.md,
-      alignItems: 'center',
-      borderRadius: borderRadius.md,
-      backgroundColor: colors.background.input,
-   },
-   modalCancelText: {
-      color: colors.text.dark,
-      fontSize: typography.fontSize.base,
-   },
-   modalConfirmButton: {
-      flex: 1,
-      paddingVertical: spacing.md,
-      alignItems: 'center',
-      borderRadius: borderRadius.md,
-      backgroundColor: colors.app.red,
-   },
-   modalConfirmText: {
-      color: colors.text.dark,
-      fontSize: typography.fontSize.base,
-      fontWeight: typography.fontWeight.semiBold as '600',
-   },
-});
