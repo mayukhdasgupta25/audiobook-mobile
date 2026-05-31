@@ -33,9 +33,7 @@ export const TrendingChip: React.FC<TrendingChipProps> = ({ label, onPress }) =>
 
 const styles = StyleSheet.create({
    chip: {
-      backgroundColor: colors.background.darkGrayLight,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.2)',
+      backgroundColor: colors.background.input,
       borderRadius: borderRadius.full,
       paddingVertical: spacing.sm,
       paddingHorizontal: spacing.md,

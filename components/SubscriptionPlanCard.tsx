@@ -77,11 +77,9 @@ const styles = StyleSheet.create({
       backgroundColor: colors.background.darkGrayLight,
       borderRadius: borderRadius.lg,
       padding: spacing.lg,
-      borderWidth: 1,
-      borderColor: 'transparent',
    },
    cardCurrent: {
-      borderColor: colors.success,
+      backgroundColor: colors.background.highlight,
    },
    planName: {
       fontSize: typography.fontSize.xl,

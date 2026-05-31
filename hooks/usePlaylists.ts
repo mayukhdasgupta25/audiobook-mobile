@@ -13,6 +13,8 @@ import {
 } from '@/services/playlists';
 import { ApiError } from '@/services/api';
 import { useAuthQueryEnabled } from './useAuthQueryEnabled';
+import { showToast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/getApiErrorMessage';
 
 export type PlaylistsQueryKey = ['playlists', { limit?: number } | 'all'];
 
@@ -64,7 +66,13 @@ export function usePlaylistMutations() {
    const create = useMutation({
       mutationFn: ({ name, description }: { name: string; description: string }) =>
          createPlaylist(name, description),
-      onSuccess: invalidateAll,
+      onSuccess: () => {
+         invalidateAll();
+         showToast({ message: 'Playlist created', type: 'success' });
+      },
+      onError: (error) => {
+         showToast({ message: getApiErrorMessage(error), type: 'error' });
+      },
    });
 
    const update = useMutation({
@@ -89,6 +97,10 @@ export function usePlaylistMutations() {
          addPlaylistItem(playlistId, body),
       onSuccess: (_data, variables) => {
          queryClient.invalidateQueries({ queryKey: ['playlistItems', variables.playlistId] });
+         showToast({ message: 'Added to playlist', type: 'success' });
+      },
+      onError: (error) => {
+         showToast({ message: getApiErrorMessage(error), type: 'error' });
       },
    });
 

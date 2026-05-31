@@ -23,6 +23,7 @@ import { useStreamingPlaylist } from '@/hooks/useStreamingPlaylist';
 import { ChapterListItem } from '@/components/ChapterListItem';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { SecondaryButton } from '@/components/SecondaryButton';
+import { SkeletonBox, SkeletonListItem, SkeletonText } from '@/components/skeleton';
 import { TabUnderline } from '@/components/TabUnderline';
 import { TabSlideView } from '@/components/TabSlideView';
 import { formatDuration } from '@/utils/duration';
@@ -539,8 +540,7 @@ export default function DetailsScreen() {
       if (isLoadingChapters) {
          return (
             <View style={styles.emptyContainer}>
-               <ActivityIndicator size="large" color={colors.app.red} />
-               <Text style={styles.emptyText}>Loading chapters...</Text>
+               <SkeletonListItem coverSize={48} count={6} />
             </View>
          );
       }
@@ -652,14 +652,18 @@ export default function DetailsScreen() {
                {smallCoverUri ? (
                   <Image source={{ uri: smallCoverUri }} style={styles.bookCover} contentFit="cover" />
                ) : (
-                  <View style={[styles.bookCover, styles.bookCoverPlaceholder]}>
-                     <ActivityIndicator color={colors.accent.primary} />
-                  </View>
+                  <SkeletonBox width={88} height={88} borderRadius={borderRadius.lg} style={{ marginRight: spacing.md }} />
                )}
                <View style={styles.bookInfo}>
                   <Text style={styles.audiobookTitle} numberOfLines={2}>
-                     {audiobook?.title ?? 'Loading...'}
+                     {audiobook?.title ?? ' '}
                   </Text>
+                  {!audiobook?.title ? (
+                     <>
+                        <SkeletonText width="80%" height={16} style={{ marginTop: spacing.xs }} />
+                        <SkeletonText width="50%" height={12} style={{ marginTop: spacing.sm }} />
+                     </>
+                  ) : null}
                   {audiobook?.author && (
                      <Text style={styles.bookAuthor}>{audiobook.author}</Text>
                   )}
@@ -961,8 +965,6 @@ const styles = StyleSheet.create({
    },
    genreChip: {
       backgroundColor: colors.primary[100],
-      borderWidth: 1,
-      borderColor: colors.primary[200],
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
       borderRadius: borderRadius.lg,
@@ -1246,7 +1248,6 @@ const styles = StyleSheet.create({
       left: 0,
       right: 0,
       backgroundColor: colors.background.darkGray,
-      borderTopWidth: 0,
       height: Platform.OS === 'ios' ? 90 : 70,
       paddingTop: Platform.OS === 'ios' ? 10 : 5,
       paddingBottom: Platform.OS === 'ios' ? 30 : 10,

@@ -160,15 +160,18 @@ export const TabUnderline: React.FC<TabUnderlineProps> = ({
             })}
             <Animated.View style={[styles.slidingUnderline, underlineStyle]} />
          </View>
+         <View style={styles.divider} />
       </View>
    );
 };
 
 const styles = StyleSheet.create({
    container: {
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border.light,
       paddingHorizontal: spacing.md,
+   },
+   divider: {
+      height: 1,
+      backgroundColor: colors.background.highlight,
    },
    tabRow: {
       flexDirection: 'row',

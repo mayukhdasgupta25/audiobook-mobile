@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@ta
 import { StatusBar } from 'expo-status-bar';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { store, persistor, initializeApp } from '@/store';
 import { useSelector } from 'react-redux';
@@ -23,6 +23,11 @@ import { useDeviceLocationOnAppLoad } from '@/hooks/useDeviceLocationOnAppLoad';
 import { useUserLocationSync } from '@/hooks/useUserLocationSync';
 import { isTrackPlayerNotificationUrl } from '@/utils/playbackNotificationNavigation';
 import { resolvePersistedPlaybackRoute } from '@/utils/playbackReturnPathStorage';
+import { handleGlobalMutationError, handleGlobalQueryError } from '@/utils/queryErrorToast';
+import { ToastProvider } from '@/contexts/ToastContext';
+import { Toast } from '@/components/Toast';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { preloadAppAssets } from '@/utils/preloadAppAssets';
 import '../global.css';
 
 // Initialize Reactotron in development mode
@@ -62,33 +67,13 @@ export const queryClient = new QueryClient({
    },
    // Global error handlers using queryCache and mutationCache
    queryCache: new QueryCache({
-      onError: async (error: unknown) => {
-         // Handle 401 errors globally - logout and redirect to signin
-         if (error && typeof error === 'object' && 'status' in error && (error as { status: unknown }).status === 401) {
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            const { checkAndHandle401Error } = require('@/utils/apiErrorHandler');
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            const { ApiError } = require('@/services/api');
-            const apiError = error instanceof ApiError
-               ? error
-               : new ApiError(401, 'Unauthorized', error);
-            await checkAndHandle401Error(apiError, false);
-         }
+      onError: async (error: unknown, query) => {
+         await handleGlobalQueryError(error, query.meta);
       },
    }),
    mutationCache: new MutationCache({
       onError: async (error: unknown) => {
-         // Handle 401 errors globally - logout and redirect to signin
-         if (error && typeof error === 'object' && 'status' in error && (error as { status: unknown }).status === 401) {
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            const { checkAndHandle401Error } = require('@/utils/apiErrorHandler');
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            const { ApiError } = require('@/services/api');
-            const apiError = error instanceof ApiError
-               ? error
-               : new ApiError(401, 'Unauthorized', error);
-            await checkAndHandle401Error(apiError, false);
-         }
+         await handleGlobalMutationError(error);
       },
    }),
 });
@@ -127,8 +112,7 @@ function InnerLayout() {
       const init = async () => {
          // Configure Google Sign-In
          configureGoogleSignIn();
-         // Initialize app state
-         await initializeApp();
+         await Promise.all([initializeApp(), preloadAppAssets()]);
          setIsAppReady(true);
       };
       init();
@@ -449,17 +433,22 @@ function InnerLayout() {
 export default function RootLayout() {
    return (
       <GestureHandlerRootView style={{ flex: 1 }}>
-         <SafeAreaProvider>
-            <View style={{ flex: 1, backgroundColor: colors.background.screen }}>
-               <Provider store={store}>
-                  <PersistGate loading={null} persistor={persistor}>
-                     <QueryClientProvider client={queryClient}>
-                        <StatusBar style="dark" />
-                        <InnerLayout />
-                     </QueryClientProvider>
-                  </PersistGate>
-               </Provider>
-            </View>
+         <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+            <ToastProvider>
+               <ErrorBoundary>
+                  <View style={{ flex: 1, backgroundColor: colors.background.screen }}>
+                     <Provider store={store}>
+                        <PersistGate loading={null} persistor={persistor}>
+                           <QueryClientProvider client={queryClient}>
+                              <StatusBar style="dark" />
+                              <InnerLayout />
+                              <Toast />
+                           </QueryClientProvider>
+                        </PersistGate>
+                     </Provider>
+                  </View>
+               </ErrorBoundary>
+            </ToastProvider>
          </SafeAreaProvider>
       </GestureHandlerRootView>
    );

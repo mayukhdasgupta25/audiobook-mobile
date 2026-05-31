@@ -29,6 +29,7 @@ import {
 } from '@/components/AudiobookGridCard';
 import { HomeStyleSearchBar } from '@/components/HomeStyleSearchBar';
 import { colors, spacing, typography, borderRadius } from '@/theme';
+import { SkeletonGrid, SkeletonListItem } from '@/components/skeleton';
 
 const SEARCH_DEBOUNCE_MS = 350;
 
@@ -215,10 +216,7 @@ export default function PlaylistDetailScreen() {
                <View style={styles.searchSection}>
                   <Text style={styles.searchSectionTitle}>Search results</Text>
                   {isSearching ? (
-                     <ActivityIndicator
-                        color={colors.accent.primary}
-                        style={styles.searchLoader}
-                     />
+                     <SkeletonListItem coverSize={56} count={3} />
                   ) : searchResults.length === 0 ? (
                      <Text style={styles.searchEmpty}>No audiobooks found</Text>
                   ) : (
@@ -287,6 +285,7 @@ export default function PlaylistDetailScreen() {
                   )}
                </TouchableOpacity>
             </View>
+            <View style={styles.editHeaderDivider} />
 
             <KeyboardAvoidingView
                style={styles.flex}
@@ -335,7 +334,7 @@ export default function PlaylistDetailScreen() {
          </View>
 
          {isLoading && playlistBooks.length === 0 ? (
-            <ActivityIndicator style={styles.loader} color={colors.accent.primary} />
+            <SkeletonGrid rows={4} />
          ) : (
             <FlatList
                data={playlistBooks}
@@ -377,8 +376,10 @@ const styles = StyleSheet.create({
       justifyContent: 'space-between',
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border.light,
+   },
+   editHeaderDivider: {
+      height: 1,
+      backgroundColor: colors.background.highlight,
    },
    editHeaderSide: {
       minWidth: 72,
@@ -443,8 +444,6 @@ const styles = StyleSheet.create({
       marginBottom: spacing.sm,
    },
    input: {
-      borderWidth: 1,
-      borderColor: colors.border.light,
       borderRadius: borderRadius.md,
       padding: spacing.md,
       fontSize: typography.fontSize.base,

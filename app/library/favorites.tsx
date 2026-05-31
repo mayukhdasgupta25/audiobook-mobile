@@ -4,7 +4,6 @@ import {
    Text,
    StyleSheet,
    FlatList,
-   ActivityIndicator,
    Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,13 +15,14 @@ import {
    GRID_GAP,
    NUM_COLUMNS,
 } from '@/components/AudiobookGridCard';
+import { SkeletonGrid } from '@/components/skeleton';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useFavoriteAudiobooks } from '@/hooks/useFavoriteAudiobooks';
 import { Audiobook } from '@/services/audiobooks';
 import { colors, spacing, typography } from '@/theme';
 
 export default function LibraryFavoritesScreen() {
-   const { data, isLoading, error } = useFavorites();
+   const { data, isLoading } = useFavorites();
    const favorites = data?.data ?? [];
    const { books, isLoading: booksLoading } = useFavoriteAudiobooks(favorites);
 
@@ -43,13 +43,7 @@ export default function LibraryFavoritesScreen() {
          <ScreenHeader title="Favorites" onBack={() => router.back()} />
 
          {loading && books.length === 0 ? (
-            <View style={styles.center}>
-               <ActivityIndicator size="large" color={colors.accent.primary} />
-            </View>
-         ) : error ? (
-            <View style={styles.center}>
-               <Text style={styles.errorText}>Unable to load favorites</Text>
-            </View>
+            <SkeletonGrid rows={4} />
          ) : (
             <FlatList
                data={books}
@@ -104,8 +98,5 @@ const styles = StyleSheet.create({
       color: colors.text.secondary,
       marginTop: spacing.sm,
       textAlign: 'center',
-   },
-   errorText: {
-      color: colors.error,
    },
 });

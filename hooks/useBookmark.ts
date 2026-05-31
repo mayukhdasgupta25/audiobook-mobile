@@ -6,6 +6,8 @@ import {
 } from '@/services/bookmarks';
 import { ApiError } from '@/services/api';
 import { useAuthQueryEnabled } from './useAuthQueryEnabled';
+import { showToast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/getApiErrorMessage';
 
 export function useBookmark(chapterId: string | null | undefined) {
    const enabled = useAuthQueryEnabled(!!chapterId);
@@ -46,6 +48,10 @@ export function useBookmarkMutations(chapterId: string | null | undefined) {
          if (chapterId) {
             queryClient.invalidateQueries({ queryKey: ['bookmark', chapterId] });
          }
+         showToast({ message: 'Bookmark saved', type: 'success' });
+      },
+      onError: (error) => {
+         showToast({ message: getApiErrorMessage(error), type: 'error' });
       },
    });
 
@@ -56,6 +62,10 @@ export function useBookmarkMutations(chapterId: string | null | undefined) {
          if (chapterId) {
             queryClient.invalidateQueries({ queryKey: ['bookmark', chapterId] });
          }
+         showToast({ message: 'Bookmark removed', type: 'success' });
+      },
+      onError: (error) => {
+         showToast({ message: getApiErrorMessage(error), type: 'error' });
       },
    });
 

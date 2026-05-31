@@ -903,6 +903,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
                      </View>
 
                      {/* Bottom action row */}
+                     <View style={styles.bottomActionsDivider} />
                      <View style={styles.bottomActions}>
                      <TouchableOpacity
                         style={styles.bottomAction}
@@ -982,8 +983,6 @@ const styles = StyleSheet.create({
       paddingBottom: FP.paddingBottom,
       backgroundColor: colors.background.player,
       borderRadius: borderRadius.xl,
-      borderWidth: 1,
-      borderColor: colors.border.light,
       overflow: 'hidden',
       ...shadows.lg,
       ...Platform.select({
@@ -1024,12 +1023,14 @@ const styles = StyleSheet.create({
       marginBottom: spacing.sm,
       paddingHorizontal: spacing.md,
    },
+   bottomActionsDivider: {
+      height: 1,
+      backgroundColor: colors.background.highlight,
+      marginBottom: FP.bottomActionsPaddingTop,
+   },
    bottomActions: {
       flexDirection: 'row',
       justifyContent: 'space-around',
-      paddingTop: FP.bottomActionsPaddingTop,
-      borderTopWidth: 1,
-      borderTopColor: colors.border.light,
    },
    bottomAction: {
       alignItems: 'center',
@@ -1197,9 +1198,11 @@ const styles = StyleSheet.create({
       paddingVertical: spacing.sm,
       backgroundColor: colors.background.player,
       borderRadius: borderRadius.xl,
-      borderWidth: 1,
-      borderColor: colors.border.light,
       gap: spacing.sm,
+      ...shadows.lg,
+      ...Platform.select({
+         android: { elevation: 8 },
+      }),
    },
    minimizedCoverWrap: {
       width: MINIMIZED_BAR.coverSize,

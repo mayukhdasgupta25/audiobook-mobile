@@ -4,7 +4,6 @@ import {
    StyleSheet,
    ScrollView,
    Text,
-   ActivityIndicator,
    TouchableOpacity,
    Platform,
 } from 'react-native';
@@ -26,16 +25,29 @@ import { useTimeOfDay } from '@/hooks/useTimeOfDay';
 import { useAudiobook } from '@/hooks/useAudiobook';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import { PublisherRow } from '@/components/PublisherRow';
+import {
+   SkeletonContentRow,
+   SkeletonContinueListeningCard,
+   SkeletonMoodCards,
+   SkeletonTrendingList,
+} from '@/components/skeleton';
 import { apiConfig } from '@/services/api';
 import { Organization } from '@/services/organizations';
 import { logout } from '@/utils/logout';
 import { resolveAvatarUrl } from '@/utils/resolveAvatarUrl';
 import { resolveMembershipTier } from '@/utils/membershipDisplay';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
+import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
 import { RootState } from '@/store';
+
+const HEADER_ICON_SIZE = 24;
+const HEADER_ICON_HIT_SLOP = spacing.xs;
+const HEADER_ICON_BUTTON_SIZE = HEADER_ICON_SIZE + HEADER_ICON_HIT_SLOP * 2;
+const TOP_BAR_HEIGHT = HEADER_ICON_BUTTON_SIZE + spacing.sm * 2;
 
 function HomeScreenContent() {
    const paginationTriggeredRef = useRef<Record<string, boolean>>({});
+   const scrollRef = useRef<ScrollView>(null);
    const insets = useSafeAreaInsets();
    const [drawerVisible, setDrawerVisible] = useState(false);
    const { greeting, subtitle: timeOfDaySubtitle } = useTimeOfDay();
@@ -76,9 +88,10 @@ function HomeScreenContent() {
       }
    }, []);
 
-   const { contentRows, isLoading, error, loadNextPage, heroCarouselItems } = useHomeContent();
+   const { contentRows, isLoading, loadNextPage, heroCarouselItems } = useHomeContent();
+   const isInitialHomeLoading = isLoading && contentRows.length === 0;
    const { data: moods, isLoading: moodsLoading } = useMoods();
-   const { data: organizationsData, isLoading: organizationsLoading } = useOrganizations();
+   const { data: organizationsData, isLoading: organizationsLoading, isPending: organizationsPending } = useOrganizations();
    const organizations = organizationsData?.data ?? [];
 
    const getOrganizationImageUri = useCallback((org: Organization) => {
@@ -100,7 +113,8 @@ function HomeScreenContent() {
    }, []);
 
    const continueAudiobookId = playerAudiobookId ?? heroCarouselItems[0]?.id ?? null;
-   const { data: continueAudiobookData } = useAudiobook(continueAudiobookId ?? '');
+   const { data: continueAudiobookData, isLoading: continueAudiobookLoading } =
+      useAudiobook(continueAudiobookId ?? '');
    const continueAudiobook = continueAudiobookData?.data;
 
    const continueListening = useMemo(() => {
@@ -207,9 +221,51 @@ function HomeScreenContent() {
       }
    }, [continueListening?.id]);
 
+   const showContinueListeningSkeleton =
+      !continueListening &&
+      (isInitialHomeLoading ||
+         (Boolean(continueAudiobookId) && continueAudiobookLoading));
+
+   const showPublishersSkeleton =
+      organizationsPending ||
+      organizationsLoading ||
+      (organizations.length === 0 && isLoading);
+
+   const showYourPicksSkeleton = isLoading && !(yourPicksRow?.items.length);
+
+   const showTrendingSkeleton = isLoading && trendingItems.length === 0;
+
+   useTabScrollToTop('index', scrollRef);
+
    return (
       <SafeAreaView style={styles.container} edges={['top']}>
+         <View style={styles.topBar}>
+            <TouchableOpacity
+               onPress={() => setDrawerVisible(true)}
+               style={styles.iconButton}
+               activeOpacity={0.7}
+               accessibilityLabel="Open menu"
+               accessibilityRole="button"
+            >
+               <Ionicons name="grid-outline" size={HEADER_ICON_SIZE} color={colors.text.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+               onPress={() => {}}
+               style={styles.iconButton}
+               activeOpacity={0.7}
+               accessibilityLabel="Notifications"
+               accessibilityRole="button"
+            >
+               <Ionicons
+                  name="notifications-outline"
+                  size={HEADER_ICON_SIZE}
+                  color={colors.text.primary}
+               />
+            </TouchableOpacity>
+         </View>
+
          <ScrollView
+            ref={scrollRef}
             style={styles.scrollView}
             contentContainerStyle={[
                styles.scrollContent,
@@ -217,30 +273,6 @@ function HomeScreenContent() {
             ]}
             showsVerticalScrollIndicator={false}
          >
-            {/* Top bar */}
-            <View style={styles.topBar}>
-               <TouchableOpacity
-                  onPress={() => setDrawerVisible(true)}
-                  style={styles.iconButton}
-                  activeOpacity={0.7}
-               >
-                  <Ionicons name="grid-outline" size={24} color={colors.text.primary} />
-               </TouchableOpacity>
-               <TouchableOpacity
-                  onPress={() => {}}
-                  style={styles.iconButton}
-                  activeOpacity={0.7}
-                  accessibilityLabel="Notifications"
-                  accessibilityRole="button"
-               >
-                  <Ionicons
-                     name="notifications-outline"
-                     size={24}
-                     color={colors.text.primary}
-                  />
-               </TouchableOpacity>
-            </View>
-
             {/* Greeting */}
             <View style={styles.greetingSection}>
                <Text style={styles.greeting}>
@@ -261,46 +293,56 @@ function HomeScreenContent() {
 
             <PublisherRow
                organizations={organizations}
-               isLoading={organizationsLoading}
+               isLoading={showPublishersSkeleton}
                getImageUri={getOrganizationImageUri}
                onPress={handlePublisherPress}
             />
 
             {/* Continue Listening */}
-            {continueListening && (
+            {(continueListening || showContinueListeningSkeleton) && (
                <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Continue Listening</Text>
-                  <ContinueListeningCard
-                     title={continueListening.title}
-                     author={continueListening.author}
-                     coverUri={continueListening.coverUri}
-                     chapterTitle={continueListening.chapterTitle}
-                     progress={continueListening.progress}
-                     elapsedSeconds={continueListening.elapsedSeconds}
-                     totalSeconds={continueListening.totalSeconds}
-                     onPress={handleContinuePress}
-                     onPlayPress={handleContinuePlay}
-                  />
+                  {continueListening ? (
+                     <ContinueListeningCard
+                        title={continueListening.title}
+                        author={continueListening.author}
+                        coverUri={continueListening.coverUri}
+                        chapterTitle={continueListening.chapterTitle}
+                        progress={continueListening.progress}
+                        elapsedSeconds={continueListening.elapsedSeconds}
+                        totalSeconds={continueListening.totalSeconds}
+                        onPress={handleContinuePress}
+                        onPlayPress={handleContinuePlay}
+                     />
+                  ) : (
+                     <SkeletonContinueListeningCard />
+                  )}
                </View>
             )}
 
             {/* Your Picks */}
-            {yourPicksRow && yourPicksRow.items.length > 0 && (
+            {(yourPicksRow?.items.length || showYourPicksSkeleton) ? (
                <View style={styles.section}>
                   <View style={styles.sectionHeader}>
                      <Text style={styles.sectionTitle}>Your Picks</Text>
-                     <TouchableOpacity activeOpacity={0.7}>
-                        <Text style={styles.viewAll}>View all</Text>
-                     </TouchableOpacity>
+                     {yourPicksRow?.items.length ? (
+                        <TouchableOpacity activeOpacity={0.7}>
+                           <Text style={styles.viewAll}>View all</Text>
+                        </TouchableOpacity>
+                     ) : null}
                   </View>
-                  <ContentRow
-                     title=""
-                     items={yourPicksRow.items}
-                     onItemPress={handleItemPress}
-                     onEndReached={() => handleEndReached(yourPicksRow.id)}
-                  />
+                  {yourPicksRow?.items.length ? (
+                     <ContentRow
+                        title=""
+                        items={yourPicksRow.items}
+                        onItemPress={handleItemPress}
+                        onEndReached={() => handleEndReached(yourPicksRow.id)}
+                     />
+                  ) : (
+                     <SkeletonContentRow hideTitle cardWidth={140} cardCount={4} />
+                  )}
                </View>
-            )}
+            ) : null}
 
             {/* Explore By Mood */}
             <View style={styles.section}>
@@ -313,7 +355,7 @@ function HomeScreenContent() {
                   contentContainerStyle={styles.moodRow}
                >
                   {moodsLoading ? (
-                     <ActivityIndicator size="small" color={colors.accent.primary} />
+                     <SkeletonMoodCards />
                   ) : (
                      (moods ?? []).map((mood) => (
                         <MoodChip
@@ -333,7 +375,10 @@ function HomeScreenContent() {
                   New and Trending
                </Text>
                <View style={styles.trendingList}>
-                  {trendingItems.map((item, index) => (
+                  {showTrendingSkeleton ? (
+                     <SkeletonTrendingList count={3} />
+                  ) : (
+                     trendingItems.map((item, index) => (
                      <TouchableOpacity
                         key={item.id}
                         style={[
@@ -379,23 +424,10 @@ function HomeScreenContent() {
                            <Ionicons name="play" size={18} color={colors.accent.primary} />
                         </TouchableOpacity>
                      </TouchableOpacity>
-                  ))}
+                  ))
+                  )}
                </View>
             </View>
-
-            {isLoading && contentRows.length === 0 && (
-               <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={colors.accent.primary} />
-                  <Text style={styles.loadingText}>Loading audiobooks...</Text>
-               </View>
-            )}
-            {error && (
-               <View style={styles.errorContainer}>
-                  <Text style={styles.errorText}>
-                     {typeof error === 'string' ? error : 'An error occurred'}
-                  </Text>
-               </View>
-            )}
          </ScrollView>
 
          <DrawerMenu
@@ -436,11 +468,14 @@ const styles = StyleSheet.create({
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+      height: TOP_BAR_HEIGHT,
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
    },
    iconButton: {
-      padding: spacing.xs,
+      width: HEADER_ICON_BUTTON_SIZE,
+      height: HEADER_ICON_BUTTON_SIZE,
+      alignItems: 'center',
+      justifyContent: 'center',
    },
    greetingSection: {
       paddingHorizontal: spacing.md,
@@ -522,8 +557,6 @@ const styles = StyleSheet.create({
       padding: spacing.md,
       marginBottom: spacing.sm,
       borderRadius: borderRadius.xl,
-      borderWidth: 1,
-      borderColor: colors.border.light,
       backgroundColor: colors.background.card,
       ...shadows.sm,
    },
@@ -567,8 +600,7 @@ const styles = StyleSheet.create({
       width: 44,
       height: 44,
       borderRadius: 22,
-      borderWidth: 1.5,
-      borderColor: colors.accent.primary,
+      backgroundColor: colors.primary[50],
       alignItems: 'center',
       justifyContent: 'center',
       alignSelf: 'center',

@@ -4,8 +4,8 @@ import {
    Text,
    StyleSheet,
    TouchableOpacity,
-   ActivityIndicator,
 } from 'react-native';
+import { SkeletonText } from '@/components/skeleton/SkeletonText';
 import { Ionicons } from '@expo/vector-icons';
 import { Comment } from '@/services/comments';
 import { colors, spacing, typography, borderRadius } from '@/theme';
@@ -82,7 +82,9 @@ export const CommentItem: React.FC<CommentItemProps> = ({
    }, [replyTimestamp, comment.id, onReply, onCancelReply]);
 
    return (
+      <View>
       <View style={[styles.container, depth > 0 && styles.nested]}>
+         {depth > 0 ? <View style={styles.nestedBar} /> : null}
          <View style={styles.commentRow}>
             <View style={styles.commentMain}>
                <CommentTextWithTimestamps
@@ -150,7 +152,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
          {repliesExpanded && (
             <View style={styles.replies}>
                {repliesLoading && replies.length === 0 ? (
-                  <ActivityIndicator size="small" color={colors.accent.primary} />
+                  <SkeletonText width="60%" height={12} style={styles.repliesSkeleton} />
                ) : (
                   replies.map((reply) => (
                      <CommentItem
@@ -175,6 +177,8 @@ export const CommentItem: React.FC<CommentItemProps> = ({
             </View>
          )}
       </View>
+      <View style={styles.divider} />
+      </View>
    );
 };
 
@@ -182,13 +186,23 @@ const styles = StyleSheet.create({
    container: {
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border.light,
    },
    nested: {
       marginLeft: spacing.lg,
-      borderLeftWidth: 2,
-      borderLeftColor: colors.border.light,
+      paddingLeft: spacing.sm,
+   },
+   nestedBar: {
+      position: 'absolute',
+      left: 0,
+      top: spacing.sm,
+      bottom: spacing.sm,
+      width: 2,
+      backgroundColor: colors.background.highlight,
+      borderRadius: 1,
+   },
+   divider: {
+      height: 1,
+      backgroundColor: colors.background.highlight,
    },
    commentRow: {
       flexDirection: 'row',
@@ -234,6 +248,9 @@ const styles = StyleSheet.create({
    },
    replies: {
       marginTop: spacing.sm,
+   },
+   repliesSkeleton: {
+      marginVertical: spacing.sm,
    },
    loadMore: {
       paddingVertical: spacing.sm,

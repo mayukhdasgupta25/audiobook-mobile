@@ -4,7 +4,6 @@ import {
    Text,
    StyleSheet,
    FlatList,
-   ActivityIndicator,
    TouchableOpacity,
    Platform,
 } from 'react-native';
@@ -14,13 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { PlaylistCard, PLAYLIST_CARD_WIDTH } from '@/components/PlaylistCard';
 import { CreatePlaylistModal } from '@/components/CreatePlaylistModal';
+import { SkeletonGrid } from '@/components/skeleton';
 import { usePlaylists, usePlaylistMutations } from '@/hooks/usePlaylists';
 import { colors, spacing, typography } from '@/theme';
 import { GRID_GAP, GRID_PADDING, NUM_COLUMNS } from '@/components/AudiobookGridCard';
 
 export default function LibraryPlaylistsScreen() {
    const [createModalVisible, setCreateModalVisible] = useState(false);
-   const { data, isLoading, error } = usePlaylists();
+   const { data, isLoading } = usePlaylists();
    const { create } = usePlaylistMutations();
    const playlists = data?.data ?? [];
 
@@ -68,13 +68,7 @@ export default function LibraryPlaylistsScreen() {
          />
 
          {isLoading ? (
-            <View style={styles.center}>
-               <ActivityIndicator size="large" color={colors.accent.primary} />
-            </View>
-         ) : error ? (
-            <View style={styles.center}>
-               <Text style={styles.errorText}>Unable to load playlists</Text>
-            </View>
+            <SkeletonGrid rows={3} cardAspect={1} />
          ) : (
             <FlatList
                data={playlists}
@@ -145,8 +139,5 @@ const styles = StyleSheet.create({
       color: colors.text.secondary,
       marginTop: spacing.sm,
       textAlign: 'center',
-   },
-   errorText: {
-      color: colors.error,
    },
 });

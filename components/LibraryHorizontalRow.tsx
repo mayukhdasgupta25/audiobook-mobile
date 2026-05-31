@@ -4,8 +4,9 @@ import {
    Text,
    ScrollView,
    StyleSheet,
-   ActivityIndicator,
 } from 'react-native';
+import { SkeletonBox } from '@/components/skeleton/SkeletonBox';
+import { SkeletonText } from '@/components/skeleton/SkeletonText';
 import { colors, spacing, typography } from '@/theme';
 
 interface LibraryHorizontalRowProps {
@@ -15,6 +16,23 @@ interface LibraryHorizontalRowProps {
    children: React.ReactNode;
 }
 
+function LibraryRowSkeleton() {
+   return (
+      <ScrollView
+         horizontal
+         showsHorizontalScrollIndicator={false}
+         contentContainerStyle={styles.scrollContent}
+      >
+         {Array.from({ length: 3 }).map((_, index) => (
+            <View key={index} style={styles.skeletonCard}>
+               <SkeletonBox width={140} height={140} borderRadius={12} />
+               <SkeletonText width={100} height={12} style={styles.skeletonTitle} />
+            </View>
+         ))}
+      </ScrollView>
+   );
+}
+
 export const LibraryHorizontalRow: React.FC<LibraryHorizontalRowProps> = ({
    isLoading = false,
    isEmpty = false,
@@ -22,11 +40,7 @@ export const LibraryHorizontalRow: React.FC<LibraryHorizontalRowProps> = ({
    children,
 }) => {
    if (isLoading) {
-      return (
-         <View style={styles.center}>
-            <ActivityIndicator color={colors.accent.primary} />
-         </View>
-      );
+      return <LibraryRowSkeleton />;
    }
 
    if (isEmpty) {
@@ -58,11 +72,15 @@ const styles = StyleSheet.create({
       paddingBottom: spacing.lg,
       minHeight: 100,
       justifyContent: 'center',
-      alignItems: 'center',
    },
    emptyText: {
       fontSize: typography.fontSize.sm,
       color: colors.text.secondary,
-      textAlign: 'center',
+   },
+   skeletonCard: {
+      marginRight: spacing.sm,
+   },
+   skeletonTitle: {
+      marginTop: spacing.sm,
    },
 });

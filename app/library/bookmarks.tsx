@@ -4,13 +4,13 @@ import {
    Text,
    StyleSheet,
    FlatList,
-   ActivityIndicator,
    Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { BookmarkChapterCard } from '@/components/BookmarkChapterCard';
+import { SkeletonListItem } from '@/components/skeleton';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePlayBookmarkChapter } from '@/hooks/usePlayBookmarkChapter';
 import { Bookmark } from '@/services/bookmarks';
@@ -18,7 +18,7 @@ import { getBookmarkAudiobookId } from '@/utils/bookmarkDisplay';
 import { colors, spacing, typography } from '@/theme';
 
 export default function LibraryBookmarksScreen() {
-   const { data, isLoading, error } = useBookmarks();
+   const { data, isLoading } = useBookmarks();
    const bookmarks = data?.data ?? [];
    const { playBookmark } = usePlayBookmarkChapter();
 
@@ -43,13 +43,7 @@ export default function LibraryBookmarksScreen() {
          <ScreenHeader title="Bookmarks" onBack={() => router.back()} />
 
          {isLoading ? (
-            <View style={styles.center}>
-               <ActivityIndicator size="large" color={colors.accent.primary} />
-            </View>
-         ) : error ? (
-            <View style={styles.center}>
-               <Text style={styles.errorText}>Unable to load bookmarks</Text>
-            </View>
+            <SkeletonListItem coverSize={72} count={6} />
          ) : (
             <FlatList
                data={bookmarks}
@@ -97,8 +91,5 @@ const styles = StyleSheet.create({
       color: colors.text.secondary,
       marginTop: spacing.sm,
       textAlign: 'center',
-   },
-   errorText: {
-      color: colors.error,
    },
 });

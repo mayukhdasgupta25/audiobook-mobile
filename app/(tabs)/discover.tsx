@@ -1,11 +1,10 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import {
    View,
    Text,
    StyleSheet,
    ScrollView,
    Platform,
-   ActivityIndicator,
    TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,12 +15,15 @@ import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
 import { MoodChip } from '@/components/MoodChip';
 import { useMoods } from '@/hooks/useMoods';
 import { ContentRow, ContentItem } from '@/components/ContentRow';
+import { SkeletonListItem, SkeletonMoodChips } from '@/components/skeleton';
 import { colors, spacing, typography, borderRadius } from '@/theme';
 import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { useHomeContent } from '@/hooks/useHomeContent';
 import { apiConfig } from '@/services/api';
+import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
 
 function DiscoverScreenContent() {
+   const scrollRef = useRef<ScrollView>(null);
    const insets = useSafeAreaInsets();
    const { contentRows, isLoading, heroCarouselItems } = useHomeContent();
    const { data: moods, isLoading: moodsLoading } = useMoods();
@@ -50,6 +52,8 @@ function DiscoverScreenContent() {
 
    const scrollPadding = getTabScreenPaddingBottom(insets.bottom);
 
+   useTabScrollToTop('discover', scrollRef);
+
    return (
       <SafeAreaView style={styles.container} edges={['top']}>
          <View style={styles.header}>
@@ -57,6 +61,7 @@ function DiscoverScreenContent() {
             <Text style={styles.subtitle}>Browse and explore new stories</Text>
          </View>
          <ScrollView
+            ref={scrollRef}
             contentContainerStyle={{ paddingBottom: scrollPadding }}
             showsVerticalScrollIndicator={false}
          >
@@ -67,7 +72,7 @@ function DiscoverScreenContent() {
                contentContainerStyle={styles.moodRow}
             >
                {moodsLoading ? (
-                  <ActivityIndicator size="small" color={colors.accent.primary} />
+                  <SkeletonMoodChips />
                ) : (
                   (moods ?? []).map((mood) => (
                      <MoodChip
@@ -81,15 +86,11 @@ function DiscoverScreenContent() {
 
             <Text style={styles.sectionTitle}>Trending Now</Text>
             {isLoading && trendingItems.length === 0 ? (
-               <ActivityIndicator
-                  size="large"
-                  color={colors.accent.primary}
-                  style={styles.loader}
-               />
+               <SkeletonListItem coverSize={72} count={5} />
             ) : (
                trendingItems.map((item) => (
+                  <View key={item.id}>
                   <TouchableOpacity
-                     key={item.id}
                      style={styles.trendingRow}
                      onPress={() => router.push(`/details/${item.id}`)}
                      activeOpacity={0.7}
@@ -116,6 +117,8 @@ function DiscoverScreenContent() {
                         <Ionicons name="play" size={16} color={colors.accent.primary} />
                      </TouchableOpacity>
                   </TouchableOpacity>
+                  <View style={styles.rowDivider} />
+                  </View>
                ))
             )}
 
@@ -181,8 +184,10 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border.light,
+   },
+   rowDivider: {
+      height: 1,
+      backgroundColor: colors.background.highlight,
    },
    cover: {
       width: 48,
@@ -217,8 +222,7 @@ const styles = StyleSheet.create({
       width: 36,
       height: 36,
       borderRadius: 18,
-      borderWidth: 1.5,
-      borderColor: colors.accent.primary,
+      backgroundColor: colors.primary[50],
       alignItems: 'center',
       justifyContent: 'center',
    },

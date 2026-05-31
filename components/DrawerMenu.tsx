@@ -362,6 +362,7 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
             </ScrollView>
 
             <View style={styles.footer}>
+               <View style={styles.footerDivider} />
                <View style={styles.darkModeRow}>
                   <Ionicons
                      name="moon-outline"
@@ -528,9 +529,12 @@ const styles = StyleSheet.create({
          android: { fontFamily: 'sans-serif-medium', fontWeight: '600' },
       }),
    },
+   footerDivider: {
+      height: 1,
+      backgroundColor: colors.background.highlight,
+      marginBottom: spacing.md,
+   },
    footer: {
-      borderTopWidth: 1,
-      borderTopColor: colors.border.light,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.md,
       paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.md,

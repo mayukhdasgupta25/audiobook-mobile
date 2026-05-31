@@ -183,9 +183,7 @@ const styles = StyleSheet.create({
       maxWidth: 280,
       height: AGE_PICKER_HEIGHT,
       borderRadius: borderRadius.xl,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.12)',
-      backgroundColor: colors.background.darkGrayLight,
+      backgroundColor: colors.background.input,
       overflow: 'hidden',
    },
    selectionBand: {
@@ -195,9 +193,7 @@ const styles = StyleSheet.create({
       top: WHEEL_PADDING,
       height: AGE_PICKER_ITEM_HEIGHT,
       borderRadius: borderRadius.lg,
-      borderWidth: 1,
-      borderColor: 'rgba(229, 9, 20, 0.55)',
-      backgroundColor: 'rgba(229, 9, 20, 0.14)',
+      backgroundColor: colors.background.highlight,
       zIndex: 1,
    },
    list: {

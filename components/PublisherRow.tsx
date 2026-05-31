@@ -4,10 +4,10 @@ import {
    Text,
    ScrollView,
    StyleSheet,
-   ActivityIndicator,
    Platform,
 } from 'react-native';
 import { PublisherCard } from './PublisherCard';
+import { SkeletonPublisherRow } from '@/components/skeleton/SkeletonPublisherRow';
 import { Organization } from '@/services/organizations';
 import { colors, spacing, typography } from '@/theme';
 
@@ -29,8 +29,8 @@ export const PublisherRow: React.FC<PublisherRowProps> = ({
    if (isLoading) {
       return (
          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{title}</Text>
-            <ActivityIndicator color={colors.accent.primary} />
+            <Text style={[styles.sectionTitle, styles.sectionTitlePadded]}>{title}</Text>
+            <SkeletonPublisherRow />
          </View>
       );
    }
@@ -76,6 +76,7 @@ const styles = StyleSheet.create({
    },
    sectionTitlePadded: {
       paddingHorizontal: spacing.md,
+      marginBottom: spacing.sm,
    },
    scrollContent: {
       paddingHorizontal: spacing.md,

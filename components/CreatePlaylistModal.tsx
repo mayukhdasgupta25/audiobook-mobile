@@ -96,8 +96,6 @@ const styles = StyleSheet.create({
       marginBottom: spacing.md,
    },
    input: {
-      borderWidth: 1,
-      borderColor: colors.border.light,
       borderRadius: borderRadius.md,
       padding: spacing.md,
       marginBottom: spacing.sm,

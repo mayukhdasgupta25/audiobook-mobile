@@ -22,6 +22,7 @@ import {
    NUM_COLUMNS,
 } from '@/components/AudiobookGridCard';
 import { colors, spacing, typography, borderRadius } from '@/theme';
+import { SkeletonGrid } from '@/components/skeleton';
 
 export default function PublisherDetailScreen() {
    const params = useLocalSearchParams<{
@@ -36,7 +37,7 @@ export default function PublisherDetailScreen() {
    const [page, setPage] = useState(1);
    const [allAudiobooks, setAllAudiobooks] = useState<Audiobook[]>([]);
 
-   const { data, isLoading, error, isFetching } = useOrganizationAudiobooks(
+   const { data, isLoading, isFetching } = useOrganizationAudiobooks(
       organizationId,
       page
    );
@@ -113,13 +114,7 @@ export default function PublisherDetailScreen() {
          </View>
 
          {isLoading && allAudiobooks.length === 0 ? (
-            <View style={styles.center}>
-               <ActivityIndicator size="large" color={colors.accent.primary} />
-            </View>
-         ) : error ? (
-            <View style={styles.center}>
-               <Text style={styles.error}>Unable to load audiobooks</Text>
-            </View>
+            <SkeletonGrid rows={4} />
          ) : (
             <FlatList
                data={allAudiobooks}

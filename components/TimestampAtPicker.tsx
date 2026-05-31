@@ -66,8 +66,6 @@ const styles = StyleSheet.create({
       marginBottom: spacing.sm,
       padding: spacing.md,
       borderRadius: borderRadius.lg,
-      borderWidth: 1,
-      borderColor: colors.accent.primary,
       backgroundColor: colors.background.highlight,
       ...Platform.select({
          android: { elevation: 4 },
@@ -97,9 +95,7 @@ const styles = StyleSheet.create({
       gap: spacing.sm,
       padding: spacing.sm,
       borderRadius: borderRadius.md,
-      backgroundColor: colors.background.screen,
-      borderWidth: 1,
-      borderColor: colors.border.light,
+      backgroundColor: colors.background.input,
    },
    optionIcon: {
       width: 40,
