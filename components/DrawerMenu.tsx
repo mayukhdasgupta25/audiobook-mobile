@@ -220,7 +220,7 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
          },
          signOutText: {
             fontSize: typography.fontSize.base,
-            color: t.colors.accent.primaryDark,
+            color: t.colors.error,
             ...Platform.select({
                ios: { fontFamily: 'System', fontWeight: '600' },
                android: { fontFamily: 'sans-serif-medium', fontWeight: '600' },
@@ -534,7 +534,7 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
                   <Ionicons
                      name="log-out-outline"
                      size={22}
-                     color={colors.accent.primaryDark}
+                     color={colors.error}
                      style={styles.navIcon}
                   />
                   <Text style={styles.signOutText}>Log Out</Text>

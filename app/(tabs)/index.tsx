@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
@@ -24,7 +24,7 @@ import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { useHomeContent } from '@/hooks/useHomeContent';
 import { useTimeOfDay } from '@/hooks/useTimeOfDay';
-import { useAudiobook } from '@/hooks/useAudiobook';
+import { useContinueListening } from '@/hooks/useContinueListening';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import { PublisherRow } from '@/components/PublisherRow';
 import {
@@ -41,6 +41,7 @@ import { resolveMembershipTier } from '@/utils/membershipDisplay';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
 import { RootState } from '@/store';
+import { play } from '@/store/player';
 
 const HEADER_ICON_SIZE = 24;
 const HEADER_ICON_HIT_SLOP = spacing.xs;
@@ -228,10 +229,12 @@ function HomeScreenContent() {
 
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
    const { activeSubscription } = useUserSubscription();
-   const playerAudiobookId = useSelector((state: RootState) => state.player.audiobookId);
-   const chapterMetadata = useSelector((state: RootState) => state.player.chapterMetadata);
-   const playbackPosition = useSelector((state: RootState) => state.player.playbackPosition);
-   const totalDuration = useSelector((state: RootState) => state.player.totalDuration);
+   const dispatch = useDispatch();
+   const currentChapterId = useSelector(
+      (state: RootState) => state.player.currentChapterId
+   );
+   const { data: continueListening, isLoading: isContinueListeningLoading } =
+      useContinueListening();
 
    const greetingName = useMemo(() => {
       if (userProfile?.firstName) return userProfile.firstName;
@@ -263,7 +266,6 @@ function HomeScreenContent() {
    }, []);
 
    const { contentRows, isLoading, loadNextPage, heroCarouselItems } = useHomeContent();
-   const isInitialHomeLoading = isLoading && contentRows.length === 0;
    const { data: moods, isLoading: moodsLoading } = useMoods();
    const { data: organizationsData, isLoading: organizationsLoading, isPending: organizationsPending } = useOrganizations();
    const organizations = organizationsData?.data ?? [];
@@ -286,40 +288,6 @@ function HomeScreenContent() {
       } as never);
    }, []);
 
-   const continueAudiobookId = playerAudiobookId ?? heroCarouselItems[0]?.id ?? null;
-   const { data: continueAudiobookData, isLoading: continueAudiobookLoading } =
-      useAudiobook(continueAudiobookId ?? '');
-   const continueAudiobook = continueAudiobookData?.data;
-
-   const continueListening = useMemo(() => {
-      const book = continueAudiobook ?? heroCarouselItems[0];
-      if (!book) return null;
-
-      const coverPath = book.coverImage || book.contentCardCoverImage;
-      const coverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
-      const progress =
-         totalDuration > 0 && playerAudiobookId === book.id
-            ? playbackPosition / totalDuration
-            : 0;
-
-      return {
-         id: book.id,
-         title: book.title,
-         author: book.author,
-         coverUri,
-         chapterTitle: chapterMetadata?.title,
-         progress,
-         elapsedSeconds: playerAudiobookId === book.id ? playbackPosition : 0,
-         totalSeconds: playerAudiobookId === book.id ? totalDuration : book.duration ?? 0,
-      };
-   }, [
-      continueAudiobook,
-      heroCarouselItems,
-      chapterMetadata,
-      playbackPosition,
-      totalDuration,
-      playerAudiobookId,
-   ]);
 
    const yourPicksRow = useMemo(() => {
       return contentRows.find((row) => row.items.length > 0) ?? null;
@@ -390,15 +358,25 @@ function HomeScreenContent() {
    }, [continueListening?.id]);
 
    const handleContinuePlay = useCallback(() => {
-      if (continueListening?.id) {
-         router.push(`/details/${continueListening.id}?autoPlay=true`);
+      if (!continueListening) {
+         return;
       }
-   }, [continueListening?.id]);
+
+      if (
+         continueListening.isLiveChapter &&
+         currentChapterId === continueListening.chapterId
+      ) {
+         dispatch(play());
+         return;
+      }
+
+      router.push(
+         `/details/${continueListening.id}?chapterId=${continueListening.chapterId}&autoPlay=true` as never
+      );
+   }, [continueListening, currentChapterId, dispatch]);
 
    const showContinueListeningSkeleton =
-      !continueListening &&
-      (isInitialHomeLoading ||
-         (Boolean(continueAudiobookId) && continueAudiobookLoading));
+      !continueListening && isContinueListeningLoading;
 
    const showPublishersSkeleton =
       organizationsPending ||
@@ -482,6 +460,7 @@ function HomeScreenContent() {
                         author={continueListening.author}
                         coverUri={continueListening.coverUri}
                         chapterTitle={continueListening.chapterTitle}
+                        chapterNumber={continueListening.chapterNumber}
                         progress={continueListening.progress}
                         elapsedSeconds={continueListening.elapsedSeconds}
                         totalSeconds={continueListening.totalSeconds}

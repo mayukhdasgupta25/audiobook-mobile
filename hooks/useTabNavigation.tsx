@@ -9,6 +9,14 @@ interface TabNavigationContextType {
 
 const TabNavigationContext = createContext<TabNavigationContextType | undefined>(undefined);
 
+/** Latest pathname for non-React listeners (e.g. tab bar press handlers). */
+let latestPathname = '/';
+
+/** Synchronous pathname accessor for tab scroll listeners outside React. */
+export function getNavigationPathname(): string {
+   return latestPathname;
+}
+
 /** Tab screen names under app/(tabs)/ — used when pathname omits the (tabs) group prefix. */
 const TAB_SCREEN_NAMES = new Set([
    'index',
@@ -64,6 +72,7 @@ export function getTabRouteFromPathname(path: string): string {
  */
 export const TabNavigationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
    const pathname = usePathname();
+   latestPathname = pathname;
    const previousPathnameRef = useRef<string>(pathname);
    const isInitializedRef = useRef<boolean>(false);
 

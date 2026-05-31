@@ -557,7 +557,11 @@ export default function DetailsScreen() {
       })
    );
 
-   const { id, autoPlay } = useLocalSearchParams<{ id: string; autoPlay?: string }>();
+   const { id, autoPlay, chapterId } = useLocalSearchParams<{
+      id: string;
+      autoPlay?: string;
+      chapterId?: string;
+   }>();
    const [currentPage, setCurrentPage] = useState(1);
    const insets = useSafeAreaInsets();
    const [allChapters, setAllChapters] = useState<Chapter[]>([]);
@@ -752,11 +756,26 @@ export default function DetailsScreen() {
       return null;
    }, [allChapters]);
 
+   const autoPlayChapterId = useMemo(() => {
+      if (typeof chapterId === 'string' && chapterId.length > 0) {
+         return allChapters.some((chapter) => chapter.id === chapterId) ? chapterId : null;
+      }
+      return firstChapterId;
+   }, [chapterId, allChapters, firstChapterId]);
+
    // Fetch streaming playlist for first chapter after chapters have loaded
    // This pre-fetches master playlist and playlist data for the first chapter
    useStreamingPlaylist(
       firstChapterId,
       shouldFetchChapters && !!firstChapterId && allChapters.length > 0
+   );
+
+   useStreamingPlaylist(
+      autoPlayChapterId !== firstChapterId ? autoPlayChapterId : null,
+      shouldFetchChapters &&
+         autoPlay === 'true' &&
+         !!autoPlayChapterId &&
+         autoPlayChapterId !== firstChapterId
    );
 
    // Get playlists from Redux to check if playlist is loaded
@@ -935,71 +954,33 @@ export default function DetailsScreen() {
    // Track if auto-play has been triggered to prevent multiple triggers
    const autoPlayTriggeredRef = useRef(false);
 
-   // Auto-play first chapter when autoPlay query param is present
+   // Auto-play target chapter when autoPlay query param is present
    useEffect(() => {
-      // Only auto-play if:
-      // 1. autoPlay query param is "true"
-      // 2. Chapters are loaded and not loading
-      // 3. We have at least one chapter
-      // 4. We haven't already triggered auto-play
-      // 5. First chapter playlist is available
       if (
-         autoPlay === 'true' &&
-         !isLoadingChapters &&
-         allChapters.length > 0 &&
-         !autoPlayTriggeredRef.current &&
-         firstChapterId
+         autoPlay !== 'true' ||
+         isLoadingChapters ||
+         allChapters.length === 0 ||
+         !autoPlayChapterId ||
+         autoPlayTriggeredRef.current
       ) {
-         // Find first chapter (sorted by chapterNumber)
-         const sortedChapters = [...allChapters].sort((a, b) => a.chapterNumber - b.chapterNumber);
-         const firstChapter = sortedChapters[0];
+         return;
+      }
 
-         if (firstChapter) {
-            // Check if playlist is ready for first chapter
-            const playlistData = playlistsByChapterId[firstChapter.id];
+      const targetChapter = allChapters.find((chapter) => chapter.id === autoPlayChapterId);
+      const playlistData = playlistsByChapterId[autoPlayChapterId];
 
-            if (playlistData) {
-               // Mark as triggered to prevent duplicate calls
-               autoPlayTriggeredRef.current = true;
-
-               // Automatically play first chapter
-               handleChapterPress(firstChapter);
-            }
-            // If playlist not ready yet, it will be handled by the second useEffect
-            // that watches for playlist loading
-         }
+      if (targetChapter && playlistData) {
+         autoPlayTriggeredRef.current = true;
+         handleChapterPress(targetChapter);
       }
    }, [
       autoPlay,
       isLoadingChapters,
       allChapters,
-      firstChapterId,
+      autoPlayChapterId,
       playlistsByChapterId,
       handleChapterPress,
    ]);
-
-   // Also trigger auto-play when playlist becomes available for first chapter
-   useEffect(() => {
-      if (
-         autoPlay === 'true' &&
-         !isLoadingChapters &&
-         allChapters.length > 0 &&
-         !autoPlayTriggeredRef.current &&
-         firstChapterId
-      ) {
-         const sortedChapters = [...allChapters].sort((a, b) => a.chapterNumber - b.chapterNumber);
-         const firstChapter = sortedChapters[0];
-         const playlistData = playlistsByChapterId[firstChapterId];
-
-         if (firstChapter && playlistData && firstChapter.id === firstChapterId) {
-            // Mark as triggered to prevent duplicate calls
-            autoPlayTriggeredRef.current = true;
-
-            // Automatically play first chapter
-            handleChapterPress(firstChapter);
-         }
-      }
-   }, [autoPlay, isLoadingChapters, allChapters, firstChapterId, playlistsByChapterId, handleChapterPress]);
 
    // Format audiobook duration
    const formattedDuration = useMemo(() => {
@@ -1292,4 +1273,4 @@ export default function DetailsScreen() {
       </>
    );
 }
-
+
