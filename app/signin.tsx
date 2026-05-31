@@ -470,14 +470,12 @@ const styles = StyleSheet.create({
    },
    googleButton: {
       flexDirection: 'row',
-      backgroundColor: colors.background.darkGrayLight,
       borderRadius: borderRadius.md,
       height: 48,
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: spacing.lg,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.1)',
+      backgroundColor: colors.background.input,
    },
    googleButtonDisabled: {
       opacity: 0.6,

@@ -38,6 +38,7 @@ export const ChapterListItem: React.FC<ChapterListItemProps> = React.memo(
       const isHighlighted = isActive || isCurrentlyPlaying;
 
       return (
+         <View>
          <TouchableOpacity
             style={[styles.container, isHighlighted && styles.containerActive]}
             onPress={() => onPress(chapter)}
@@ -91,6 +92,8 @@ export const ChapterListItem: React.FC<ChapterListItemProps> = React.memo(
                </TouchableOpacity>
             </View>
          </TouchableOpacity>
+         <View style={styles.divider} />
+         </View>
       );
    }
 );
@@ -104,13 +107,16 @@ const styles = StyleSheet.create({
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.md,
       paddingLeft: spacing.md + 4,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border.light,
       backgroundColor: colors.background.screen,
       position: 'relative',
    },
    containerActive: {
       backgroundColor: colors.background.highlight,
+   },
+   divider: {
+      height: 1,
+      backgroundColor: colors.background.highlight,
+      marginLeft: spacing.md,
    },
    activeBar: {
       position: 'absolute',

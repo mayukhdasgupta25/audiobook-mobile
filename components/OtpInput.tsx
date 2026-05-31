@@ -166,10 +166,8 @@ const styles = StyleSheet.create({
    input: {
       width: finalBoxWidth,
       height: 56,
-      backgroundColor: colors.background.darkGrayLight,
       borderRadius: borderRadius.md,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.1)',
+      backgroundColor: colors.background.input,
       textAlign: 'center',
       fontSize: typography.fontSize['2xl'],
       fontWeight: '600',

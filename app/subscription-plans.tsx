@@ -13,13 +13,13 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '@/theme';
-import { ApiError } from '@/services/api';
 import { SubscriptionPlan } from '@/services/subscriptions';
 import { useSubscriptionPlans } from '@/hooks/useSubscriptionPlans';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { useSubscriptionMutation } from '@/hooks/useSubscriptionMutation';
 import { SubscriptionPlanCard } from '@/components/SubscriptionPlanCard';
 import { formatPlanPrice } from '@/utils/format';
+import { getApiErrorMessage } from '@/utils/getApiErrorMessage';
 
 function getPlanActionLabel(
    plan: SubscriptionPlan,
@@ -42,17 +42,6 @@ function getPlanActionLabel(
       }
    }
    return 'Change plan';
-}
-
-function getApiErrorMessage(error: unknown, fallback: string): string {
-   if (error instanceof ApiError) {
-      const data = error.data as { message?: string } | undefined;
-      return data?.message ?? fallback;
-   }
-   if (error instanceof Error) {
-      return error.message;
-   }
-   return fallback;
 }
 
 /**

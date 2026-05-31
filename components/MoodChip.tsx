@@ -26,8 +26,7 @@ export const MoodChip: React.FC<MoodChipProps> = ({
          style={[
             isCard ? styles.card : styles.chip,
             !isCard && {
-               borderColor: hexToRgba(moodColor, 0.35),
-               backgroundColor: hexToRgba(moodColor, 0.08),
+               backgroundColor: hexToRgba(moodColor, 0.12),
             },
          ]}
          onPress={onPress}
@@ -58,7 +57,6 @@ const styles = StyleSheet.create({
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
       borderRadius: borderRadius.full,
-      borderWidth: 1,
       marginRight: spacing.sm,
    },
    card: {

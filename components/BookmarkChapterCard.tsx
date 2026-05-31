@@ -60,6 +60,7 @@ export const BookmarkChapterCard: React.FC<BookmarkChapterCardProps> = ({
 
    if (variant === 'row') {
       return (
+         <View>
          <TouchableOpacity
             style={[styles.rowCard, !canPress && styles.disabled]}
             onPress={canPress ? onPress : undefined}
@@ -89,6 +90,8 @@ export const BookmarkChapterCard: React.FC<BookmarkChapterCardProps> = ({
                ) : null}
             </View>
          </TouchableOpacity>
+         <View style={styles.rowDivider} />
+         </View>
       );
    }
 
@@ -110,8 +113,6 @@ const styles = StyleSheet.create({
       marginRight: spacing.sm,
       backgroundColor: colors.background.card,
       borderRadius: borderRadius.lg,
-      borderWidth: 1,
-      borderColor: colors.border.light,
       overflow: 'hidden',
    },
    rowCard: {
@@ -119,8 +120,6 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       padding: spacing.md,
       backgroundColor: colors.background.card,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border.light,
    },
    rowCover: {
       width: 56,
@@ -130,6 +129,10 @@ const styles = StyleSheet.create({
    rowTextBlock: {
       flex: 1,
       marginLeft: spacing.md,
+   },
+   rowDivider: {
+      height: 1,
+      backgroundColor: colors.background.highlight,
    },
    disabled: {
       opacity: 0.7,

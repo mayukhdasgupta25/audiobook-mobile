@@ -58,10 +58,8 @@ export const SecondaryButton: React.FC<SecondaryButtonProps> = ({
 
 const styles = StyleSheet.create({
    button: {
-      backgroundColor: colors.background.screen,
+      backgroundColor: colors.primary[50],
       borderRadius: borderRadius.lg,
-      borderWidth: 1.5,
-      borderColor: colors.accent.primary,
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.lg,
       alignItems: 'center',
@@ -70,7 +68,6 @@ const styles = StyleSheet.create({
    },
    buttonDisabled: {
       backgroundColor: colors.background.input,
-      borderColor: colors.border.light,
       opacity: 1,
    },
    content: {

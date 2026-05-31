@@ -43,8 +43,6 @@ const styles = StyleSheet.create({
    },
    pill: {
       borderRadius: borderRadius.xl,
-      borderWidth: 1,
-      borderColor: colors.border.light,
       backgroundColor: colors.background.screen,
       overflow: 'hidden',
       ...shadows.lg,

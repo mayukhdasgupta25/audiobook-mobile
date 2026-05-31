@@ -30,6 +30,7 @@ interface PopularStoryItemProps {
 export const PopularStoryItem: React.FC<PopularStoryItemProps> = React.memo(
    ({ story, onPress }) => {
       return (
+         <View>
          <TouchableOpacity
             style={styles.container}
             onPress={onPress}
@@ -74,6 +75,8 @@ export const PopularStoryItem: React.FC<PopularStoryItemProps> = React.memo(
                style={styles.chevron}
             />
          </TouchableOpacity>
+         <View style={styles.divider} />
+         </View>
       );
    }
 );
@@ -81,13 +84,15 @@ export const PopularStoryItem: React.FC<PopularStoryItemProps> = React.memo(
 PopularStoryItem.displayName = 'PopularStoryItem';
 
 const styles = StyleSheet.create({
+   divider: {
+      height: 1,
+      backgroundColor: colors.background.highlight,
+   },
    container: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: 'rgba(255, 255, 255, 0.1)',
       backgroundColor: colors.background.dark,
    },
    imageContainer: {

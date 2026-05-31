@@ -71,7 +71,12 @@ export const CommentInputBar: React.FC<CommentInputBarProps> = ({
    );
 
    if (!floating) {
-      return <View style={styles.container}>{row}</View>;
+      return (
+         <View style={styles.container}>
+            <View style={styles.divider} />
+            {row}
+         </View>
+      );
    }
 
    return (
@@ -92,8 +97,6 @@ export const CommentInputBar: React.FC<CommentInputBarProps> = ({
 
 const styles = StyleSheet.create({
    container: {
-      borderTopWidth: 1,
-      borderTopColor: colors.border.light,
       backgroundColor: colors.background.screen,
       paddingHorizontal: spacing.md,
       paddingTop: spacing.md,
@@ -109,10 +112,12 @@ const styles = StyleSheet.create({
          android: { elevation: 100 },
       }),
    },
+   divider: {
+      height: 1,
+      backgroundColor: colors.background.highlight,
+   },
    floatingPill: {
       borderRadius: borderRadius.xl,
-      borderWidth: 1,
-      borderColor: colors.border.light,
       backgroundColor: colors.background.screen,
       paddingHorizontal: spacing.sm,
       paddingVertical: spacing.sm,

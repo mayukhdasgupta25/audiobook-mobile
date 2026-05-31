@@ -99,14 +99,11 @@ const styles = StyleSheet.create({
       paddingVertical: spacing.sm,
       paddingHorizontal: spacing.md,
       borderRadius: borderRadius.lg,
-      borderWidth: 1,
-      borderColor: colors.border.light,
-      backgroundColor: colors.background.card,
+      backgroundColor: colors.background.input,
       minWidth: 56,
       alignItems: 'center',
    },
    optionSelected: {
-      borderColor: colors.accent.primary,
       backgroundColor: colors.accent.primary,
    },
    optionText: {

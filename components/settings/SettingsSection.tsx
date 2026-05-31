@@ -36,8 +36,6 @@ const styles = StyleSheet.create({
       backgroundColor: colors.background.card,
       marginHorizontal: spacing.md,
       borderRadius: spacing.md,
-      borderWidth: 1,
-      borderColor: colors.border.light,
       overflow: 'hidden',
    },
 });

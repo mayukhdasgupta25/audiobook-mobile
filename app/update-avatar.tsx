@@ -422,13 +422,11 @@ const styles = StyleSheet.create({
    pickImageButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.background.darkGrayLight,
       borderRadius: borderRadius.md,
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.lg,
       gap: spacing.sm,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.1)',
+      backgroundColor: colors.background.input,
    },
    pickImageButtonDisabled: {
       opacity: 0.6,
@@ -496,13 +494,11 @@ const styles = StyleSheet.create({
       opacity: 0.6,
    },
    removeButton: {
-      backgroundColor: colors.background.darkGrayLight,
       borderRadius: borderRadius.md,
       height: 48,
       justifyContent: 'center',
       alignItems: 'center',
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.1)',
+      backgroundColor: colors.background.input,
    },
    removeButtonText: {
       fontSize: typography.fontSize.base,

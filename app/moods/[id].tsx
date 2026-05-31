@@ -5,7 +5,6 @@ import {
    StyleSheet,
    ScrollView,
    TouchableOpacity,
-   ActivityIndicator,
    Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +14,7 @@ import { MoodHeroCard } from '@/components/moods/MoodHeroCard';
 import { MoodBestForCard } from '@/components/moods/MoodBestForCard';
 import { MoodAudiobookRow } from '@/components/moods/MoodAudiobookRow';
 import { MoodAboutSection } from '@/components/moods/MoodAboutSection';
+import { SkeletonBox, SkeletonContentRow, SkeletonListItem } from '@/components/skeleton';
 import { useMood } from '@/hooks/useMood';
 import { useMoodAudiobooks } from '@/hooks/useMoodAudiobooks';
 import { colors, spacing, typography } from '@/theme';
@@ -37,14 +37,12 @@ export default function MoodDetailScreen() {
       data: mood,
       isLoading: isMoodLoading,
       error: moodError,
-      refetch: refetchMood,
    } = useMood(moodId);
 
    const {
       data: audiobooksData,
       isLoading: isAudiobooksLoading,
       error: audiobooksError,
-      refetch: refetchAudiobooks,
       isFetching: isAudiobooksFetching,
    } = useMoodAudiobooks(moodId, recommendationsPage);
 
@@ -95,8 +93,10 @@ export default function MoodDetailScreen() {
 
    if (isMoodLoading) {
       return (
-         <SafeAreaView style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.accent.primary} />
+         <SafeAreaView style={styles.container} edges={['bottom']}>
+            <SkeletonBox width="100%" height={220} borderRadius={0} />
+            <SkeletonContentRow />
+            <SkeletonListItem coverSize={56} count={4} />
          </SafeAreaView>
       );
    }
@@ -104,10 +104,7 @@ export default function MoodDetailScreen() {
    if (moodError || !mood) {
       return (
          <SafeAreaView style={styles.centered}>
-            <Text style={styles.errorText}>Failed to load mood details.</Text>
-            <TouchableOpacity onPress={() => refetchMood()} activeOpacity={0.7}>
-               <Text style={styles.retryText}>Retry</Text>
-            </TouchableOpacity>
+            <Text style={styles.emptyText}>No mood details available.</Text>
          </SafeAreaView>
       );
    }
@@ -164,15 +161,10 @@ export default function MoodDetailScreen() {
 
                   <View style={styles.recommendationsCard}>
                      {isAudiobooksLoading && allAudiobooks.length === 0 ? (
-                        <View style={styles.loadingBlock}>
-                           <ActivityIndicator size="small" color={colors.accent.primary} />
-                        </View>
+                        <SkeletonListItem coverSize={56} count={4} />
                      ) : audiobooksError ? (
                         <View style={styles.loadingBlock}>
-                           <Text style={styles.emptyText}>Failed to load recommendations.</Text>
-                           <TouchableOpacity onPress={() => refetchAudiobooks()} activeOpacity={0.7}>
-                              <Text style={styles.retryText}>Retry</Text>
-                           </TouchableOpacity>
+                           <Text style={styles.emptyText}>No recommendations yet.</Text>
                         </View>
                      ) : visibleAudiobooks.length === 0 ? (
                         <View style={styles.loadingBlock}>
@@ -192,9 +184,7 @@ export default function MoodDetailScreen() {
                      )}
 
                      {showAllRecommendations && isAudiobooksFetching ? (
-                        <View style={styles.loadingBlock}>
-                           <ActivityIndicator size="small" color={colors.accent.primary} />
-                        </View>
+                        <SkeletonListItem coverSize={56} count={2} />
                      ) : null}
                   </View>
                </View>
@@ -245,8 +235,6 @@ const styles = StyleSheet.create({
       height: BACK_BUTTON_SIZE,
       borderRadius: BACK_BUTTON_SIZE / 2,
       backgroundColor: colors.background.card,
-      borderWidth: 1,
-      borderColor: colors.border.light,
       justifyContent: 'center',
       alignItems: 'center',
    },

@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useRef } from 'react';
 import {
    View,
    Text,
@@ -25,9 +25,11 @@ import { logout } from '@/utils/logout';
 import { resolveAvatarUrl } from '@/utils/resolveAvatarUrl';
 import { resolveMembershipTier } from '@/utils/membershipDisplay';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
+import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
 import { RootState } from '@/store';
 
 function ProfileScreenContent() {
+   const scrollRef = useRef<ScrollView>(null);
    const insets = useSafeAreaInsets();
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
    const user = useSelector((state: RootState) => state.auth.user);
@@ -160,9 +162,12 @@ function ProfileScreenContent() {
 
    const scrollContentPadding = getTabScreenPaddingBottom(insets.bottom);
 
+   useTabScrollToTop('profile', scrollRef);
+
    return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
          <ScrollView
+            ref={scrollRef}
             style={styles.scrollView}
             contentContainerStyle={[
                styles.scrollContent,

@@ -6,6 +6,8 @@ import {
 } from '@/services/favorites';
 import { ApiError } from '@/services/api';
 import { useAuthQueryEnabled } from './useAuthQueryEnabled';
+import { showToast } from '@/utils/toast';
+import { getApiErrorMessage } from '@/utils/getApiErrorMessage';
 
 export function useFavorite(audiobookId: string) {
    const enabled = useAuthQueryEnabled(!!audiobookId);
@@ -30,6 +32,10 @@ export function useFavoriteMutations(audiobookId: string) {
       onSuccess: () => {
          queryClient.invalidateQueries({ queryKey: ['favorites'] });
          queryClient.invalidateQueries({ queryKey: ['favorite', audiobookId] });
+         showToast({ message: 'Added to favorites', type: 'success' });
+      },
+      onError: (error) => {
+         showToast({ message: getApiErrorMessage(error), type: 'error' });
       },
    });
 
@@ -38,6 +44,10 @@ export function useFavoriteMutations(audiobookId: string) {
       onSuccess: () => {
          queryClient.invalidateQueries({ queryKey: ['favorites'] });
          queryClient.invalidateQueries({ queryKey: ['favorite', audiobookId] });
+         showToast({ message: 'Removed from favorites', type: 'success' });
+      },
+      onError: (error) => {
+         showToast({ message: getApiErrorMessage(error), type: 'error' });
       },
    });
 

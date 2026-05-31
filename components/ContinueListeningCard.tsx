@@ -98,8 +98,6 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       backgroundColor: colors.background.card,
       borderRadius: borderRadius.xl,
-      borderWidth: 1,
-      borderColor: colors.border.light,
       padding: spacing.md,
       marginHorizontal: spacing.md,
       ...shadows.sm,

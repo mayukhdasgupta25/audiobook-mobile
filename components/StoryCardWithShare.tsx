@@ -176,8 +176,6 @@ const styles = StyleSheet.create({
       paddingVertical: spacing.xs,
       paddingHorizontal: spacing.sm,
       borderRadius: borderRadius.sm,
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.3)',
    },
    shareIcon: {
       marginRight: spacing.xs,

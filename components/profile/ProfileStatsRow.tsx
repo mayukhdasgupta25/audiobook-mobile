@@ -70,8 +70,6 @@ const styles = StyleSheet.create({
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.sm,
       borderRadius: borderRadius.lg,
-      borderWidth: 1,
-      borderColor: colors.border.light,
    },
    statItem: {
       flex: 1,

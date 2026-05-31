@@ -76,9 +76,7 @@ const styles = StyleSheet.create({
       minHeight: 48,
    },
    buttonOutline: {
-      backgroundColor: 'transparent',
-      borderWidth: 1.5,
-      borderColor: colors.accent.primary,
+      backgroundColor: colors.primary[50],
    },
    disabled: {
       opacity: 0.5,

@@ -38,8 +38,6 @@ const styles = StyleSheet.create({
       backgroundColor: colors.background.card,
       borderRadius: borderRadius.lg,
       padding: spacing.md,
-      borderWidth: 1,
-      borderColor: colors.border.light,
    },
    iconWrap: {
       width: 48,

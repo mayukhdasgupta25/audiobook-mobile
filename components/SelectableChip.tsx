@@ -46,9 +46,7 @@ export const SelectableChip: React.FC<SelectableChipProps> = ({
 
 const styles = StyleSheet.create({
    chip: {
-      backgroundColor: 'transparent',
-      borderWidth: 1,
-      borderColor: colors.border.light,
+      backgroundColor: colors.background.input,
       borderRadius: borderRadius.full,
       paddingVertical: spacing.sm,
       paddingHorizontal: spacing.md,
@@ -60,8 +58,7 @@ const styles = StyleSheet.create({
       marginBottom: 0,
    },
    chipSelected: {
-      borderColor: colors.accent.primary,
-      borderWidth: 1.5,
+      backgroundColor: colors.background.highlight,
    },
    chipDisabled: {
       opacity: 0.4,

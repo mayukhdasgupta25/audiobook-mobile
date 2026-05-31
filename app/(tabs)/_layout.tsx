@@ -10,6 +10,9 @@ import {
 } from '@/theme/tabLayout';
 import { TabNavigationProvider } from '@/hooks/useTabNavigation';
 import { FloatingTabBar } from '@/components/FloatingTabBar';
+import { createTabScrollToTopListener } from '@/utils/tabScrollToTopListener';
+
+const tabScrollListener = createTabScrollToTopListener;
 
 export default function TabLayout() {
    const tabBarInnerHeight = getTabBarInnerHeight();
@@ -29,7 +32,6 @@ export default function TabLayout() {
                   tabBarStyle: {
                      display: Platform.OS === 'web' ? 'none' : 'flex',
                      backgroundColor: 'transparent',
-                     borderTopWidth: 0,
                      height: tabBarInnerHeight,
                      paddingTop: getTabBarPaddingTop(),
                      paddingBottom: getTabBarPaddingBottom(),
@@ -49,6 +51,7 @@ export default function TabLayout() {
             >
                <Tabs.Screen
                   name="index"
+                  listeners={tabScrollListener}
                   options={{
                      title: 'Home',
                      tabBarIcon: ({ color, size }) => (
@@ -58,6 +61,7 @@ export default function TabLayout() {
                />
                <Tabs.Screen
                   name="library"
+                  listeners={tabScrollListener}
                   options={{
                      title: 'Library',
                      tabBarIcon: ({ color, size }) => (
@@ -67,6 +71,7 @@ export default function TabLayout() {
                />
                <Tabs.Screen
                   name="discover"
+                  listeners={tabScrollListener}
                   options={{
                      title: 'Discover',
                      tabBarIcon: ({ color, size }) => (
@@ -76,6 +81,7 @@ export default function TabLayout() {
                />
                <Tabs.Screen
                   name="profile"
+                  listeners={tabScrollListener}
                   options={{
                      title: 'Profile',
                      tabBarIcon: ({ color, size }) => (

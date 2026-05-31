@@ -168,6 +168,7 @@ export default function SearchScreen() {
                      autoFocus={true}
                   />
                </View>
+               <View style={styles.headerDivider} />
 
                {/* Content */}
                <ScrollView
@@ -239,9 +240,11 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: 'rgba(255, 255, 255, 0.1)',
       backgroundColor: colors.background.dark,
+   },
+   headerDivider: {
+      height: 1,
+      backgroundColor: colors.background.highlight,
    },
    backButton: {
       marginRight: spacing.sm,

@@ -22,6 +22,7 @@ import { ApiError } from '@/services/api';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { getPlanFeatureDescriptions } from '@/services/subscriptions';
 import { formatAccountDate, formatPlanPrice } from '@/utils/format';
+import { SkeletonProfileCard } from '@/components/skeleton';
 import {
    setSkipDurationSeconds,
    type SkipDurationSeconds,
@@ -58,12 +59,8 @@ export default function AccountScreen() {
       }
    }, [userProfile?.createdAt]);
 
-   const {
-      activeSubscription,
-      isLoading: isSubscriptionLoading,
-      error: subscriptionError,
-      refetch: refetchSubscription,
-   } = useUserSubscription();
+   const { activeSubscription, isLoading: isSubscriptionLoading, error: subscriptionError } =
+      useUserSubscription();
 
    const handleBackPress = () => {
       router.back();
@@ -202,31 +199,8 @@ export default function AccountScreen() {
                      </View>
 
                      {isSubscriptionLoading ? (
-                        <View style={styles.membershipLoading}>
-                           <ActivityIndicator size="small" color={colors.app.red} />
-                           <Text style={styles.membershipLoadingText}>
-                              Loading membership details...
-                           </Text>
-                        </View>
-                     ) : subscriptionError ? (
-                        <View style={styles.membershipError}>
-                           <Text style={styles.membershipErrorText}>
-                              {subscriptionError instanceof ApiError
-                                 ? (subscriptionError.data as { message?: string } | undefined)
-                                    ?.message ?? 'Failed to load membership details.'
-                                 : subscriptionError instanceof Error
-                                    ? subscriptionError.message
-                                    : 'Failed to load membership details.'}
-                           </Text>
-                           <TouchableOpacity
-                              onPress={() => refetchSubscription()}
-                              style={styles.retryButton}
-                              activeOpacity={0.7}
-                           >
-                              <Text style={styles.linkText}>Retry</Text>
-                           </TouchableOpacity>
-                        </View>
-                     ) : !activeSubscription ? (
+                        <SkeletonProfileCard />
+                     ) : subscriptionError ? null : !activeSubscription ? (
                         <Text style={styles.membershipEmptyText}>No active membership</Text>
                      ) : (
                         <>
@@ -586,8 +560,6 @@ const styles = StyleSheet.create({
    memberSinceBadge: {
       alignSelf: 'flex-start',
       backgroundColor: colors.background.highlight,
-      borderWidth: 1,
-      borderColor: colors.accent.primary,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
       borderRadius: borderRadius.full,
@@ -778,13 +750,10 @@ const styles = StyleSheet.create({
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.sm,
       borderRadius: borderRadius.lg,
-      borderWidth: 1.5,
-      borderColor: colors.border.light,
-      backgroundColor: colors.background.screen,
+      backgroundColor: colors.background.input,
       alignItems: 'center',
    },
    skipDurationOptionSelected: {
-      borderColor: colors.accent.primary,
       backgroundColor: colors.background.highlight,
    },
    skipDurationOptionText: {
@@ -843,13 +812,11 @@ const styles = StyleSheet.create({
       gap: spacing.md,
    },
    cancelButton: {
-      backgroundColor: colors.background.darkGrayLight,
       borderRadius: borderRadius.md,
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.lg,
       alignItems: 'center',
-      borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.1)',
+      backgroundColor: colors.background.input,
    },
    cancelButtonText: {
       fontSize: typography.fontSize.base,

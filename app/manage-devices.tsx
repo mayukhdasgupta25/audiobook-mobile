@@ -15,11 +15,10 @@ import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { TextInput } from '@/components/TextInput';
 import { colors, spacing, typography, borderRadius } from '@/theme';
-import { ApiError } from '@/services/api';
 import { getAuthDevices, requestDeviceRemovalOtp } from '@/services/devices';
 import { useDeviceLimitStore } from '@/store/deviceLimit';
 import type { RegisteredDevice } from '@/utils/authApiErrors';
-import { getAuthApiErrorMessage } from '@/utils/authApiErrors';
+import { getApiErrorMessage } from '@/utils/getApiErrorMessage';
 import { formatAccountDate } from '@/utils/format';
 import { store } from '@/store';
 
@@ -37,16 +36,6 @@ function getPlatformIcon(platform: string): keyof typeof Ionicons.glyphMap {
       return 'globe-outline';
    }
    return 'hardware-chip-outline';
-}
-
-function getApiErrorMessage(error: unknown, fallback: string): string {
-   if (error instanceof ApiError) {
-      return getAuthApiErrorMessage(error.data) ?? fallback;
-   }
-   if (error instanceof Error) {
-      return error.message;
-   }
-   return fallback;
 }
 
 /**
@@ -473,8 +462,7 @@ const styles = StyleSheet.create({
       paddingVertical: spacing.md,
       alignItems: 'center',
       borderRadius: borderRadius.md,
-      borderWidth: 1,
-      borderColor: colors.neutral[700],
+      backgroundColor: colors.background.input,
    },
    modalCancelText: {
       color: colors.text.dark,

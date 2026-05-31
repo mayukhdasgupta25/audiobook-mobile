@@ -114,11 +114,9 @@ const styles = StyleSheet.create({
       borderRadius: borderRadius.lg,
       paddingHorizontal: spacing.md,
       height: 48,
-      borderWidth: 1,
-      borderColor: 'transparent',
    },
    inputContainerError: {
-      borderColor: colors.error,
+      backgroundColor: '#FEE2E2',
    },
    inputContainerDisabled: {
       opacity: 0.5,

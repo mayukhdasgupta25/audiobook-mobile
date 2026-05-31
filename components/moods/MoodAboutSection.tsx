@@ -25,7 +25,7 @@ export const MoodAboutSection: React.FC<MoodAboutSectionProps> = ({
       <View style={styles.section}>
          <Text style={styles.sectionTitle}>About this mood</Text>
          <View style={styles.card}>
-            <View style={[styles.iconCircle, { borderColor: color }]}>
+            <View style={[styles.iconCircle, { backgroundColor: `${color}18` }]}>
                <MoodSvgIcon source="description" name={moodName} color={color} size={28} />
             </View>
             <Text style={styles.description}>{purpose}</Text>
@@ -60,7 +60,6 @@ const styles = StyleSheet.create({
       width: 48,
       height: 48,
       borderRadius: borderRadius.full,
-      borderWidth: 1.5,
       backgroundColor: colors.background.screen,
       justifyContent: 'center',
       alignItems: 'center',

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import {
    View,
    Text,
@@ -25,25 +25,24 @@ import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePlayBookmarkChapter } from '@/hooks/usePlayBookmarkChapter';
 import { apiConfig } from '@/services/api';
 import { getBookmarkAudiobookId } from '@/utils/bookmarkDisplay';
+import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
 
 function LibraryScreenContent() {
+   const scrollRef = useRef<ScrollView>(null);
    const insets = useSafeAreaInsets();
    const [createModalVisible, setCreateModalVisible] = useState(false);
 
    const {
       data: playlistsData,
       isLoading: playlistsLoading,
-      error: playlistsError,
    } = usePlaylists(LIBRARY_PREVIEW_LIMIT);
    const {
       data: favoritesData,
       isLoading: favoritesLoading,
-      error: favoritesError,
    } = useFavorites(LIBRARY_PREVIEW_LIMIT);
    const {
       data: bookmarksData,
       isLoading: bookmarksLoading,
-      error: bookmarksError,
    } = useBookmarks(LIBRARY_PREVIEW_LIMIT);
 
    const { create } = usePlaylistMutations();
@@ -75,6 +74,8 @@ function LibraryScreenContent() {
 
    const scrollPadding = getTabScreenPaddingBottom(insets.bottom);
 
+   useTabScrollToTop('library', scrollRef);
+
    return (
       <SafeAreaView style={styles.container} edges={['top']}>
          <View style={styles.header}>
@@ -85,6 +86,7 @@ function LibraryScreenContent() {
          </View>
 
          <ScrollView
+            ref={scrollRef}
             contentContainerStyle={{ paddingBottom: scrollPadding }}
             showsVerticalScrollIndicator={false}
          >
@@ -95,7 +97,7 @@ function LibraryScreenContent() {
             />
             <LibraryHorizontalRow
                isLoading={playlistsLoading}
-               isEmpty={!playlistsError && playlists.length === 0}
+               isEmpty={playlists.length === 0}
                emptyMessage="No playlists yet. Tap + to create one."
             >
                {playlists.map((playlist) => (
@@ -106,9 +108,6 @@ function LibraryScreenContent() {
                   />
                ))}
             </LibraryHorizontalRow>
-            {playlistsError ? (
-               <Text style={styles.sectionError}>Unable to load playlists</Text>
-            ) : null}
 
             <LibrarySectionHeader
                title="Favorites"
@@ -116,11 +115,7 @@ function LibraryScreenContent() {
             />
             <LibraryHorizontalRow
                isLoading={favoritesLoading || favoriteBooksLoading}
-               isEmpty={
-                  !favoritesError &&
-                  favorites.length === 0 &&
-                  favoriteBooks.length === 0
-               }
+               isEmpty={favorites.length === 0 && favoriteBooks.length === 0}
                emptyMessage="No favorites yet. Heart an audiobook to save it here."
             >
                {favoriteBooks.map((book) => {
@@ -140,9 +135,6 @@ function LibraryScreenContent() {
                   );
                })}
             </LibraryHorizontalRow>
-            {favoritesError ? (
-               <Text style={styles.sectionError}>Unable to load favorites</Text>
-            ) : null}
 
             <LibrarySectionHeader
                title="Bookmarks"
@@ -150,7 +142,7 @@ function LibraryScreenContent() {
             />
             <LibraryHorizontalRow
                isLoading={bookmarksLoading}
-               isEmpty={!bookmarksError && bookmarks.length === 0}
+               isEmpty={bookmarks.length === 0}
                emptyMessage="No bookmarks yet. Bookmark a chapter while listening."
             >
                {bookmarks.map((bookmark) => {
@@ -168,9 +160,6 @@ function LibraryScreenContent() {
                   );
                })}
             </LibraryHorizontalRow>
-            {bookmarksError ? (
-               <Text style={styles.sectionError}>Unable to load bookmarks</Text>
-            ) : null}
          </ScrollView>
 
          <CreatePlaylistModal
@@ -217,12 +206,5 @@ const styles = StyleSheet.create({
    },
    favoriteCardWrap: {
       marginRight: spacing.sm,
-   },
-   sectionError: {
-      fontSize: typography.fontSize.sm,
-      color: colors.error,
-      paddingHorizontal: spacing.md,
-      marginTop: -spacing.sm,
-      marginBottom: spacing.md,
    },
 });

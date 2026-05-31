@@ -84,8 +84,6 @@ const styles = StyleSheet.create({
       marginBottom: spacing.lg,
       padding: spacing.md,
       borderRadius: borderRadius.lg,
-      borderWidth: 1,
-      borderColor: colors.border.light,
    },
    avatarContainer: {
       marginRight: spacing.md,

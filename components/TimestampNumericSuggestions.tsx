@@ -48,8 +48,6 @@ const styles = StyleSheet.create({
       marginBottom: spacing.sm,
       padding: spacing.sm,
       borderRadius: borderRadius.lg,
-      borderWidth: 1,
-      borderColor: colors.border.light,
       backgroundColor: colors.background.highlight,
       ...Platform.select({
          android: { elevation: 3 },
@@ -78,8 +76,6 @@ const styles = StyleSheet.create({
       paddingHorizontal: spacing.md,
       borderRadius: borderRadius.md,
       backgroundColor: colors.accent.primary,
-      borderWidth: 1,
-      borderColor: colors.accent.primaryDark,
       alignItems: 'center',
    },
    chipText: {

@@ -266,8 +266,6 @@ const styles = StyleSheet.create({
       height: PROGRESS_HANDLE_SIZE,
       borderRadius: PROGRESS_HANDLE_SIZE / 2,
       backgroundColor: colors.accent.primary,
-      borderWidth: 2,
-      borderColor: colors.background.screen,
       top: PROGRESS_HANDLE_TOP,
       ...Platform.select({
          ios: {
