@@ -4,6 +4,7 @@
  */
 
 import { get, post, ApiError, API_V1_PATH } from './api';
+import { clampSyncPlaybackPosition } from '@/utils/playbackPosition';
 
 /**
  * Tag interface matching API response
@@ -593,6 +594,8 @@ export interface SyncPlaybackRequest {
    action: 'play' | 'pause' | 'seek';
    position: number; // Position in seconds (integer)
    chapterId: string;
+   /** Chapter duration — clamps seek sync so position stays before end */
+   durationSeconds?: number;
 }
 
 /**
@@ -606,13 +609,24 @@ export async function syncPlayback(
    request: SyncPlaybackRequest
 ): Promise<void> {
    try {
+      const durationHint =
+         request.durationSeconds != null && request.durationSeconds > 0
+            ? request.durationSeconds
+            : request.position;
+
+      const syncedPosition = clampSyncPlaybackPosition(
+         request.position,
+         durationHint,
+         request.action
+      );
+
       // Use authenticated request (useAuth=true) to include Bearer token
       await post<void>(
          `${API_V1_PATH}/playback/sync`,
          {
             audiobookId: request.audiobookId,
             action: request.action,
-            position: Math.floor(request.position), // Ensure position is integer
+            position: syncedPosition,
             chapterId: request.chapterId,
          },
          true, // useAuth=true - includes Bearer token

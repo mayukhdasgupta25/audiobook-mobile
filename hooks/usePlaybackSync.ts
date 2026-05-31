@@ -10,6 +10,7 @@ interface UsePlaybackSyncParams {
    audiobookId: string | null;
    chapterId: string | null;
    playbackPosition: number;
+   totalDuration: number;
    isPlaying: boolean;
    isActive: boolean; // Whether the audio player is active/visible
 }
@@ -26,6 +27,7 @@ export function usePlaybackSync({
    audiobookId,
    chapterId,
    playbackPosition,
+   totalDuration,
    isPlaying,
    isActive,
 }: UsePlaybackSyncParams): void {
@@ -33,6 +35,7 @@ export function usePlaybackSync({
    const initialSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
    const lastSyncedPositionRef = useRef<number>(0);
    const playbackPositionRef = useRef<number>(playbackPosition);
+   const totalDurationRef = useRef<number>(totalDuration);
    const audiobookIdRef = useRef<string | null>(audiobookId);
    const chapterIdRef = useRef<string | null>(chapterId);
    const isPlayingRef = useRef<boolean>(isPlaying);
@@ -42,11 +45,12 @@ export function usePlaybackSync({
    // Update refs when values change
    useEffect(() => {
       playbackPositionRef.current = playbackPosition;
+      totalDurationRef.current = totalDuration;
       audiobookIdRef.current = audiobookId;
       chapterIdRef.current = chapterId;
       isPlayingRef.current = isPlaying;
       isActiveRef.current = isActive;
-   }, [playbackPosition, audiobookId, chapterId, isPlaying, isActive]);
+   }, [playbackPosition, totalDuration, audiobookId, chapterId, isPlaying, isActive]);
 
    useEffect(() => {
       // Detect transition from paused to playing (resume) or initial start
@@ -83,6 +87,10 @@ export function usePlaybackSync({
                      chapterId: chapterIdRef.current,
                      action: 'play', // Use "play" action for initial start or resume
                      position: playbackPositionRef.current,
+                     durationSeconds:
+                        totalDurationRef.current > 0
+                           ? totalDurationRef.current
+                           : undefined,
                   }).catch((error: unknown) => {
                      console.error('[Playback Sync Hook] Failed to sync playback on start/resume:', error);
                   });
@@ -108,6 +116,10 @@ export function usePlaybackSync({
                      chapterId: currentChapterId,
                      action: 'seek', // Use "seek" action for periodic syncs during playback
                      position: currentPosition,
+                     durationSeconds:
+                        totalDurationRef.current > 0
+                           ? totalDurationRef.current
+                           : undefined,
                   }).catch((error: unknown) => {
                      console.error('[Playback Sync Hook] Failed to sync playback:', error);
                   });

@@ -84,6 +84,7 @@ export async function advanceToNextChapter(params: AdvanceToNextChapterParams): 
             chapterId: currentChapterId,
             action: 'pause',
             position: totalDuration,
+            durationSeconds: totalDuration,
          }).catch((error: unknown) => {
             console.error('[Chapter Navigation] Failed to sync at end:', error);
          });
@@ -97,6 +98,7 @@ export async function advanceToNextChapter(params: AdvanceToNextChapterParams): 
             chapterId: currentChapterId,
             action: 'pause',
             position: totalDuration,
+            durationSeconds: totalDuration,
          }).catch(() => undefined);
       }
       dispatch(stop());

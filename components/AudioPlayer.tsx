@@ -22,8 +22,6 @@ import Animated, {
    withSpring,
    cancelAnimation,
    Easing,
-   useAnimatedReaction,
-   runOnJS,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -34,6 +32,7 @@ import { RootState } from '@/store';
 import { setMinimized, setUiSuppressed, releasePlayback } from '@/store/player';
 import { useAudioPlayerControls } from '@/contexts/AudioPlaybackContext';
 import { PlaybackSpeedSheet } from '@/components/PlaybackSpeedSheet';
+import { AudioPlayerSeekBar } from '@/components/AudioPlayerSeekBar';
 import {
    formatPlaybackSpeedLabel,
    type PlaybackSpeed,
@@ -73,27 +72,16 @@ const FP = {
    chapterSkipIconSize: 34,
    seekIconSize: 30,
    bottomActionIconSize: 28,
-   progressBarHeight: 5,
-   progressHandleSize: 20,
-   progressBarHorizontalPadding: 10,
-   progressTouchMinHeight: 52,
    dragHandlerWidth: 48,
    dragHandlerHeight: 5,
    dragHandlerMinHeight: 36,
    headerMarginBottom: spacing.md,
    coverMarginBottom: spacing.md,
-   progressMarginBottom: spacing.md,
    controlsMarginBottom: spacing.sm,
    bottomActionsPaddingTop: spacing.md,
    bottomActionTextSize: typography.fontSize.sm,
    seekButtonTextSize: typography.fontSize.sm,
-   timeTextSize: typography.fontSize.base,
 } as const;
-
-const PROGRESS_BAR_INSET = FP.progressBarHorizontalPadding * 2;
-const PROGRESS_HANDLE_CENTER_OFFSET = FP.progressHandleSize / 2;
-const PROGRESS_HANDLE_TOP =
-   -(PROGRESS_HANDLE_CENTER_OFFSET - FP.progressBarHeight / 2);
 
 /** Minimized bar — horizontal layout above tab bar or screen bottom */
 const MINIMIZED_BAR = {
@@ -146,18 +134,6 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const isDraggingDown = useRef(false);
    const dragStartY = useRef(0);
    const isMinimizedRef = useRef(isMinimized);
-   const progressBarWidthRef = useRef(0);
-   const progressBarWrapperRef = useRef<View | null>(null);
-   const wrapperXRef = useRef(0);
-   const wrapperYRef = useRef(0);
-   const wrapperWidthRef = useRef(0);
-   const wrapperHeightRef = useRef(0);
-
-   // Shared values for dragging animation (no useState to avoid re-renders)
-   const dragProgressValue = useSharedValue(0);
-   const isDraggingValue = useSharedValue(false);
-   // State for displayed time during drag (updated via runOnJS)
-   const [displayedTime, setDisplayedTime] = useState(0);
 
    // Use audio player hook
    const {
@@ -206,301 +182,24 @@ export const AudioPlayer: React.FC = React.memo(() => {
       audiobookId,
       chapterId: currentChapterId,
       playbackPosition,
+      totalDuration,
       isPlaying,
       isActive: isVisible, // Only sync when player is visible/active
    });
 
-   // Shared value for actual playback progress (updated from Redux state)
-   const actualProgressValue = useSharedValue(0);
+   const handleSeekStart = useCallback(() => {
+      setDragging(true);
+   }, [setDragging]);
 
-   // Store totalDuration in ref so PanResponder can access current value
-   const totalDurationRef = useRef(totalDuration);
-   useEffect(() => {
-      totalDurationRef.current = totalDuration;
-   }, [totalDuration]);
+   const handleSeekEnd = useCallback(() => {
+      setDragging(false);
+   }, [setDragging]);
 
-   // Update actual progress shared value when playback position or duration changes
-   useEffect(() => {
-      if (totalDuration === 0) {
-         actualProgressValue.value = 0;
-      } else {
-         actualProgressValue.value = playbackPosition / totalDuration;
-      }
-   }, [playbackPosition, totalDuration, actualProgressValue]);
-
-   // Handle progress bar layout to get width and position
-   const handleProgressBarLayout = (event: { nativeEvent: { layout: { width: number } } }) => {
-      // The wrapper includes padding, so we need to subtract it to get the actual progress bar width
-      const wrapperWidth = event.nativeEvent.layout.width;
-      wrapperWidthRef.current = wrapperWidth;
-      // Subtract horizontal padding on each side
-      progressBarWidthRef.current = wrapperWidth - PROGRESS_BAR_INSET;
-
-      // Measure position in window for drag calculations (use setTimeout to ensure layout is complete)
-      setTimeout(() => {
-         if (progressBarWrapperRef.current) {
-            progressBarWrapperRef.current.measureInWindow((x, y, width, height) => {
-               wrapperXRef.current = x;
-               wrapperYRef.current = y;
-               wrapperWidthRef.current = width;
-               wrapperHeightRef.current = height;
-            });
-         }
-      }, 0);
-   };
-
-   // Helper function to update displayed time (called from worklet)
-   const updateDisplayedTime = useCallback((time: number) => {
-      setDisplayedTime(time);
-   }, []);
-
-   // Helper function to seek to time (called from worklet)
-   const seekToTimeFromWorklet = useCallback((time: number) => {
-      seekToTime(time);
-   }, [seekToTime]);
-
-   // Store initial touch position for PanResponder
-   const initialTouchXRef = useRef(0);
-   const initialTouchYRef = useRef(0);
-   const hasMovedRef = useRef(false);
-   const isDragCancelledRef = useRef(false);
-
-   // Pan responder for progress bar dragging
-   // Use useRef to create once, but access current values from closure/refs
-   const progressBarPanResponder = useRef(
-      PanResponder.create({
-         onStartShouldSetPanResponder: () => {
-            // Access totalDuration from ref to get current value (not stale closure)
-            // Allow activation if totalDuration is valid - width will be measured in Grant if needed
-            // This ensures PanResponder can activate even if layout hasn't been measured yet
-            return totalDurationRef.current > 0;
-         },
-         onStartShouldSetPanResponderCapture: () => {
-            // Same check - capture early to prevent parent from interfering
-            return totalDurationRef.current > 0;
-         },
-         onMoveShouldSetPanResponder: (_evt, gestureState) => {
-            // Fallback: if start didn't activate, catch horizontal movement
-            // Very low threshold (1px) to catch any horizontal movement
-            if (totalDurationRef.current === 0) return false;
-            return Math.abs(gestureState.dx) > 1 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
-         },
-         onMoveShouldSetPanResponderCapture: (_evt, gestureState) => {
-            // Capture horizontal movements early
-            if (totalDurationRef.current === 0) return false;
-            return Math.abs(gestureState.dx) > 1 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
-         },
-         onPanResponderGrant: (evt) => {
-            // Initialize drag - prevent progress updates from interfering
-            isDraggingValue.value = true;
-            setDragging(true);
-            hasMovedRef.current = false;
-            isDragCancelledRef.current = false;
-
-            // CRITICAL: Initialize drag progress with current actual progress to prevent jump to 0
-            // This ensures smooth transition when user touches the handle
-            dragProgressValue.value = actualProgressValue.value;
-
-            // Use locationX which is relative to the touchable view - more reliable
-            // locationX is relative to progressBarTouchable, which is inside the wrapper with padding
-            const locationX = evt.nativeEvent.locationX || 0;
-            const pageY = evt.nativeEvent.pageY;
-
-            // Store initial positions
-            initialTouchXRef.current = locationX;
-            initialTouchYRef.current = pageY;
-
-            // Measure wrapper position for vertical drag cancellation (not for position calculation)
-            if (progressBarWrapperRef.current) {
-               try {
-                  progressBarWrapperRef.current.measureInWindow((x, y, width, height) => {
-                     wrapperXRef.current = x;
-                     wrapperYRef.current = y;
-                     wrapperWidthRef.current = width;
-                     wrapperHeightRef.current = height;
-                  });
-               } catch (e) {
-                  // Measurement failed, continue with locationX-based calculation
-               }
-            }
-
-            // Ensure width is available - measure if needed
-            let width = progressBarWidthRef.current;
-            if (width === 0) {
-               if (progressBarWrapperRef.current) {
-                  try {
-                     progressBarWrapperRef.current.measure((_x, _y, measuredWidth) => {
-                        const barWidth = Math.max(0, measuredWidth - PROGRESS_BAR_INSET);
-                        progressBarWidthRef.current = barWidth;
-                        width = barWidth;
-                     });
-                  } catch (e) {
-                     // Fallback width
-                     width = 300;
-                     progressBarWidthRef.current = width;
-                  }
-               } else {
-                  width = 300;
-                  progressBarWidthRef.current = width;
-               }
-            }
-
-            // Calculate touch position relative to progress bar
-            // Account for 8px padding on left side
-            const touchRelativeX = Math.max(0, Math.min(width, locationX - 8));
-            const touchPercentage = Math.max(0, Math.min(1, touchRelativeX / width));
-
-            // Update displayed time based on touch position
-            const targetTime = touchPercentage * totalDurationRef.current;
-            runOnJS(updateDisplayedTime)(Math.floor(targetTime));
-         },
-         onPanResponderMove: (evt, gestureState) => {
-            if (totalDurationRef.current === 0) return;
-            if (isDragCancelledRef.current) return;
-
-            // Ensure width is available - use fallback if not measured
-            const width = progressBarWidthRef.current || 300;
-            if (width === 0) return;
-
-            // Check if touch has moved too far vertically from progress bar
-            const currentPageY = evt.nativeEvent.pageY;
-            const y = wrapperYRef.current;
-            const height = wrapperHeightRef.current;
-            const verticalTolerance = 30; // Allow some vertical movement tolerance
-
-            // If finger moved too far vertically, cancel the drag
-            if (
-               (y > 0 || height > 0) && // Only check if position is measured
-               (currentPageY < y - verticalTolerance ||
-                  currentPageY > y + height + verticalTolerance)
-            ) {
-               isDragCancelledRef.current = true;
-               // Cancel drag and reset
-               isDraggingValue.value = false;
-               setDragging(false);
-               return;
-            }
-
-            // Track that user has moved (dragging, not just tapping)
-            if (Math.abs(gestureState.dx) > 2) {
-               hasMovedRef.current = true;
-            }
-
-            // Calculate position based on initial touch position + horizontal movement
-            // This ensures consistent dragging regardless of where user initially touched
-            // dx is in pixels, convert to percentage by dividing by width
-            const dxPercentage = gestureState.dx / width;
-
-            // Use the initial touch position as the starting point
-            const initialTouchX = initialTouchXRef.current;
-            const initialTouchRelativeX = Math.max(0, Math.min(width, initialTouchX - 8));
-            const initialTouchPercentage = Math.max(0, Math.min(1, initialTouchRelativeX / width));
-
-            // Calculate new position: initial touch position + movement
-            const newPercentage = Math.max(0, Math.min(1, initialTouchPercentage + dxPercentage));
-
-            // Update drag progress directly in shared value (no re-render)
-            dragProgressValue.value = newPercentage;
-
-            // Update displayed time via runOnJS (only updates state when needed)
-            const targetTime = newPercentage * totalDurationRef.current;
-            runOnJS(updateDisplayedTime)(Math.floor(targetTime));
-         },
-         onPanResponderRelease: (_evt, gestureState) => {
-            if (totalDurationRef.current === 0) {
-               isDraggingValue.value = false;
-               setDragging(false);
-               return;
-            }
-
-            // Ensure width is available - use fallback if not measured
-            const width = progressBarWidthRef.current || 300;
-            if (width === 0) {
-               isDraggingValue.value = false;
-               setDragging(false);
-               return;
-            }
-
-            // If drag was cancelled, don't seek
-            if (isDragCancelledRef.current) {
-               isDraggingValue.value = false;
-               setDragging(false);
-               setDisplayedTime(0);
-               return;
-            }
-
-            // Calculate final position using initial touch + dx (consistent with Move handler)
-            const initialTouchX = initialTouchXRef.current;
-            const initialTouchRelativeX = Math.max(0, Math.min(width, initialTouchX - 8));
-            const initialTouchPercentage = Math.max(0, Math.min(1, initialTouchRelativeX / width));
-
-            // Calculate final position: initial touch position + movement
-            const dxPercentage = gestureState.dx / width;
-            const percentage = Math.max(0, Math.min(1, initialTouchPercentage + dxPercentage));
-            const targetTime = percentage * totalDurationRef.current;
-
-            // CRITICAL: Update actualProgressValue to match drag position BEFORE releasing drag state
-            // This prevents flicker by ensuring smooth transition from drag to actual progress
-            actualProgressValue.value = percentage;
-
-            // Now safe to release drag state - visual will stay at same position
-            isDraggingValue.value = false;
-            setDragging(false);
-
-            // Seek to final position (only once, no double-seeking)
-            runOnJS(seekToTimeFromWorklet)(targetTime);
-
-            // Reset displayed time after a brief delay
-            setTimeout(() => {
-               setDisplayedTime(0);
-            }, 100);
-         },
-         onPanResponderTerminate: () => {
-            // Cancel drag on termination
-            isDraggingValue.value = false;
-            setDragging(false);
-            setDisplayedTime(0);
-            hasMovedRef.current = false;
-            isDragCancelledRef.current = false;
-         },
-      })
-   ).current;
-
-   // Unified animated style for progress fill - switches between drag and actual progress
-   const progressFillAnimatedStyle = useAnimatedStyle(() => {
-      // Use drag progress when dragging, otherwise use actual progress
-      const progress = isDraggingValue.value ? dragProgressValue.value : actualProgressValue.value;
-      const clampedProgress = Math.max(0, Math.min(1, progress));
-      return {
-         width: `${clampedProgress * 100}%`,
-      };
-   });
-
-   // Unified animated style for progress handle position
-   const progressHandleAnimatedStyle = useAnimatedStyle(() => {
-      // Use drag progress when dragging, otherwise use actual progress
-      const progress = isDraggingValue.value ? dragProgressValue.value : actualProgressValue.value;
-      const clampedProgress = Math.max(0, Math.min(1, progress));
-      return {
-         left: `${clampedProgress * 100}%`,
-         transform: [{ translateX: -PROGRESS_HANDLE_CENTER_OFFSET }],
-      };
-   });
-
-   // Update displayed time when dragging (using animated reaction to avoid re-renders)
-   useAnimatedReaction(
-      () => {
-         if (isDraggingValue.value && totalDuration > 0) {
-            return Math.floor(dragProgressValue.value * totalDuration);
-         }
-         return null;
+   const handleSeekComplete = useCallback(
+      (seconds: number) => {
+         seekToTime(seconds);
       },
-      (time) => {
-         if (time !== null) {
-            runOnJS(updateDisplayedTime)(time);
-         }
-      },
-      [totalDuration]
+      [seekToTime]
    );
 
    // Get chapter cover image URI based on minimized state
@@ -530,6 +229,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
                chapterId: currentChapterId,
                action: 'pause',
                position: playbackPosition,
+               durationSeconds: totalDuration > 0 ? totalDuration : undefined,
             }).catch((error: unknown) => {
                console.error('[Audio Player] Failed to sync playback on pause:', error);
             });
@@ -545,6 +245,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
                chapterId: currentChapterId,
                action: 'play',
                position: playbackPosition,
+               durationSeconds: totalDuration > 0 ? totalDuration : undefined,
             }).catch((error: unknown) => {
                console.error('[Audio Player] Failed to sync playback on play:', error);
             });
@@ -556,6 +257,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
       audiobookId,
       currentChapterId,
       playbackPosition,
+      totalDuration,
       playPlayback,
       pausePlayback,
    ]);
@@ -573,6 +275,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
                chapterId: currentChapterId,
                action: 'pause',
                position: playbackPosition,
+               durationSeconds: totalDuration > 0 ? totalDuration : undefined,
             }).catch((error: unknown) => {
                console.error('[Audio Player] Failed to sync playback on close:', error);
             });
@@ -681,12 +384,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
       handleSeek(skipDurationSeconds);
    };
 
-   // Calculate elapsed time for display (absolute position)
-   const elapsedTime = useMemo(() => {
-      return Math.floor(playbackPosition);
-   }, [playbackPosition]);
-
-   // Calculate total time for display
+   // Calculate elapsed time for minimized display
    const totalTime = useMemo(() => {
       return Math.floor(totalDuration);
    }, [totalDuration]);
@@ -746,24 +444,6 @@ export const AudioPlayer: React.FC = React.memo(() => {
       containerBottom.value = withSpring(targetContainerBottom, PLAYER_BOTTOM_SPRING);
    }, [targetContainerBottom, containerBottom]);
 
-   // Re-measure wrapper position when player becomes visible
-   useEffect(() => {
-      if (isVisible && progressBarWrapperRef.current) {
-         // Small delay to ensure layout is complete
-         const timer = setTimeout(() => {
-            if (progressBarWrapperRef.current) {
-               progressBarWrapperRef.current.measureInWindow((x, y, width, height) => {
-                  wrapperXRef.current = x;
-                  wrapperYRef.current = y;
-                  wrapperWidthRef.current = width;
-                  wrapperHeightRef.current = height;
-               });
-            }
-         }, 100);
-         return () => clearTimeout(timer);
-      }
-      return undefined;
-   }, [isVisible]);
 
    // Handle open/close animations
    useEffect(() => {
@@ -1083,9 +763,6 @@ export const AudioPlayer: React.FC = React.memo(() => {
                         >
                            <Ionicons name="close" size={FP.headerMenuIconSize} color={colors.accent.primaryDark} />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.closeButton} activeOpacity={0.7}>
-                           <Ionicons name="ellipsis-horizontal" size={FP.headerMenuIconSize} color={colors.accent.primaryDark} />
-                        </TouchableOpacity>
                      </View>
                   </View>
 
@@ -1121,51 +798,14 @@ export const AudioPlayer: React.FC = React.memo(() => {
                   </ScrollView>
 
                   <View style={styles.playerFixedFooter}>
-                     {/* Progress Bar */}
-                     <View style={styles.progressContainer}>
-                     <View
-                        ref={progressBarWrapperRef}
-                        style={styles.progressBarWrapper}
-                        onLayout={handleProgressBarLayout}
-                        collapsable={false}
-                     >
-                        <View
-                           style={styles.progressBarTouchable}
-                           {...progressBarPanResponder.panHandlers}
-                           collapsable={false}
-                        >
-                           <View style={styles.progressBarContainer}>
-                              <View style={styles.progressBar}>
-                                 <Animated.View
-                                    style={[
-                                       styles.progressFill,
-                                       progressFillAnimatedStyle,
-                                    ]}
-                                 />
-                              </View>
-                              <Animated.View
-                                 style={[
-                                    styles.progressHandle,
-                                    progressHandleAnimatedStyle,
-                                 ]}
-                              />
-                           </View>
-                        </View>
-                     </View>
-                     <View style={styles.timeContainer}>
-                        <Text style={styles.timeText}>
-                           {displayedTime > 0
-                              ? formatDuration(displayedTime)
-                              : formatDuration(elapsedTime)}
-                        </Text>
-                        <Text style={styles.timeText}>
-                           {formatDuration(totalTime)}
-                        </Text>
-                        <Text style={styles.timeText}>
-                           -{formatDuration(Math.max(0, totalTime - (displayedTime > 0 ? displayedTime : elapsedTime)))}
-                        </Text>
-                     </View>
-                     </View>
+                     <AudioPlayerSeekBar
+                        duration={totalDuration}
+                        position={playbackPosition}
+                        disabled={totalDuration <= 0 || isLoading}
+                        onSeekStart={handleSeekStart}
+                        onSeekEnd={handleSeekEnd}
+                        onSeekComplete={handleSeekComplete}
+                     />
 
                      {/* Controls */}
                      <View style={styles.controlsContainer}>
@@ -1366,7 +1006,7 @@ const styles = StyleSheet.create({
    },
    header: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
+      justifyContent: 'flex-end',
       alignItems: 'center',
       marginBottom: FP.headerMarginBottom,
    },
@@ -1446,86 +1086,6 @@ const styles = StyleSheet.create({
    coverImage: {
       width: '100%',
       height: '100%',
-   },
-   progressContainer: {
-      marginBottom: FP.progressMarginBottom,
-   },
-   progressBarWrapper: {
-      marginBottom: spacing.xs,
-      paddingVertical: spacing.sm,
-      paddingHorizontal: FP.progressBarHorizontalPadding,
-   },
-   progressBarTouchable: {
-      width: '100%',
-      minHeight: FP.progressTouchMinHeight,
-      justifyContent: 'center',
-   },
-   progressBarContainer: {
-      position: 'relative',
-      width: '100%',
-      height: FP.progressBarHeight,
-      justifyContent: 'center',
-      ...Platform.select({
-         ios: {
-            shadowColor: '#ffffff',
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.4,
-            shadowRadius: 5,
-         },
-         android: {
-            elevation: 3,
-         },
-      }),
-   },
-   progressBar: {
-      height: FP.progressBarHeight,
-      backgroundColor: colors.border.light,
-      borderRadius: borderRadius.sm,
-      overflow: 'hidden',
-      width: '100%',
-   },
-   progressFill: {
-      height: '100%',
-      backgroundColor: colors.accent.primary,
-      borderWidth: 0,
-   },
-   progressHandle: {
-      position: 'absolute',
-      width: FP.progressHandleSize,
-      height: FP.progressHandleSize,
-      borderRadius: FP.progressHandleSize / 2,
-      backgroundColor: colors.accent.primary,
-      borderWidth: 2,
-      borderColor: colors.background.screen,
-      top: PROGRESS_HANDLE_TOP,
-      ...Platform.select({
-         ios: {
-            shadowColor: '#ffffff',
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.6,
-            shadowRadius: 8,
-         },
-         android: {
-            elevation: 5,
-         },
-      }),
-   },
-   timeContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-   },
-   timeText: {
-      fontSize: FP.timeTextSize,
-      color: colors.text.secondaryDark,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '400',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
-      }),
    },
    controlsContainer: {
       alignSelf: 'stretch',
