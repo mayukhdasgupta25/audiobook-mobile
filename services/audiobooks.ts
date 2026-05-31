@@ -360,6 +360,30 @@ export async function getAudiobooks(page = 1): Promise<AudiobooksResponse> {
 }
 
 /**
+ * Get audiobooks filtered by mood ID
+ * GET /api/v1/audiobooks?moodIds={moodId}&page={page}
+ */
+export async function getAudiobooksByMood(
+   moodId: string,
+   page = 1
+): Promise<AudiobooksResponse> {
+   try {
+      const response = await get<AudiobooksResponse>(
+         `${API_V1_PATH}/audiobooks?moodIds=${encodeURIComponent(moodId)}&page=${page}`,
+         true
+      );
+      return response.data;
+   } catch (error) {
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Failed to fetch mood audiobooks: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
  * Get chapters for an audiobook with pagination
  * Calls GET {API_V1_PATH}/audiobooks/:audiobookId/chapters?page={page} with Bearer token
  * @param audiobookId - Audiobook ID

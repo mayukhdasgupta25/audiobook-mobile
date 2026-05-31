@@ -16,6 +16,7 @@ import { Image } from 'expo-image';
 import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
 import { ContinueListeningCard } from '@/components/ContinueListeningCard';
 import { MoodChip } from '@/components/MoodChip';
+import { useMoods } from '@/hooks/useMoods';
 import { ContentRow, ContentItem } from '@/components/ContentRow';
 import { DrawerMenu } from '@/components/DrawerMenu';
 import { colors, spacing, typography, borderRadius, shadows } from '@/theme';
@@ -27,14 +28,11 @@ import { useOrganizations } from '@/hooks/useOrganizations';
 import { PublisherRow } from '@/components/PublisherRow';
 import { apiConfig } from '@/services/api';
 import { Organization } from '@/services/organizations';
+import { logout } from '@/utils/logout';
+import { resolveAvatarUrl } from '@/utils/resolveAvatarUrl';
+import { resolveMembershipTier } from '@/utils/membershipDisplay';
+import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { RootState } from '@/store';
-
-const MOOD_CHIPS = [
-   { label: 'Motivation', icon: 'flame-outline' as const },
-   { label: 'Focus', icon: 'eye-outline' as const },
-   { label: 'Calm', icon: 'leaf-outline' as const },
-   { label: 'Growth', icon: 'trending-up-outline' as const },
-];
 
 function HomeScreenContent() {
    const paginationTriggeredRef = useRef<Record<string, boolean>>({});
@@ -43,17 +41,43 @@ function HomeScreenContent() {
    const { greeting, subtitle: timeOfDaySubtitle } = useTimeOfDay();
 
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
+   const { activeSubscription } = useUserSubscription();
    const playerAudiobookId = useSelector((state: RootState) => state.player.audiobookId);
    const chapterMetadata = useSelector((state: RootState) => state.player.chapterMetadata);
    const playbackPosition = useSelector((state: RootState) => state.player.playbackPosition);
    const totalDuration = useSelector((state: RootState) => state.player.totalDuration);
 
-   const displayName = useMemo(() => {
+   const greetingName = useMemo(() => {
       if (userProfile?.firstName) return userProfile.firstName;
       return 'there';
    }, [userProfile]);
 
+   const drawerDisplayName = useMemo(() => {
+      if (userProfile?.firstName && userProfile?.lastName) {
+         return `${userProfile.firstName} ${userProfile.lastName}`;
+      }
+      if (userProfile?.firstName) return userProfile.firstName;
+      if (userProfile?.username) return userProfile.username;
+      return 'User';
+   }, [userProfile]);
+   const drawerAvatarUri = resolveAvatarUrl(userProfile?.avatar);
+   const membershipTier = resolveMembershipTier(activeSubscription?.plan);
+   const planName = activeSubscription?.plan.name;
+
+   const handleDrawerNavigate = useCallback((href: string) => {
+      router.push(href as never);
+   }, []);
+
+   const handleDrawerSignOut = useCallback(async () => {
+      try {
+         await logout();
+      } catch (error) {
+         console.error('[Home] Logout failed:', error);
+      }
+   }, []);
+
    const { contentRows, isLoading, error, loadNextPage, heroCarouselItems } = useHomeContent();
+   const { data: moods, isLoading: moodsLoading } = useMoods();
    const { data: organizationsData, isLoading: organizationsLoading } = useOrganizations();
    const organizations = organizationsData?.data ?? [];
 
@@ -220,7 +244,7 @@ function HomeScreenContent() {
             {/* Greeting */}
             <View style={styles.greetingSection}>
                <Text style={styles.greeting}>
-                  {greeting}, {displayName}
+                  {greeting}, {greetingName}
                </Text>
                <Text style={styles.greetingSubtitle}>{timeOfDaySubtitle}</Text>
             </View>
@@ -288,14 +312,18 @@ function HomeScreenContent() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.moodRow}
                >
-                  {MOOD_CHIPS.map((mood) => (
-                     <MoodChip
-                        key={mood.label}
-                        label={mood.label}
-                        icon={mood.icon}
-                        onPress={() => router.push('/(tabs)/discover' as never)}
-                     />
-                  ))}
+                  {moodsLoading ? (
+                     <ActivityIndicator size="small" color={colors.accent.primary} />
+                  ) : (
+                     (moods ?? []).map((mood) => (
+                        <MoodChip
+                           key={mood.id}
+                           mood={mood}
+                           variant="card"
+                           onPress={() => router.push(`/moods/${mood.id}` as never)}
+                        />
+                     ))
+                  )}
                </ScrollView>
             </View>
 
@@ -373,14 +401,13 @@ function HomeScreenContent() {
          <DrawerMenu
             visible={drawerVisible}
             onClose={() => setDrawerVisible(false)}
-            onAccountPress={() => {
-               setDrawerVisible(false);
-               router.push('/account');
-            }}
-            onAppSettingsPress={() => {
-               setDrawerVisible(false);
-               router.push('/account');
-            }}
+            currentRoute="index"
+            displayName={drawerDisplayName}
+            avatarUri={drawerAvatarUri}
+            membershipTier={membershipTier}
+            planName={planName}
+            onNavigate={handleDrawerNavigate}
+            onSignOut={handleDrawerSignOut}
          />
       </SafeAreaView>
    );
@@ -480,6 +507,7 @@ const styles = StyleSheet.create({
    },
    moodRow: {
       paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
    },
    trendingSection: {
       marginBottom: 0,

@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import {
    View,
    Text,
+   Image,
    StyleSheet,
    TouchableOpacity,
    Modal,
@@ -10,79 +11,140 @@ import {
    Dimensions,
    Platform,
    BackHandler,
+   ScrollView,
+   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, shadows } from '@/theme';
+import { colors, spacing, typography, shadows, borderRadius } from '@/theme';
 import {
    DRAWER_SLIDE_SPRING,
    DRAWER_BACKDROP_FADE_MS,
    DRAWER_CLOSE_MS,
 } from '@/theme/tabAnimation';
+import { MembershipIndicator } from '@/components/profile/MembershipIndicator';
+import { MembershipBanner } from '@/components/profile/MembershipBanner';
+import { getMembershipLabel, type MembershipTier } from '@/utils/membershipDisplay';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.75, 320);
+const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.82, 320);
+
+export type DrawerRoute = 'index' | 'library' | 'discover' | 'profile';
 
 interface DrawerMenuProps {
    visible: boolean;
    onClose: () => void;
-   onAppSettingsPress?: () => void;
-   onAccountPress?: () => void;
-   onHelpPress?: () => void;
-   onSignOutPress?: () => void;
+   currentRoute?: DrawerRoute;
+   displayName: string;
+   avatarUri?: string;
+   membershipTier: MembershipTier;
+   planName?: string;
+   onNavigate: (href: string) => void;
+   onSignOut: () => void;
 }
 
-interface MenuItem {
+interface NavItem {
    id: string;
    label: string;
    icon: keyof typeof Ionicons.glyphMap;
-   onPress?: () => void;
+   activeIcon?: keyof typeof Ionicons.glyphMap;
+   href?: string;
+   isTab?: boolean;
+   showBadge?: boolean;
    isDanger?: boolean;
 }
 
+function getInitials(name: string): string {
+   const names = name.trim().split(' ');
+   if (names.length >= 2) {
+      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+   }
+   return name.substring(0, 2).toUpperCase();
+}
+
 /**
- * Drawer menu component that slides in from the left
- * Contains navigation menu items for the app
+ * Side drawer with user header, membership card, navigation, and dark mode shell.
  */
 export const DrawerMenu: React.FC<DrawerMenuProps> = ({
    visible,
    onClose,
-   onAppSettingsPress,
-   onAccountPress,
-   onHelpPress,
-   onSignOutPress,
+   currentRoute = 'index',
+   displayName,
+   avatarUri,
+   membershipTier,
+   planName,
+   onNavigate,
+   onSignOut,
 }) => {
    const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
    const backdropOpacity = useRef(new Animated.Value(0)).current;
    const [isAnimating, setIsAnimating] = React.useState(false);
+   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
    const openAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
    const closeAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
 
-   // Menu items configuration
-   const menuItems: MenuItem[] = [
+   const navItems: NavItem[] = [
       {
-         id: 'settings',
-         label: 'App Settings',
-         icon: 'settings-outline',
-         onPress: onAppSettingsPress,
+         id: 'home',
+         label: 'Home',
+         icon: 'home-outline',
+         activeIcon: 'home',
+         href: '/(tabs)',
+         isTab: true,
       },
       {
-         id: 'account',
-         label: 'Account',
-         icon: 'person-outline',
-         onPress: onAccountPress,
+         id: 'library',
+         label: 'Library',
+         icon: 'library-outline',
+         activeIcon: 'library',
+         href: '/(tabs)/library',
+         isTab: true,
+      },
+      {
+         id: 'discover',
+         label: 'Discover',
+         icon: 'compass-outline',
+         activeIcon: 'compass',
+         href: '/(tabs)/discover',
+         isTab: true,
+      },
+      {
+         id: 'favorites',
+         label: 'Favorites',
+         icon: 'heart-outline',
+         href: '/library/favorites',
+      },
+      {
+         id: 'downloads',
+         label: 'Downloads',
+         icon: 'download-outline',
+      },
+      {
+         id: 'history',
+         label: 'Listening History',
+         icon: 'time-outline',
+      },
+      {
+         id: 'bookmarks',
+         label: 'My Bookmarks',
+         icon: 'bookmark-outline',
+         href: '/library/bookmarks',
+      },
+      {
+         id: 'notifications',
+         label: 'Notifications',
+         icon: 'notifications-outline',
+         showBadge: true,
+      },
+      {
+         id: 'settings',
+         label: 'Settings',
+         icon: 'settings-outline',
+         href: '/settings',
       },
       {
          id: 'help',
-         label: 'Help',
+         label: 'Help & Support',
          icon: 'help-circle-outline',
-         onPress: onHelpPress,
-      },
-      {
-         id: 'signout',
-         label: 'Sign Out',
-         icon: 'log-out-outline',
-         onPress: onSignOutPress,
-         isDanger: true,
       },
    ];
 
@@ -93,7 +155,6 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
       backdropOpacity.setValue(0);
       setIsAnimating(true);
 
-      // Defer one frame so Modal layout is ready before the slide begins
       requestAnimationFrame(() => {
          openAnimationRef.current = Animated.parallel([
             Animated.spring(slideAnim, {
@@ -145,7 +206,6 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
       [slideAnim, backdropOpacity]
    );
 
-   // Animate drawer open when visible becomes true
    useEffect(() => {
       if (visible) {
          runOpenAnimation();
@@ -156,7 +216,6 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
       runCloseAnimation(onClose);
    }, [runCloseAnimation, onClose]);
 
-   // Handle Android back button
    useEffect(() => {
       if (!visible) return;
 
@@ -168,17 +227,39 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
       return () => backHandler.remove();
    }, [visible, handleClose]);
 
-   const handleMenuItemPress = (item: MenuItem) => {
+   const handleItemPress = (item: NavItem) => {
       runCloseAnimation(() => {
          onClose();
-         item.onPress?.();
+         if (item.href) {
+            onNavigate(item.href);
+         }
       });
    };
 
-   // Don't render if not visible and not animating
+   const handleSignOutPress = () => {
+      runCloseAnimation(() => {
+         onClose();
+         onSignOut();
+      });
+   };
+
+   const handleBannerPress = () => {
+      runCloseAnimation(() => {
+         onClose();
+         onNavigate('/subscription-plans');
+      });
+   };
+
+   const isItemActive = (item: NavItem): boolean => {
+      if (!item.isTab) return false;
+      return item.id === currentRoute || (item.id === 'home' && currentRoute === 'index');
+   };
+
    if (!visible && !isAnimating) {
       return null;
    }
+
+   const membershipLabel = getMembershipLabel(membershipTier, planName);
 
    return (
       <Modal
@@ -188,21 +269,10 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
          statusBarTranslucent
          onRequestClose={handleClose}
       >
-         {/* Backdrop */}
-         <TouchableOpacity
-            style={styles.backdrop}
-            activeOpacity={1}
-            onPress={handleClose}
-         >
-            <Animated.View
-               style={[
-                  styles.backdropOverlay,
-                  { opacity: backdropOpacity },
-               ]}
-            />
+         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={handleClose}>
+            <Animated.View style={[styles.backdropOverlay, { opacity: backdropOpacity }]} />
          </TouchableOpacity>
 
-         {/* Drawer Container */}
          <Animated.View
             style={[
                styles.drawerContainer,
@@ -212,49 +282,104 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
                },
             ]}
          >
-            {/* Drawer Header */}
-            <View style={styles.drawerHeader}>
-               <Text style={styles.headerTitle}>Menu</Text>
+            <ScrollView
+               style={styles.scrollView}
+               contentContainerStyle={styles.scrollContent}
+               showsVerticalScrollIndicator={false}
+            >
+               <View style={styles.userHeader}>
+                  {avatarUri ? (
+                     <Image source={{ uri: avatarUri }} style={styles.avatar} />
+                  ) : (
+                     <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                        <Text style={styles.avatarText}>{getInitials(displayName)}</Text>
+                     </View>
+                  )}
+                  <View style={styles.userInfo}>
+                     <View style={styles.nameRow}>
+                        <Text style={styles.userName} numberOfLines={1}>
+                           {displayName}
+                        </Text>
+                        <MembershipIndicator tier={membershipTier} size={16} />
+                     </View>
+                     <Text style={styles.membershipLabel}>{membershipLabel}</Text>
+                  </View>
+               </View>
+
+               <MembershipBanner
+                  variant="drawer"
+                  tier={membershipTier}
+                  planName={planName}
+                  onPress={handleBannerPress}
+               />
+
+               <View style={styles.navSection}>
+                  {navItems.map((item) => {
+                     const active = isItemActive(item);
+                     const iconName = active && item.activeIcon ? item.activeIcon : item.icon;
+
+                     return (
+                        <TouchableOpacity
+                           key={item.id}
+                           style={[styles.navItem, active && styles.navItemActive]}
+                           onPress={() => handleItemPress(item)}
+                           activeOpacity={0.7}
+                           accessibilityRole="button"
+                           accessibilityLabel={item.label}
+                        >
+                           <Ionicons
+                              name={iconName}
+                              size={22}
+                              color={active ? colors.accent.primary : colors.text.primary}
+                              style={styles.navIcon}
+                           />
+                           <Text
+                              style={[styles.navText, active && styles.navTextActive]}
+                           >
+                              {item.label}
+                           </Text>
+                           {item.showBadge ? <View style={styles.notificationDot} /> : null}
+                        </TouchableOpacity>
+                     );
+                  })}
+               </View>
+
+               <View style={styles.divider} />
+
                <TouchableOpacity
-                  onPress={handleClose}
-                  style={styles.closeButton}
+                  style={styles.signOutItem}
+                  onPress={handleSignOutPress}
                   activeOpacity={0.7}
                >
-                  <Ionicons name="close" size={28} color={colors.text.dark} />
+                  <Ionicons
+                     name="log-out-outline"
+                     size={22}
+                     color={colors.accent.primaryDark}
+                     style={styles.navIcon}
+                  />
+                  <Text style={styles.signOutText}>Log Out</Text>
                </TouchableOpacity>
-            </View>
+            </ScrollView>
 
-            {/* Drawer Content */}
-            <View style={styles.drawerContent}>
-               {menuItems.map((item, index) => (
-                  <React.Fragment key={item.id}>
-                     {item.isDanger && index > 0 && <View style={styles.divider} />}
-
-                     <TouchableOpacity
-                        style={styles.menuItem}
-                        onPress={() => handleMenuItemPress(item)}
-                        activeOpacity={0.7}
-                        accessibilityRole="button"
-                        accessibilityLabel={item.label}
-                        accessibilityHint={`Navigate to ${item.label}`}
-                     >
-                        <Ionicons
-                           name={item.icon}
-                           size={24}
-                           color={item.isDanger ? colors.error : colors.text.dark}
-                           style={styles.menuIcon}
-                        />
-                        <Text
-                           style={[
-                              styles.menuText,
-                              item.isDanger && styles.menuTextDanger,
-                           ]}
-                        >
-                           {item.label}
-                        </Text>
-                     </TouchableOpacity>
-                  </React.Fragment>
-               ))}
+            <View style={styles.footer}>
+               <View style={styles.darkModeRow}>
+                  <Ionicons
+                     name="moon-outline"
+                     size={22}
+                     color={colors.text.primary}
+                     style={styles.navIcon}
+                  />
+                  <Text style={styles.darkModeText}>Dark Mode</Text>
+                  <Switch
+                     value={darkModeEnabled}
+                     onValueChange={setDarkModeEnabled}
+                     trackColor={{
+                        false: colors.border.medium,
+                        true: colors.primary[300],
+                     }}
+                     thumbColor={colors.background.screen}
+                  />
+               </View>
             </View>
          </Animated.View>
       </Modal>
@@ -278,7 +403,7 @@ const styles = StyleSheet.create({
       top: 0,
       left: 0,
       bottom: 0,
-      backgroundColor: colors.background.darkGrayLight,
+      backgroundColor: colors.primary[50],
       ...shadows.lg,
       shadowColor: '#000',
       shadowOffset: { width: 2, height: 0 },
@@ -286,70 +411,145 @@ const styles = StyleSheet.create({
       shadowRadius: 8,
       elevation: 16,
    },
-   drawerHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingTop: Platform.OS === 'ios' ? 60 : 40,
-      paddingBottom: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border.light,
-   },
-   headerTitle: {
-      fontSize: typography.fontSize.xl,
-      fontWeight: '600',
-      color: colors.text.dark,
-      letterSpacing: -0.3,
-      ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '600',
-         },
-         android: {
-            fontFamily: 'sans-serif-medium',
-         },
-      }),
-   },
-   closeButton: {
-      padding: spacing.xs,
-   },
-   drawerContent: {
+   scrollView: {
       flex: 1,
-      paddingTop: spacing.md,
    },
-   menuItem: {
+   scrollContent: {
+      paddingTop: Platform.OS === 'ios' ? 56 : 40,
+      paddingBottom: spacing.md,
+   },
+   userHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
-      minHeight: 56,
+      marginBottom: spacing.md,
    },
-   menuIcon: {
+   avatar: {
+      width: 52,
+      height: 52,
+      borderRadius: borderRadius.full,
       marginRight: spacing.md,
    },
-   menuText: {
+   avatarPlaceholder: {
+      backgroundColor: colors.primary[200],
+      justifyContent: 'center',
+      alignItems: 'center',
+   },
+   avatarText: {
       fontSize: typography.fontSize.lg,
-      fontWeight: '500',
-      color: colors.text.dark,
-      letterSpacing: -0.2,
+      color: colors.accent.primary,
       ...Platform.select({
-         ios: {
-            fontFamily: 'System',
-            fontWeight: '500',
-         },
-         android: {
-            fontFamily: 'sans-serif',
-         },
+         ios: { fontFamily: 'System', fontWeight: '700' },
+         android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
       }),
    },
-   menuTextDanger: {
-      color: colors.error,
+   userInfo: {
+      flex: 1,
+      minWidth: 0,
+   },
+   nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+   },
+   userName: {
+      fontSize: typography.fontSize.lg,
+      color: colors.text.primary,
+      flexShrink: 1,
+      ...Platform.select({
+         ios: { fontFamily: 'System', fontWeight: '700' },
+         android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
+      }),
+   },
+   membershipLabel: {
+      fontSize: typography.fontSize.sm,
+      color: colors.text.secondary,
+      marginTop: 2,
+   },
+   navSection: {
+      paddingHorizontal: spacing.sm,
+   },
+   navItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 2,
+      borderRadius: borderRadius.md,
+      marginBottom: 2,
+      minHeight: 44,
+   },
+   navItemActive: {
+      backgroundColor: colors.background.highlight,
+   },
+   navIcon: {
+      marginRight: spacing.md,
+   },
+   navText: {
+      flex: 1,
+      fontSize: typography.fontSize.base,
+      color: colors.text.primary,
+      ...Platform.select({
+         ios: { fontFamily: 'System', fontWeight: '500' },
+         android: { fontFamily: 'sans-serif-medium' },
+      }),
+   },
+   navTextActive: {
+      color: colors.accent.primary,
+      ...Platform.select({
+         ios: { fontFamily: 'System', fontWeight: '600' },
+         android: { fontFamily: 'sans-serif-medium', fontWeight: '600' },
+      }),
+   },
+   notificationDot: {
+      width: 8,
+      height: 8,
+      borderRadius: borderRadius.full,
+      backgroundColor: colors.warning,
    },
    divider: {
       height: 1,
       backgroundColor: colors.border.light,
-      marginVertical: spacing.sm,
       marginHorizontal: spacing.md,
+      marginVertical: spacing.sm,
+   },
+   signOutItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 2,
+      marginHorizontal: spacing.sm,
+      minHeight: 44,
+   },
+   signOutText: {
+      fontSize: typography.fontSize.base,
+      color: colors.accent.primaryDark,
+      ...Platform.select({
+         ios: { fontFamily: 'System', fontWeight: '600' },
+         android: { fontFamily: 'sans-serif-medium', fontWeight: '600' },
+      }),
+   },
+   footer: {
+      borderTopWidth: 1,
+      borderTopColor: colors.border.light,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.md,
+   },
+   darkModeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background.card,
+      borderRadius: borderRadius.lg,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+   },
+   darkModeText: {
+      flex: 1,
+      fontSize: typography.fontSize.base,
+      color: colors.text.primary,
+      ...Platform.select({
+         ios: { fontFamily: 'System', fontWeight: '500' },
+         android: { fontFamily: 'sans-serif-medium' },
+      }),
    },
 });

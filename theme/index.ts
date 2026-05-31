@@ -72,6 +72,39 @@ export const colors = {
       light: '#E5E7EB',
       medium: '#D1D5DB',
    },
+   /** Colored icon circle backgrounds and foregrounds for profile/settings UI */
+   iconBackgrounds: {
+      brown: '#F5E6D3',
+      green: '#E6F4EA',
+      pink: '#FCE7F3',
+      purple: '#EDE9FE',
+      yellow: '#FEF9C3',
+      blue: '#DBEAFE',
+      greenShield: '#DCFCE7',
+      orange: '#FFEDD5',
+      red: '#FEE2E2',
+      peach: '#FEF3E2',
+      neutral: '#F3F4F6',
+   },
+   iconForegrounds: {
+      brown: '#6F431B',
+      green: '#16A34A',
+      pink: '#DB2777',
+      purple: '#7C3AED',
+      yellow: '#CA8A04',
+      blue: '#2563EB',
+      orange: '#EA580C',
+      red: '#DC2626',
+      muted: '#9CA3AF',
+   },
+   membership: {
+      bannerBg: '#FEF3E2',
+      bannerText: '#6F431B',
+      badgeBg: '#FEF3E2',
+      badgeText: '#6F431B',
+      noneBadgeBg: '#F3F4F6',
+      noneBadgeText: '#6B7280',
+   },
 } as const;
 
 export const spacing = {

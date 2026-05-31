@@ -204,7 +204,9 @@ function InnerLayout() {
          segments[0] === 'search' ||
          segments[0] === 'library' ||
          segments[0] === 'playlists' ||
+         String(segments[0]) === 'moods' ||
          segments[0] === 'account' ||
+         String(segments[0]) === 'settings' ||
          segments[0] === 'subscription-plans' ||
          segments[0] === 'update-first-name' ||
          segments[0] === 'update-last-name' ||
