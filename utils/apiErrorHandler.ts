@@ -4,7 +4,6 @@
  */
 
 import { ApiError } from '@/services/api';
-import { logout } from '@/utils/logout';
 
 /**
  * Flag to prevent multiple simultaneous 401 handlers
@@ -30,8 +29,7 @@ export async function handle401Error(error: ApiError, skipRedirect = false): Pro
    isHandling401 = true;
 
    try {
-      // Clear all reducers and redirect to signin
-      // Note: If logout API fails, state won't be cleared per requirements
+      const { logout } = await import('@/utils/logout');
       await logout(skipRedirect);
    } catch (logoutError) {
       // Log error but continue - logout API failure means state wasn't cleared

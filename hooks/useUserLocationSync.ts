@@ -12,7 +12,7 @@ import { syncUserLocationToProfile } from '@/services/location';
  * When the user is already authenticated on app launch, sync location to profile once.
  * Does not block navigation or UI.
  */
-export function useUserLocationSync(): void {
+export function useUserLocationSync(isAppReady: boolean): void {
    const isAuthenticated = useSelector(
       (state: RootState) => state.auth.isAuthenticated
    );
@@ -24,7 +24,7 @@ export function useUserLocationSync(): void {
    const hasSyncedForSessionRef = useRef(false);
 
    useEffect(() => {
-      if (!isInitialized || !isAuthenticated || !accessToken) {
+      if (!isAppReady || !isInitialized || !isAuthenticated || !accessToken) {
          if (!isAuthenticated) {
             hasSyncedForSessionRef.current = false;
          }
@@ -38,5 +38,5 @@ export function useUserLocationSync(): void {
       hasSyncedForSessionRef.current = true;
 
       void syncUserLocationToProfile();
-   }, [isAuthenticated, isInitialized, accessToken]);
+   }, [isAppReady, isAuthenticated, isInitialized, accessToken]);
 }

@@ -3,27 +3,93 @@
  */
 
 import * as Location from 'expo-location';
+import type { LocationObject } from 'expo-location';
 import {
    clearDeviceLocationCache,
    getCachedDeviceLocation,
    isLocationCacheFresh,
    useDeviceLocationStore,
+   type DeviceLocationReading,
 } from '@/store/deviceLocation';
-import { updateUserProfile, type UserLocation } from './user';
+import { updateUserProfile, type ProfileLocationPayload } from './user';
 
 const LOCATION_PERMISSION_MESSAGE =
    'AudioBook uses your location to personalize your experience and improve our service.';
 
-export type { UserLocation } from './user';
+export type { DeviceLocationReading } from '@/store/deviceLocation';
 export { clearDeviceLocationCache };
+
+type LocationFetchFailureReason =
+   | 'permission_denied'
+   | 'services_disabled'
+   | 'position_unavailable';
+
+let lastLoggedFailure: LocationFetchFailureReason | null = null;
+let memoryFetchInFlight: Promise<DeviceLocationReading | null> | null = null;
+let locationSyncInFlight: Promise<void> | null = null;
+
+function mapPositionToDeviceLocation(position: LocationObject): DeviceLocationReading {
+   return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy ?? null,
+      altitude: position.coords.altitude ?? null,
+      timestamp: new Date(position.timestamp).toISOString(),
+   };
+}
+
+function toProfileLocationPayload(
+   location: DeviceLocationReading
+): ProfileLocationPayload {
+   return {
+      latitude: String(location.latitude),
+      longitude: String(location.longitude),
+   };
+}
+
+function logLocationFailureOnce(
+   reason: LocationFetchFailureReason,
+   detail?: unknown
+): void {
+   if (lastLoggedFailure === reason) {
+      return;
+   }
+   lastLoggedFailure = reason;
+
+   switch (reason) {
+      case 'permission_denied':
+         console.warn(
+            '[Location] Foreground location permission was denied. Grant location access in Settings to personalize your experience.'
+         );
+         break;
+      case 'services_disabled':
+         console.warn(
+            '[Location] Location services are turned off on this device. Enable Location in system settings to sync your profile.'
+         );
+         break;
+      case 'position_unavailable':
+         console.warn('[Location] Unable to read current position:', detail);
+         break;
+   }
+}
+
+function clearLocationFailureLog(): void {
+   lastLoggedFailure = null;
+}
 
 /**
  * Requests while-in-use location permission (sufficient for profile sync on login).
  * @returns true when foreground access is granted
  */
 export async function requestLocationPermissions(): Promise<boolean> {
-   const foreground = await Location.requestForegroundPermissionsAsync();
-   return foreground.status === Location.PermissionStatus.GRANTED;
+   const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
+
+   if (existingStatus === Location.PermissionStatus.GRANTED) {
+      return true;
+   }
+
+   const { status } = await Location.requestForegroundPermissionsAsync();
+   return status === Location.PermissionStatus.GRANTED;
 }
 
 /**
@@ -35,53 +101,45 @@ export async function isLocationServicesEnabled(): Promise<boolean> {
 
 /**
  * Fetches the device's current coordinates (requests permission if needed).
+ * On physical devices we request permission first, then attempt GPS rather than
+ * bailing early on the services check (which can be stale before permission is granted).
  */
-export async function getCurrentDeviceLocation(): Promise<UserLocation | null> {
-   const servicesEnabled = await isLocationServicesEnabled();
-   if (!servicesEnabled) {
-      console.warn('[Location] Location services are disabled on this device.');
-      return null;
-   }
-
+export async function getCurrentDeviceLocation(): Promise<DeviceLocationReading | null> {
    const granted = await requestLocationPermissions();
    if (!granted) {
-      console.warn('[Location] Location permission was not granted.');
+      logLocationFailureOnce('permission_denied');
       return null;
    }
 
-   const position = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-   });
-
-   return {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      accuracy: position.coords.accuracy ?? null,
-      altitude: position.coords.altitude ?? null,
-      timestamp: new Date(position.timestamp).toISOString(),
-   };
+   try {
+      const position = await Location.getCurrentPositionAsync({
+         accuracy: Location.Accuracy.Balanced,
+      });
+      clearLocationFailureLog();
+      return mapPositionToDeviceLocation(position);
+   } catch (error) {
+      const servicesEnabled = await isLocationServicesEnabled();
+      if (!servicesEnabled) {
+         logLocationFailureOnce('services_disabled');
+      } else {
+         logLocationFailureOnce('position_unavailable', error);
+      }
+      return null;
+   }
 }
-
-let memoryFetchInFlight: Promise<UserLocation | null> | null = null;
-let locationSyncInFlight: Promise<void> | null = null;
 
 /**
  * Fetches GPS and stores coordinates in memory (no API call).
  * Safe to call multiple times — concurrent calls share one in-flight request.
  */
-export async function fetchDeviceLocationInMemory(): Promise<UserLocation | null> {
+export async function fetchDeviceLocationInMemory(): Promise<DeviceLocationReading | null> {
    if (memoryFetchInFlight) {
       return memoryFetchInFlight;
    }
 
-   const { isFetching } = useDeviceLocationStore.getState();
-   if (isFetching) {
-      return memoryFetchInFlight ?? Promise.resolve(getCachedDeviceLocation());
-   }
-
-   useDeviceLocationStore.getState().setFetching(true);
-
    memoryFetchInFlight = (async () => {
+      useDeviceLocationStore.getState().setFetching(true);
+
       try {
          const location = await getCurrentDeviceLocation();
          if (location) {
@@ -92,7 +150,7 @@ export async function fetchDeviceLocationInMemory(): Promise<UserLocation | null
          return location;
       } catch (error) {
          useDeviceLocationStore.getState().setFetching(false);
-         console.warn('[Location] Failed to fetch device location:', error);
+         logLocationFailureOnce('position_unavailable', error);
          return null;
       } finally {
          memoryFetchInFlight = null;
@@ -122,7 +180,7 @@ export async function syncUserLocationToProfile(
 
    locationSyncInFlight = (async () => {
       try {
-         let location: UserLocation | null = null;
+         let location: DeviceLocationReading | null = null;
 
          if (!forceRefresh && isLocationCacheFresh()) {
             location = getCachedDeviceLocation();
@@ -136,7 +194,7 @@ export async function syncUserLocationToProfile(
             return;
          }
 
-         await updateUserProfile({ location });
+         await updateUserProfile({ location: toProfileLocationPayload(location) });
          console.log('[Location] User profile updated with device location.');
       } catch (error) {
          console.warn('[Location] Failed to sync location to profile:', error);

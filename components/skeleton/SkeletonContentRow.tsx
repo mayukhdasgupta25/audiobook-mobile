@@ -1,27 +1,33 @@
 import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
 import { SkeletonBox } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
-import { spacing } from '@/theme';
+import { portraitCoverHeight } from './skeletonLayout';
+import { borderRadius, spacing } from '@/theme';
 
 interface SkeletonContentRowProps {
    cardWidth?: number;
    cardCount?: number;
    /** When true, omit the built-in title bar (parent renders section title). */
    hideTitle?: boolean;
+   /** Section title skeleton width when hideTitle is false. */
+   titleWidth?: number;
+   style?: ViewStyle;
 }
 
 export function SkeletonContentRow({
    cardWidth = 140,
    cardCount = 4,
    hideTitle = false,
+   titleWidth = 120,
+   style,
 }: SkeletonContentRowProps) {
-   const cardHeight = Math.round(cardWidth / 0.7);
+   const cardHeight = portraitCoverHeight(cardWidth);
 
    return (
-      <View style={[styles.container, hideTitle && styles.containerInline]}>
+      <View style={[styles.container, hideTitle && styles.containerInline, style]}>
          {!hideTitle ? (
-            <SkeletonText width={120} height={18} style={styles.title} />
+            <SkeletonText width={titleWidth} height={18} style={styles.title} />
          ) : null}
          <ScrollView
             horizontal
@@ -30,8 +36,13 @@ export function SkeletonContentRow({
          >
             {Array.from({ length: cardCount }).map((_, index) => (
                <View key={index} style={[styles.card, { width: cardWidth }]}>
-                  <SkeletonBox width={cardWidth} height={cardHeight} borderRadius={12} />
+                  <SkeletonBox
+                     width={cardWidth}
+                     height={cardHeight}
+                     borderRadius={borderRadius.md}
+                  />
                   <SkeletonText width="85%" height={12} style={styles.cardTitle} />
+                  <SkeletonText width="65%" height={12} style={styles.cardSubtitle} />
                </View>
             ))}
          </ScrollView>
@@ -58,6 +69,9 @@ const styles = StyleSheet.create({
       marginRight: spacing.sm,
    },
    cardTitle: {
-      marginTop: spacing.sm,
+      marginTop: spacing.xs,
+   },
+   cardSubtitle: {
+      marginTop: spacing.xs,
    },
 });

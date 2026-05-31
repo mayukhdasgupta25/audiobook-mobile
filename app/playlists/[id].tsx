@@ -29,7 +29,11 @@ import {
 } from '@/components/AudiobookGridCard';
 import { HomeStyleSearchBar } from '@/components/HomeStyleSearchBar';
 import { colors, spacing, typography, borderRadius } from '@/theme';
-import { SkeletonGrid, SkeletonListItem } from '@/components/skeleton';
+import {
+   SkeletonGrid,
+   SkeletonPlaylistHeader,
+   SkeletonPlaylistSearchGrid,
+} from '@/components/skeleton';
 
 const SEARCH_DEBOUNCE_MS = 350;
 
@@ -216,7 +220,7 @@ export default function PlaylistDetailScreen() {
                <View style={styles.searchSection}>
                   <Text style={styles.searchSectionTitle}>Search results</Text>
                   {isSearching ? (
-                     <SkeletonListItem coverSize={56} count={3} />
+                     <SkeletonPlaylistSearchGrid rows={2} />
                   ) : searchResults.length === 0 ? (
                      <Text style={styles.searchEmpty}>No audiobooks found</Text>
                   ) : (
@@ -334,7 +338,10 @@ export default function PlaylistDetailScreen() {
          </View>
 
          {isLoading && playlistBooks.length === 0 ? (
-            <SkeletonGrid rows={4} />
+            <>
+               <SkeletonPlaylistHeader />
+               <SkeletonGrid rows={4} />
+            </>
          ) : (
             <FlatList
                data={playlistBooks}

@@ -23,7 +23,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { TabUnderline } from '@/components/TabUnderline';
 import { TabSlideView } from '@/components/TabSlideView';
 import { CommentInputBar } from '@/components/CommentInputBar';
-import { SkeletonListItem } from '@/components/skeleton';
+import { SkeletonCommentRow, SkeletonNoteCard } from '@/components/skeleton';
 import { TimestampAtPicker } from '@/components/TimestampAtPicker';
 import { TimestampNumericSuggestions } from '@/components/TimestampNumericSuggestions';
 import { CommentItem } from '@/components/CommentItem';
@@ -217,7 +217,7 @@ export default function ChapterCommentsScreen() {
 
    const renderComments = () => {
       if (commentsLoading && allComments.length === 0) {
-         return <SkeletonListItem coverSize={40} count={6} />;
+         return <SkeletonCommentRow count={6} />;
       }
       if (allComments.length === 0) {
          return (
@@ -271,7 +271,7 @@ export default function ChapterCommentsScreen() {
 
    const renderNotes = () => {
       if (notesLoading) {
-         return <SkeletonListItem coverSize={40} count={4} />;
+         return <SkeletonNoteCard count={4} />;
       }
       if (notes.length === 0) {
          return (

@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View } from 'react-native';
 import { Stack, router, useSegments, type Href } from 'expo-router';
-import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/utils/queryClient';
 import { StatusBar } from 'expo-status-bar';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
@@ -23,7 +24,6 @@ import { useDeviceLocationOnAppLoad } from '@/hooks/useDeviceLocationOnAppLoad';
 import { useUserLocationSync } from '@/hooks/useUserLocationSync';
 import { isTrackPlayerNotificationUrl } from '@/utils/playbackNotificationNavigation';
 import { resolvePersistedPlaybackRoute } from '@/utils/playbackReturnPathStorage';
-import { handleGlobalMutationError, handleGlobalQueryError } from '@/utils/queryErrorToast';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { Toast } from '@/components/Toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -35,48 +35,6 @@ if (__DEV__) {
    // eslint-disable-next-line @typescript-eslint/no-require-imports
    require('../config/ReactotronConfig');
 }
-
-// Create a client for TanStack Query outside component to prevent recreation on every render
-// This ensures the QueryClient instance is stable across re-renders
-export const queryClient = new QueryClient({
-   defaultOptions: {
-      queries: {
-         retry: (failureCount, error) => {
-            // Don't retry on 401 (unauthorized) errors - they're handled globally by API service
-            if (error && typeof error === 'object' && 'status' in error && error.status === 401) {
-               // Handle 401 error (API service already handles it, but ensure we don't retry)
-               return false;
-            }
-            // Retry up to 2 times for other errors
-            return failureCount < 2;
-         },
-         refetchOnWindowFocus: false,
-         staleTime: 10 * 1000, // 10 seconds - data is considered fresh for 10 seconds
-         gcTime: 1 * 60 * 1000, // 1 minute - garbage collection time (formerly cacheTime)
-      },
-      mutations: {
-         retry: (failureCount, error) => {
-            // Don't retry on 401 (unauthorized) errors
-            if (error && typeof error === 'object' && 'status' in error && error.status === 401) {
-               return false;
-            }
-            // Retry up to 2 times for other errors
-            return failureCount < 2;
-         },
-      },
-   },
-   // Global error handlers using queryCache and mutationCache
-   queryCache: new QueryCache({
-      onError: async (error: unknown, query) => {
-         await handleGlobalQueryError(error, query.meta);
-      },
-   }),
-   mutationCache: new MutationCache({
-      onError: async (error: unknown) => {
-         await handleGlobalMutationError(error);
-      },
-   }),
-});
 
 /**
  * Inner layout component that handles auth-based routing
@@ -105,7 +63,7 @@ function InnerLayout() {
    usePlaybackReturnPathTracker();
    usePlaybackNotificationLinking(isAppReady && isInitialized && !showSplash);
    useDeviceLocationOnAppLoad(isAppReady);
-   useUserLocationSync();
+   useUserLocationSync(isAppReady);
 
    useEffect(() => {
       // Initialize auth state on app startup

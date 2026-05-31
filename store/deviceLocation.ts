@@ -3,21 +3,28 @@
  */
 
 import { create } from 'zustand';
-import type { UserLocation } from '@/services/user';
 
-export const DEFAULT_LOCATION_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
+/** GPS reading stored in memory — numeric coords plus optional metadata. */
+export interface DeviceLocationReading {
+   latitude: number;
+   longitude: number;
+   accuracy?: number | null;
+   altitude?: number | null;
+   /** ISO-8601 timestamp when the reading was taken */
+   timestamp?: string;
+}
 
 interface DeviceLocationState {
-   location: UserLocation | null;
+   location: DeviceLocationReading | null;
    fetchedAt: number | null;
    isFetching: boolean;
-   setLocation: (location: UserLocation) => void;
+   setLocation: (location: DeviceLocationReading) => void;
    setFetching: (isFetching: boolean) => void;
    clearLocation: () => void;
 }
 
 const initialState = {
-   location: null as UserLocation | null,
+   location: null as DeviceLocationReading | null,
    fetchedAt: null as number | null,
    isFetching: false,
 };
@@ -30,13 +37,15 @@ export const useDeviceLocationStore = create<DeviceLocationState>((set) => ({
    clearLocation: () => set(initialState),
 }));
 
-export function getCachedDeviceLocation(): UserLocation | null {
+export function getCachedDeviceLocation(): DeviceLocationReading | null {
    return useDeviceLocationStore.getState().location;
 }
 
 export function getLocationFetchedAt(): number | null {
    return useDeviceLocationStore.getState().fetchedAt;
 }
+
+export const DEFAULT_LOCATION_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
 
 export function isLocationCacheFresh(
    maxAgeMs: number = DEFAULT_LOCATION_CACHE_MAX_AGE_MS

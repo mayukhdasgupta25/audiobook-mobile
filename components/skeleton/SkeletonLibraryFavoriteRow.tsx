@@ -1,15 +1,19 @@
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { PUBLISHER_CARD_WIDTH } from '@/components/PublisherCard';
 import { SkeletonBox } from './SkeletonBox';
 import { SkeletonText } from './SkeletonText';
+import { portraitCoverHeight } from './skeletonLayout';
 import { borderRadius, spacing } from '@/theme';
 
-interface SkeletonPublisherRowProps {
+const CARD_WIDTH = 140;
+
+interface SkeletonLibraryFavoriteRowProps {
    count?: number;
 }
 
-export function SkeletonPublisherRow({ count = 4 }: SkeletonPublisherRowProps) {
+export function SkeletonLibraryFavoriteRow({ count = 8 }: SkeletonLibraryFavoriteRowProps) {
+   const cardHeight = portraitCoverHeight(CARD_WIDTH);
+
    return (
       <ScrollView
          horizontal
@@ -17,14 +21,14 @@ export function SkeletonPublisherRow({ count = 4 }: SkeletonPublisherRowProps) {
          contentContainerStyle={styles.row}
       >
          {Array.from({ length: count }).map((_, index) => (
-            <View key={index} style={styles.card}>
+            <View key={index} style={[styles.card, { width: CARD_WIDTH }]}>
                <SkeletonBox
-                  width={PUBLISHER_CARD_WIDTH}
-                  height={PUBLISHER_CARD_WIDTH}
-                  borderRadius={borderRadius.lg}
+                  width={CARD_WIDTH}
+                  height={cardHeight}
+                  borderRadius={borderRadius.md}
                />
-               <SkeletonText width={PUBLISHER_CARD_WIDTH - 16} height={12} style={styles.label} />
-               <SkeletonText width={PUBLISHER_CARD_WIDTH - 24} height={12} style={styles.labelLine} />
+               <SkeletonText width="90%" height={12} style={styles.line} />
+               <SkeletonText width="75%" height={12} style={styles.line} />
             </View>
          ))}
       </ScrollView>
@@ -33,17 +37,13 @@ export function SkeletonPublisherRow({ count = 4 }: SkeletonPublisherRowProps) {
 
 const styles = StyleSheet.create({
    row: {
-      flexDirection: 'row',
       paddingHorizontal: spacing.md,
+      paddingBottom: spacing.md,
    },
    card: {
-      width: PUBLISHER_CARD_WIDTH,
       marginRight: spacing.sm,
    },
-   label: {
+   line: {
       marginTop: spacing.xs,
-   },
-   labelLine: {
-      marginTop: 2,
    },
 });

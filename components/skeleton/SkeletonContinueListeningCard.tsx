@@ -12,9 +12,12 @@ export function SkeletonContinueListeningCard() {
             <SkeletonText width="75%" height={14} />
             <SkeletonText width="50%" height={12} style={styles.line} />
             <SkeletonBox width="100%" height={4} borderRadius={2} style={styles.progress} />
-            <SkeletonText width="60%" height={10} style={styles.line} />
+            <View style={styles.metaRow}>
+               <SkeletonText width="55%" height={10} />
+               <SkeletonText width="30%" height={10} />
+            </View>
          </View>
-         <SkeletonBox width={44} height={44} borderRadius={22} />
+         <SkeletonBox shape="circle" size={44} />
       </View>
    );
 }
@@ -31,12 +34,20 @@ const styles = StyleSheet.create({
    },
    content: {
       flex: 1,
-      marginHorizontal: spacing.md,
+      marginLeft: spacing.md,
+      marginRight: spacing.sm,
    },
    line: {
-      marginTop: spacing.xs,
+      marginTop: 2,
+      marginBottom: spacing.sm,
    },
    progress: {
-      marginTop: spacing.sm,
+      marginBottom: spacing.xs,
+   },
+   metaRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: spacing.sm,
    },
 });

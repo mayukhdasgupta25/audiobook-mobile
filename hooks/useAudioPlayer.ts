@@ -33,7 +33,8 @@ import {
 import {
    setupTrackPlayerOnce,
    updateTrackPlayerOptions,
-} from '@/hooks/useTrackPlayerSetup';
+} from '@/services/trackPlayerSetup';
+import { setupPlaybackServiceHandlers } from '@/services/playbackServiceHandlers';
 import { registerChapterReload } from '@/services/playbackReload';
 import { ensureMediaNotificationPermission } from '@/utils/ensureMediaNotificationPermission';
 import { isActivePlaybackSession } from '@/utils/playbackSession';
@@ -140,6 +141,9 @@ export function useAudioPlayer() {
             await ensureMediaNotificationPermission();
          }
          await setupTrackPlayerOnce();
+         if (Platform.OS === 'android') {
+            setupPlaybackServiceHandlers();
+         }
          await updateTrackPlayerOptions(skipDurationSeconds, speed);
 
          const playbackSource = await resolveChapterPlaybackSource(

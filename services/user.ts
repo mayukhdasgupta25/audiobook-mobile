@@ -74,16 +74,17 @@ export async function getUserProfile(): Promise<UserProfileResponse> {
 }
 
 /**
- * Geographic location attached to the user profile
+ * Location payload for PUT /user/profile — latitude and longitude only, as strings.
  */
-export interface UserLocation {
-   latitude: number;
-   longitude: number;
-   accuracy?: number | null;
-   altitude?: number | null;
-   /** ISO-8601 timestamp when the reading was taken */
-   timestamp?: string;
+export interface ProfileLocationPayload {
+   latitude: string;
+   longitude: string;
 }
+
+/**
+ * @deprecated Use ProfileLocationPayload for API requests and DeviceLocationReading for GPS cache.
+ */
+export type UserLocation = ProfileLocationPayload;
 
 /**
  * Update user profile request payload
@@ -92,7 +93,7 @@ export interface UpdateProfileRequest {
    firstName?: string | null;
    lastName?: string | null;
    avatar?: string | null;
-   location?: UserLocation;
+   location?: ProfileLocationPayload;
    age?: number;
    gender?: string;
    preferences?: Pick<UserPreferences, 'favoriteGenreIds' | 'languages'>;

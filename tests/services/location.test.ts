@@ -7,8 +7,9 @@ import { useDeviceLocationStore } from '@/store/deviceLocation';
 import { updateUserProfile } from '@/services/user';
 
 jest.mock('expo-location', () => ({
-   PermissionStatus: { GRANTED: 'granted' },
+   PermissionStatus: { GRANTED: 'granted', DENIED: 'denied' },
    Accuracy: { Balanced: 3 },
+   getForegroundPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
    requestForegroundPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
    hasServicesEnabledAsync: jest.fn().mockResolvedValue(true),
    getCurrentPositionAsync: jest.fn().mockResolvedValue({
@@ -66,10 +67,10 @@ describe('location service', () => {
 
       expect(Location.getCurrentPositionAsync).not.toHaveBeenCalled();
       expect(mockedUpdateUserProfile).toHaveBeenCalledWith({
-         location: expect.objectContaining({
-            latitude: 48.8566,
-            longitude: 2.3522,
-         }),
+         location: {
+            latitude: '48.8566',
+            longitude: '2.3522',
+         },
       });
    });
 
@@ -89,10 +90,10 @@ describe('location service', () => {
       await syncUserLocationToProfile();
 
       expect(mockedUpdateUserProfile).toHaveBeenCalledWith({
-         location: expect.objectContaining({
-            latitude: 51.5074,
-            longitude: -0.1278,
-         }),
+         location: {
+            latitude: '51.5074',
+            longitude: '-0.1278',
+         },
       });
    });
 });

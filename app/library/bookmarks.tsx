@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { BookmarkChapterCard } from '@/components/BookmarkChapterCard';
-import { SkeletonListItem } from '@/components/skeleton';
+import { SkeletonBookmarkRow } from '@/components/skeleton';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePlayBookmarkChapter } from '@/hooks/usePlayBookmarkChapter';
 import { Bookmark } from '@/services/bookmarks';
@@ -43,7 +43,7 @@ export default function LibraryBookmarksScreen() {
          <ScreenHeader title="Bookmarks" onBack={() => router.back()} />
 
          {isLoading ? (
-            <SkeletonListItem coverSize={72} count={6} />
+            <SkeletonBookmarkRow count={6} />
          ) : (
             <FlatList
                data={bookmarks}
