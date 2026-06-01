@@ -1,11 +1,9 @@
 import React, { useMemo, useCallback, useRef } from 'react';
 import {
    View,
-   Text,
    StyleSheet,
    ScrollView,
    TouchableOpacity,
-   Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -19,7 +17,7 @@ import {
    ProfileMenuSection,
    type ProfileMenuItem,
 } from '@/components/profile/ProfileMenuSection';
-import { spacing, typography } from '@/theme';
+import { spacing } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
@@ -44,19 +42,11 @@ function ProfileScreenContent() {
          scrollContent: {},
          header: {
             flexDirection: 'row',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end',
             alignItems: 'center',
             paddingHorizontal: spacing.md,
             paddingTop: spacing.sm,
             paddingBottom: spacing.md,
-         },
-         headerTitle: {
-            fontSize: typography.fontSize['3xl'],
-            color: t.colors.text.primary,
-            ...Platform.select({
-               ios: { fontFamily: 'System', fontWeight: '700' },
-               android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
-            }),
          },
          settingsButton: {
             padding: spacing.xs,
@@ -115,6 +105,7 @@ function ProfileScreenContent() {
             icon: 'time-outline',
             iconBg: colors.iconBackgrounds.purple,
             iconColor: colors.iconForegrounds.purple,
+            onPress: () => router.push('/library/listening-history'),
          },
          {
             id: 'favorites',
@@ -132,6 +123,7 @@ function ProfileScreenContent() {
             icon: 'download-outline',
             iconBg: colors.iconBackgrounds.green,
             iconColor: colors.iconForegrounds.green,
+            onPress: () => router.push('/library/downloads'),
          },
       ],
       [colors]
@@ -156,14 +148,6 @@ function ProfileScreenContent() {
             iconBg: colors.iconBackgrounds.blue,
             iconColor: colors.iconForegrounds.blue,
             onPress: () => router.push('/subscription-plans'),
-         },
-         {
-            id: 'refer',
-            title: 'Refer & Earn',
-            subtitle: 'Invite friends and earn rewards',
-            icon: 'gift-outline',
-            iconBg: colors.iconBackgrounds.pink,
-            iconColor: colors.iconForegrounds.pink,
          },
          {
             id: 'privacy',
@@ -210,7 +194,6 @@ function ProfileScreenContent() {
             showsVerticalScrollIndicator={false}
          >
             <View style={styles.header}>
-               <Text style={styles.headerTitle}>Profile</Text>
                <TouchableOpacity
                   onPress={handleSettingsPress}
                   style={styles.settingsButton}
@@ -239,11 +222,7 @@ function ProfileScreenContent() {
                onUpgradePress={handleManagePlanPress}
             />
 
-            <ProfileMenuSection
-               title="Your Activity"
-               items={activityItems}
-               showViewAll
-            />
+            <ProfileMenuSection title="Your Activity" items={activityItems} />
 
             <ProfileMenuSection title="Account" items={accountItems} />
 

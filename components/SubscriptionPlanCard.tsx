@@ -6,6 +6,7 @@ import {
    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { spacing, typography, borderRadius } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
@@ -14,10 +15,15 @@ import {
    getPlanFeatureDescriptions,
 } from '@/services/subscriptions';
 import { formatPlanPrice } from '@/utils/format';
+import {
+   getMembershipCrownColor,
+   resolveMembershipTier,
+} from '@/utils/membershipDisplay';
 import { SecondaryButton } from '@/components/SecondaryButton';
 
 interface SubscriptionPlanCardProps {
    plan: SubscriptionPlan;
+   allPlans?: SubscriptionPlan[];
    isCurrentPlan?: boolean;
    actionLabel?: string;
    isActionDisabled?: boolean;
@@ -29,12 +35,16 @@ interface SubscriptionPlanCardProps {
  */
 export function SubscriptionPlanCard({
    plan,
+   allPlans,
    isCurrentPlan = false,
    actionLabel,
    isActionDisabled = false,
    onUpgradePress,
 }: SubscriptionPlanCardProps) {
    const { colors } = useTheme();
+   const membershipTier = resolveMembershipTier(plan, allPlans);
+   const crownColor =
+      getMembershipCrownColor(membershipTier) ?? colors.iconForegrounds.yellow;
    const styles = useThemedStyles((t) =>
       StyleSheet.create({
          card: {
@@ -45,11 +55,17 @@ export function SubscriptionPlanCard({
          cardCurrent: {
             backgroundColor: t.colors.background.highlight,
          },
+         planNameRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.sm,
+            marginBottom: spacing.xs,
+         },
          planName: {
+            flex: 1,
             fontSize: typography.fontSize.xl,
             fontWeight: '600',
             color: t.colors.text.dark,
-            marginBottom: spacing.xs,
             ...Platform.select({
                ios: {
                   fontFamily: 'System',
@@ -123,12 +139,15 @@ export function SubscriptionPlanCard({
 
    const featureDescriptions = getPlanFeatureDescriptions(plan);
    const buttonLabel =
-      actionLabel ?? (isCurrentPlan ? 'Current plan' : 'Upgrade Plan');
+      actionLabel ?? (isCurrentPlan ? 'Current plan' : 'Subscribe');
    const buttonDisabled = isCurrentPlan || isActionDisabled;
 
    return (
       <View style={[styles.card, isCurrentPlan && styles.cardCurrent]}>
-         <Text style={styles.planName}>{plan.name}</Text>
+         <View style={styles.planNameRow}>
+            <MaterialCommunityIcons name="crown" size={22} color={crownColor} />
+            <Text style={styles.planName}>{plan.name}</Text>
+         </View>
          <Text style={styles.planDescription}>{plan.description}</Text>
          <Text style={styles.planPrice}>{priceLabel}</Text>
 
@@ -151,6 +170,7 @@ export function SubscriptionPlanCard({
             title={buttonLabel}
             onPress={() => onUpgradePress(plan)}
             disabled={buttonDisabled}
+            variant="outlined"
          />
       </View>
    );

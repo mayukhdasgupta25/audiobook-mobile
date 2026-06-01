@@ -13,11 +13,14 @@ import { spacing, typography, borderRadius } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
 
+type SecondaryButtonVariant = 'filled' | 'outlined';
+
 interface SecondaryButtonProps {
    title: string;
    onPress: () => void;
    disabled?: boolean;
    loading?: boolean;
+   variant?: SecondaryButtonVariant;
    style?: ViewStyle;
    testID?: string;
    icon?: React.ComponentProps<typeof Ionicons>['name'];
@@ -29,24 +32,31 @@ export const SecondaryButton: React.FC<SecondaryButtonProps> = ({
    onPress,
    disabled = false,
    loading = false,
+   variant = 'filled',
    style,
    testID,
    icon,
 }) => {
    const { colors } = useTheme();
+   const isOutlined = variant === 'outlined';
    const styles = useThemedStyles((t) =>
       StyleSheet.create({
          button: {
-            backgroundColor: t.colors.primary[50],
+            backgroundColor: isOutlined ? 'transparent' : t.colors.primary[50],
             borderRadius: borderRadius.lg,
             paddingVertical: spacing.md,
             paddingHorizontal: spacing.lg,
             alignItems: 'center',
             justifyContent: 'center',
             minHeight: 48,
+            ...(isOutlined && {
+               borderWidth: 2,
+               borderColor: t.colors.accent.primary,
+            }),
          },
          buttonDisabled: {
-            backgroundColor: t.colors.background.input,
+            backgroundColor: isOutlined ? 'transparent' : t.colors.background.input,
+            borderColor: isOutlined ? t.colors.border.medium : undefined,
             opacity: 1,
          },
          content: {
@@ -58,7 +68,7 @@ export const SecondaryButton: React.FC<SecondaryButtonProps> = ({
             marginRight: spacing.sm,
          },
          text: {
-            color: t.colors.accent.primary,
+            color: isOutlined ? t.colors.text.dark : t.colors.accent.primary,
             fontSize: typography.fontSize.base,
             fontWeight: '600',
             ...Platform.select({
@@ -73,7 +83,8 @@ export const SecondaryButton: React.FC<SecondaryButtonProps> = ({
    );
 
    const isInactive = disabled || loading;
-   const iconColor = disabled ? colors.text.muted : colors.accent.primary;
+   const activeColor = isOutlined ? colors.text.dark : colors.accent.primary;
+   const iconColor = disabled ? colors.text.muted : activeColor;
 
    return (
       <TouchableOpacity
@@ -84,7 +95,7 @@ export const SecondaryButton: React.FC<SecondaryButtonProps> = ({
          testID={testID}
       >
          {loading ? (
-            <ActivityIndicator color={colors.accent.primary} />
+            <ActivityIndicator color={activeColor} />
          ) : (
             <View style={styles.content}>
                {icon ? (

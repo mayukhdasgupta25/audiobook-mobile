@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
    View,
    Text,
@@ -10,31 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
-import { useSelector } from 'react-redux';
-import { Ionicons } from '@expo/vector-icons';
 import * as Application from 'expo-application';
-import { ProfileUserCard } from '@/components/profile/ProfileUserCard';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsMenuRow } from '@/components/settings/SettingsMenuRow';
 import { spacing, typography } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
-import { resolveAvatarUrl } from '@/utils/resolveAvatarUrl';
-import { resolveMembershipTier } from '@/utils/membershipDisplay';
-import { useUserSubscription } from '@/hooks/useUserSubscription';
-import { RootState } from '@/store';
-
-function formatLanguageLabel(language?: string): string | undefined {
-   if (!language?.trim()) {
-      return undefined;
-   }
-   try {
-      const displayNames = new Intl.DisplayNames(['en'], { type: 'language' });
-      return displayNames.of(language) ?? language;
-   } catch {
-      return language;
-   }
-}
 
 export default function SettingsScreen() {
    const { colors } = useTheme();
@@ -48,65 +30,11 @@ export default function SettingsScreen() {
       flex: 1,
    },
    scrollContent: {},
-   header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingBottom: spacing.md,
-   },
-   backButton: {
-      padding: spacing.xs,
-      marginRight: spacing.sm,
-   },
-   headerTitle: {
-      flex: 1,
-      fontSize: typography.fontSize['3xl'],
-      color: t.colors.text.primary,
-      textAlign: 'center',
-      ...Platform.select({
-         ios: { fontFamily: 'System', fontWeight: '700' },
-         android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
-      }),
-   },
-   headerSpacer: {
-      width: 32,
-   },
-   languageTrailing: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-   },
-   languageText: {
-      fontSize: typography.fontSize.sm,
-      color: t.colors.text.secondary,
-   },
       })
    );
 
    const insets = useSafeAreaInsets();
-   const userProfile = useSelector((state: RootState) => state.auth.userProfile);
-   const user = useSelector((state: RootState) => state.auth.user);
-   const { activeSubscription } = useUserSubscription();
    const [carModeEnabled, setCarModeEnabled] = useState(false);
-
-   const displayName = useMemo(() => {
-      if (userProfile?.firstName && userProfile?.lastName) {
-         return `${userProfile.firstName} ${userProfile.lastName}`;
-      }
-      if (userProfile?.firstName) {
-         return userProfile.firstName;
-      }
-      if (userProfile?.username) {
-         return userProfile.username;
-      }
-      return 'User';
-   }, [userProfile]);
-
-   const avatarUri = resolveAvatarUrl(userProfile?.avatar);
-   const membershipTier = resolveMembershipTier(activeSubscription?.plan);
-   const planName = activeSubscription?.plan.name;
-   const languageLabel = formatLanguageLabel(userProfile?.preferences.language);
-
    const appVersion = Application.nativeApplicationVersion ?? '1.0.0';
 
    const handleBackPress = useCallback(() => {
@@ -126,6 +54,11 @@ export default function SettingsScreen() {
             }}
          />
          <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+            <ScreenHeader
+               headerIcon="settings"
+               onBack={handleBackPress}
+               titleSize="large"
+            />
             <ScrollView
                style={styles.scrollView}
                contentContainerStyle={[
@@ -134,27 +67,6 @@ export default function SettingsScreen() {
                ]}
                showsVerticalScrollIndicator={false}
             >
-               <View style={styles.header}>
-                  <TouchableOpacity
-                     onPress={handleBackPress}
-                     style={styles.backButton}
-                     activeOpacity={0.7}
-                  >
-                     <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
-                  </TouchableOpacity>
-                  <Text style={styles.headerTitle}>Settings</Text>
-                  <View style={styles.headerSpacer} />
-               </View>
-
-               <ProfileUserCard
-                  displayName={displayName}
-                  email={user?.email}
-                  avatarUri={avatarUri}
-                  tier={membershipTier}
-                  planName={planName}
-                  onPress={handleAccountPress}
-               />
-
                <SettingsSection title="Playback">
                   <SettingsMenuRow
                      title="Playback Settings"
@@ -220,32 +132,7 @@ export default function SettingsScreen() {
                      icon="notifications-outline"
                      iconBg={colors.iconBackgrounds.green}
                      iconColor={colors.iconForegrounds.green}
-                  />
-                  <SettingsMenuRow
-                     title="Language"
-                     subtitle="Change app language"
-                     icon="globe-outline"
-                     iconBg={colors.iconBackgrounds.blue}
-                     iconColor={colors.iconForegrounds.blue}
                      isLast
-                     trailing={
-                        languageLabel ? (
-                           <View style={styles.languageTrailing}>
-                              <Text style={styles.languageText}>{languageLabel}</Text>
-                              <Ionicons
-                                 name="chevron-forward"
-                                 size={20}
-                                 color={colors.text.secondaryDark}
-                              />
-                           </View>
-                        ) : (
-                           <Ionicons
-                              name="chevron-forward"
-                              size={20}
-                              color={colors.text.secondaryDark}
-                           />
-                        )
-                     }
                   />
                </SettingsSection>
 
@@ -272,17 +159,6 @@ export default function SettingsScreen() {
                      icon="information-circle-outline"
                      iconBg={colors.iconBackgrounds.purple}
                      iconColor={colors.iconForegrounds.purple}
-                     isLast
-                  />
-               </SettingsSection>
-
-               <SettingsSection title="More">
-                  <SettingsMenuRow
-                     title="Invite Friends"
-                     subtitle="Share the app and earn rewards"
-                     icon="share-social-outline"
-                     iconBg={colors.iconBackgrounds.orange}
-                     iconColor={colors.iconForegrounds.orange}
                      isLast
                   />
                </SettingsSection>

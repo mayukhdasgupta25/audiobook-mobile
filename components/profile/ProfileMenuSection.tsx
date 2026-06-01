@@ -25,15 +25,11 @@ export interface ProfileMenuItem {
 interface ProfileMenuSectionProps {
    title: string;
    items: ProfileMenuItem[];
-   showViewAll?: boolean;
-   onViewAllPress?: () => void;
 }
 
 export const ProfileMenuSection: React.FC<ProfileMenuSectionProps> = ({
    title,
    items,
-   showViewAll = false,
-   onViewAllPress,
 }) => {
    const { colors } = useTheme();
    const styles = useThemedStyles((t) =>
@@ -54,14 +50,6 @@ export const ProfileMenuSection: React.FC<ProfileMenuSectionProps> = ({
             ...Platform.select({
                ios: { fontFamily: 'System', fontWeight: '700' },
                android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
-            }),
-         },
-         viewAll: {
-            fontSize: typography.fontSize.sm,
-            color: t.colors.accent.primary,
-            ...Platform.select({
-               ios: { fontFamily: 'System', fontWeight: '500' },
-               android: { fontFamily: 'sans-serif-medium' },
             }),
          },
          card: {
@@ -117,11 +105,6 @@ export const ProfileMenuSection: React.FC<ProfileMenuSectionProps> = ({
          {title ? (
             <View style={styles.sectionHeader}>
                <Text style={styles.sectionTitle}>{title}</Text>
-               {showViewAll ? (
-                  <TouchableOpacity onPress={onViewAllPress} activeOpacity={0.7}>
-                     <Text style={styles.viewAll}>View All</Text>
-                  </TouchableOpacity>
-               ) : null}
             </View>
          ) : null}
 

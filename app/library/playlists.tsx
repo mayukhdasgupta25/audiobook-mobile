@@ -104,8 +104,9 @@ export default function LibraryPlaylistsScreen() {
    return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
          <ScreenHeader
-            title="Playlists"
+            headerIcon="playlists"
             onBack={() => router.back()}
+            titleSize="large"
             rightActions={
                <TouchableOpacity
                   onPress={() => setCreateModalVisible(true)}

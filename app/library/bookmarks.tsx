@@ -72,7 +72,11 @@ export default function LibraryBookmarksScreen() {
 
    return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-         <ScreenHeader title="Bookmarks" onBack={() => router.back()} />
+         <ScreenHeader
+            headerIcon="bookmarks"
+            onBack={() => router.back()}
+            titleSize="large"
+         />
 
          {isLoading ? (
             <SkeletonBookmarkRow count={6} />

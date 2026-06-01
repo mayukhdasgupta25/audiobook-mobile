@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePlaylistItems, usePlaylists, usePlaylistMutations } from '@/hooks/usePlaylists';
 import { usePlaylistAudiobooks } from '@/hooks/usePlaylistAudiobooks';
 import { useAudiobookSearch } from '@/hooks/useAudiobookSearch';
+import { APP_BACK_ICON, APP_BACK_ICON_SIZE } from '@/constants/navigationIcons';
 import { Audiobook } from '@/services/audiobooks';
 import {
    AudiobookGridCard,
@@ -485,7 +486,11 @@ export default function PlaylistDetailScreen() {
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
          <View style={styles.header}>
             <TouchableOpacity onPress={handleHeaderBack} activeOpacity={0.7}>
-               <Ionicons name="chevron-back" size={24} color={colors.text.primary} />
+               <Ionicons
+                  name={APP_BACK_ICON}
+                  size={APP_BACK_ICON_SIZE}
+                  color={colors.text.primary}
+               />
             </TouchableOpacity>
             <View style={styles.headerSpacer} />
             <TouchableOpacity onPress={handleDeletePlaylist} activeOpacity={0.7}>

@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SearchBar } from '@/components/SearchBar';
 import { TrendingChip } from '@/components/TrendingChip';
 import { PopularStoryItem, PopularStory } from '@/components/PopularStoryItem';
+import { APP_BACK_ICON, APP_BACK_ICON_SIZE } from '@/constants/navigationIcons';
 import { spacing, typography } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
@@ -250,8 +251,8 @@ export default function SearchScreen() {
                      accessibilityRole="button"
                   >
                      <Ionicons
-                        name="chevron-back"
-                        size={28}
+                        name={APP_BACK_ICON}
+                        size={APP_BACK_ICON_SIZE}
                         color={colors.text.dark}
                      />
                   </TouchableOpacity>

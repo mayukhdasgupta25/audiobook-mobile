@@ -297,11 +297,13 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
          id: 'downloads',
          label: 'Downloads',
          icon: 'download-outline',
+         href: '/library/downloads',
       },
       {
          id: 'history',
          label: 'Listening History',
          icon: 'time-outline',
+         href: '/library/listening-history',
       },
       {
          id: 'bookmarks',

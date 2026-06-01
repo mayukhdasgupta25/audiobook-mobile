@@ -423,6 +423,7 @@ export default function ChapterCommentsScreen() {
             <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
                <View style={styles.dismissKeyboardArea}>
                   <ScreenHeader
+                     headerIcon="chapter-comments"
                      title={chapterTitle}
                      subtitle={subtitle}
                      onBack={() => router.back()}

@@ -17,6 +17,7 @@ import Animated, {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { APP_BACK_ICON, APP_BACK_ICON_SIZE } from '@/constants/navigationIcons';
 import { spacing, typography, borderRadius } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
@@ -389,7 +390,11 @@ const HeroSectionComponent: React.FC<HeroSectionProps> = ({
                      activeOpacity={0.7}
                   >
                      <View style={styles.arrowButton}>
-                        <Ionicons name="chevron-back" size={24} color={colors.text.dark} />
+                        <Ionicons
+                           name={APP_BACK_ICON}
+                           size={APP_BACK_ICON_SIZE}
+                           color={colors.text.dark}
+                        />
                      </View>
                   </TouchableOpacity>
 

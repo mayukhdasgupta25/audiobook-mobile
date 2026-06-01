@@ -13,6 +13,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { TextInput } from '@/components/TextInput';
 import { spacing, typography, borderRadius } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -50,30 +51,6 @@ export default function ManageDevicesScreen() {
    container: {
       flex: 1,
       backgroundColor: t.colors.background.dark,
-   },
-   header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingBottom: spacing.sm,
-   },
-   backButton: {
-      padding: spacing.sm,
-      marginLeft: -spacing.sm,
-   },
-   headerTitle: {
-      flex: 1,
-      textAlign: 'center',
-      fontSize: typography.fontSize.lg,
-      fontWeight: typography.fontWeight.semiBold as '600',
-      color: t.colors.text.dark,
-      ...Platform.select({
-         ios: { fontFamily: 'System' },
-         android: { fontFamily: 'sans-serif-medium' },
-      }),
-   },
-   headerSpacer: {
-      width: 40,
    },
    scrollView: {
       flex: 1,
@@ -338,18 +315,12 @@ export default function ManageDevicesScreen() {
          />
 
          <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-            <View style={[styles.header, { paddingTop: insets.top > 0 ? 0 : spacing.sm }]}>
-               <TouchableOpacity
-                  onPress={handleBackPress}
-                  style={styles.backButton}
-                  accessibilityRole="button"
-                  accessibilityLabel="Go back"
-               >
-                  <Ionicons name="arrow-back" size={24} color={colors.text.dark} />
-               </TouchableOpacity>
-               <Text style={styles.headerTitle}>Manage devices</Text>
-               <View style={styles.headerSpacer} />
-            </View>
+            <ScreenHeader
+               headerIcon="manage-devices"
+               onBack={handleBackPress}
+               titleSize="large"
+               tone="onDark"
+            />
 
             <ScrollView
                style={styles.scrollView}

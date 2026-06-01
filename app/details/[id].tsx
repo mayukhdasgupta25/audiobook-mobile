@@ -16,6 +16,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { useQueries } from '@tanstack/react-query';
 import { RootState } from '@/store';
+import { APP_BACK_ICON, APP_BACK_ICON_SIZE } from '@/constants/navigationIcons';
 import { typography, spacing, borderRadius } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
@@ -1120,7 +1121,11 @@ export default function DetailsScreen() {
             {/* Top actions */}
             <View style={styles.topActions}>
                <TouchableOpacity onPress={handleBack} style={styles.topIconButton} activeOpacity={0.7}>
-                  <Ionicons name="chevron-back" size={24} color={colors.text.primary} />
+                  <Ionicons
+                     name={APP_BACK_ICON}
+                     size={APP_BACK_ICON_SIZE}
+                     color={colors.text.primary}
+                  />
                </TouchableOpacity>
                <View style={styles.topActionsRight}>
                   <TouchableOpacity

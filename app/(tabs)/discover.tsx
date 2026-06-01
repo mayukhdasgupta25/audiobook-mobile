@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
+import { TabScreenHeader } from '@/components/TabScreenHeader';
 import { MoodChip } from '@/components/MoodChip';
 import { useMoods } from '@/hooks/useMoods';
 import { ContentRow, ContentItem } from '@/components/ContentRow';
@@ -31,25 +32,6 @@ function DiscoverScreenContent() {
          container: {
             flex: 1,
             backgroundColor: t.colors.background.screen,
-         },
-         header: {
-            paddingHorizontal: spacing.md,
-            paddingTop: spacing.md,
-            paddingBottom: spacing.sm,
-         },
-         title: {
-            fontSize: typography.fontSize['2xl'],
-            fontWeight: '700',
-            color: t.colors.text.primary,
-            ...Platform.select({
-               ios: { fontFamily: 'System', fontWeight: '700' },
-               android: { fontFamily: 'sans-serif-medium' },
-            }),
-         },
-         subtitle: {
-            fontSize: typography.fontSize.sm,
-            color: t.colors.text.secondary,
-            marginTop: spacing.xs,
          },
          sectionTitle: {
             fontSize: typography.fontSize.lg,
@@ -148,10 +130,7 @@ function DiscoverScreenContent() {
 
    return (
       <SafeAreaView style={styles.container} edges={['top']}>
-         <View style={styles.header}>
-            <Text style={styles.title}>Discover</Text>
-            <Text style={styles.subtitle}>Browse and explore new stories</Text>
-         </View>
+         <TabScreenHeader headerIcon="discover" />
          <ScrollView
             ref={scrollRef}
             contentContainerStyle={{ paddingBottom: scrollPadding }}

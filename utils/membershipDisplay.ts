@@ -3,9 +3,9 @@ import type { SubscriptionPlan } from '@/services/subscriptions';
 export type MembershipTier = 'none' | 'base' | 'standard' | 'premium';
 
 export const MEMBERSHIP_CROWN_COLORS = {
-   premium: '#D4A017',
-   standard: '#A8A8A8',
-   base: '#CD7F32',
+   base: '#C0C0C0',
+   standard: '#FACC15',
+   premium: '#60A5FA',
 } as const;
 
 const TIER_NAME_PATTERNS: { tier: Exclude<MembershipTier, 'none'>; pattern: RegExp }[] = [
