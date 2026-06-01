@@ -4,6 +4,7 @@
 import type { AppDispatch } from '@/store';
 import { store } from '@/store';
 import { setPosition, setTotalDuration, setLoading } from '@/store/player';
+import { clampPlaybackSeekSeconds } from '@/utils/playbackPosition';
 
 const POSITION_EPSILON_SEC = 0.25;
 const DURATION_EPSILON_SEC = 0.5;
@@ -15,12 +16,23 @@ export function syncTrackProgressToPlayerStore(
 ): void {
    const player = store.getState().player;
 
-   if (Math.abs(player.playbackPosition - position) >= POSITION_EPSILON_SEC) {
-      dispatch(setPosition(position));
+   const effectiveDuration =
+      duration > 0 ? duration : player.totalDuration;
+   const cappedPosition = clampPlaybackSeekSeconds(
+      position,
+      effectiveDuration,
+      player.chapterEndPosition
+   );
+
+   if (Math.abs(player.playbackPosition - cappedPosition) >= POSITION_EPSILON_SEC) {
+      dispatch(setPosition(cappedPosition));
    }
 
-   if (duration > 0 && Math.abs(player.totalDuration - duration) >= DURATION_EPSILON_SEC) {
-      dispatch(setTotalDuration(duration));
+   if (
+      effectiveDuration > 0 &&
+      Math.abs(player.totalDuration - effectiveDuration) >= DURATION_EPSILON_SEC
+   ) {
+      dispatch(setTotalDuration(effectiveDuration));
    }
 
    if (player.isLoading) {

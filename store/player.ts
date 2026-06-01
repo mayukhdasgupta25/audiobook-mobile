@@ -27,6 +27,8 @@ export interface PlayerState {
    currentChapterId: string | null;
    playbackPosition: number; // Current position in seconds from start of chapter
    totalDuration: number; // Total duration of chapter in seconds
+   /** Max playable position (seconds) from GET /chapters/:id — caps seek/scrub */
+   chapterEndPosition: number | null;
    isLoading: boolean;
    error: string | null;
    isVisible: boolean; // Whether player UI is visible
@@ -47,6 +49,7 @@ const initialState: PlayerState = {
    currentChapterId: null,
    playbackPosition: 0,
    totalDuration: 0,
+   chapterEndPosition: null,
    isLoading: false,
    error: null,
    isVisible: false,
@@ -78,6 +81,7 @@ const playerSlice = createSlice({
       ) => {
          state.currentChapterId = action.payload.chapterId;
          state.playbackPosition = Math.max(0, action.payload.resumePosition ?? 0);
+         state.chapterEndPosition = null;
          state.isVisible = true;
          state.error = null;
          state.chapterMetadata = action.payload.metadata;
@@ -144,6 +148,15 @@ const playerSlice = createSlice({
          }
          state.totalDuration = action.payload;
       },
+      /** Sets seek upper bound from chapter API endPosition (seconds). */
+      setChapterEndPosition: (state, action: PayloadAction<number | null>) => {
+         const value = action.payload;
+         if (value == null || !Number.isFinite(value) || value <= 0) {
+            state.chapterEndPosition = null;
+            return;
+         }
+         state.chapterEndPosition = value;
+      },
       /**
        * Set loading state
        */
@@ -198,6 +211,7 @@ export const {
    setPosition,
    seek,
    setTotalDuration,
+   setChapterEndPosition,
    setLoading,
    setError,
    setVisible,

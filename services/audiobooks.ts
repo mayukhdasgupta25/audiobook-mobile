@@ -4,6 +4,7 @@
  */
 
 import { get, post, ApiError, API_V1_PATH } from './api';
+import { store } from '@/store';
 import { clampSyncPlaybackPosition } from '@/utils/playbackPosition';
 
 /**
@@ -171,6 +172,18 @@ export interface ChaptersResponse {
    timestamp: string;
    path: string;
    pagination: PaginationInfo;
+}
+
+/**
+ * Single chapter API response from GET /chapters/:chapterId
+ */
+export interface ChapterResponse {
+   success: boolean;
+   data: Chapter;
+   message: string;
+   statusCode: number;
+   timestamp: string;
+   path: string;
 }
 
 /**
@@ -474,6 +487,31 @@ export async function getAudiobookById(
 }
 
 /**
+ * Get a single chapter by ID (includes endPosition for playback bounds).
+ * GET /api/v1/chapters/:chapterId
+ */
+export async function getChapterById(chapterId: string): Promise<Chapter> {
+   try {
+      const response = await get<ChapterResponse>(
+         `${API_V1_PATH}/chapters/${chapterId}`,
+         true
+      );
+      return response.data.data;
+   } catch (error) {
+      console.warn('[Audiobooks Service] Get chapter by ID error', {
+         error,
+         chapterId,
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Failed to fetch chapter: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
  * Get saved playback progress for a chapter.
  * GET /api/v1/chapters/:chapterId/progress
  */
@@ -617,7 +655,8 @@ export async function syncPlayback(
       const syncedPosition = clampSyncPlaybackPosition(
          request.position,
          durationHint,
-         request.action
+         request.action,
+         store.getState().player.chapterEndPosition
       );
 
       // Use authenticated request (useAuth=true) to include Bearer token

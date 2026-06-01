@@ -47,6 +47,7 @@ import { clampPlaybackSeekSeconds } from '@/utils/playbackPosition';
 import { Platform } from 'react-native';
 import type { PlaybackSpeed } from '@/constants/playbackSpeed';
 import { applyPlaybackSpeed } from '@/utils/applyPlaybackSpeed';
+import { usePlayingChapterBounds } from '@/hooks/usePlayingChapterBounds';
 
 const LOAD_TIMEOUT_MS = 30_000;
 
@@ -62,6 +63,7 @@ function buildArtworkUrl(coverImage: string | null): string | undefined {
  */
 export function useAudioPlayer() {
    const dispatch = useDispatch();
+   usePlayingChapterBounds();
    const isDraggingRef = useRef(false);
    const lastLoadedChapterRef = useRef<string | null>(null);
    const lastInitializedChapterRef = useRef<string | null>(null);
@@ -486,7 +488,8 @@ export function useAudioPlayer() {
 
          const clampedTime = clampPlaybackSeekSeconds(
             targetTime,
-            freshTotalDuration > 0 ? freshTotalDuration : 0
+            freshTotalDuration > 0 ? freshTotalDuration : 0,
+            playerState.chapterEndPosition
          );
 
          dispatch(setPosition(clampedTime));
