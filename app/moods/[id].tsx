@@ -17,6 +17,7 @@ import { MoodAboutSection } from '@/components/moods/MoodAboutSection';
 import { SkeletonMoodDetailPage, SkeletonMoodAudiobookRow } from '@/components/skeleton';
 import { useMood } from '@/hooks/useMood';
 import { useMoodAudiobooks } from '@/hooks/useMoodAudiobooks';
+import { APP_BACK_ICON, APP_BACK_ICON_SIZE } from '@/constants/navigationIcons';
 import { spacing, typography } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
@@ -296,7 +297,11 @@ export default function MoodDetailScreen() {
                   onPress={handleBackPress}
                   activeOpacity={0.7}
                >
-                  <Ionicons name="arrow-back" size={22} color={colors.text.primary} />
+                  <Ionicons
+                     name={APP_BACK_ICON}
+                     size={APP_BACK_ICON_SIZE}
+                     color={colors.text.primary}
+                  />
                </TouchableOpacity>
             </View>
          </SafeAreaView>

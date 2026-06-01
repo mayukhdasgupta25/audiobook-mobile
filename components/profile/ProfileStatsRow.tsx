@@ -4,9 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { spacing, typography, borderRadius, type ThemeColors } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
+import { useProfileStats, type ProfileStatsValues } from '@/hooks/useProfileStats';
 
 interface StatItem {
-   key: string;
+   key: keyof ProfileStatsValues;
    label: string;
    icon: keyof typeof Ionicons.glyphMap;
    iconBg: string;
@@ -16,14 +17,14 @@ interface StatItem {
 function getStatItems(colors: ThemeColors): StatItem[] {
    return [
       {
-         key: 'titles',
+         key: 'titlesListened',
          label: 'Titles Listened',
          icon: 'book-outline',
          iconBg: colors.iconBackgrounds.orange,
          iconColor: colors.iconForegrounds.brown,
       },
       {
-         key: 'hours',
+         key: 'hoursListened',
          label: 'Hours Listened',
          icon: 'time-outline',
          iconBg: colors.iconBackgrounds.green,
@@ -46,11 +47,9 @@ function getStatItems(colors: ThemeColors): StatItem[] {
    ];
 }
 
-/**
- * Stats row shell — labels and icons only until a stats API exists.
- */
 export const ProfileStatsRow: React.FC = () => {
    const { colors } = useTheme();
+   const { stats } = useProfileStats();
    const statItems = useMemo(() => getStatItems(colors), [colors]);
 
    const styles = useThemedStyles((t) =>
@@ -78,6 +77,16 @@ export const ProfileStatsRow: React.FC = () => {
             alignItems: 'center',
             marginBottom: spacing.xs,
          },
+         value: {
+            fontSize: typography.fontSize.sm,
+            color: t.colors.text.primary,
+            textAlign: 'center',
+            marginBottom: 2,
+            ...Platform.select({
+               ios: { fontFamily: 'System', fontWeight: '700' },
+               android: { fontFamily: 'sans-serif-medium', fontWeight: '700' },
+            }),
+         },
          label: {
             fontSize: typography.fontSize.xs,
             color: t.colors.text.secondary,
@@ -97,6 +106,9 @@ export const ProfileStatsRow: React.FC = () => {
                <View style={[styles.iconCircle, { backgroundColor: item.iconBg }]}>
                   <Ionicons name={item.icon} size={18} color={item.iconColor} />
                </View>
+               <Text style={styles.value} numberOfLines={1}>
+                  {stats[item.key]}
+               </Text>
                <Text style={styles.label}>{item.label}</Text>
             </View>
          ))}

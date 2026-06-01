@@ -21,6 +21,7 @@ import {
    GRID_GAP,
    NUM_COLUMNS,
 } from '@/components/AudiobookGridCard';
+import { APP_BACK_ICON, APP_BACK_ICON_SIZE } from '@/constants/navigationIcons';
 import { spacing, typography, borderRadius } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
@@ -197,7 +198,11 @@ export default function PublisherDetailScreen() {
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
          <View style={styles.topBar}>
             <TouchableOpacity style={styles.back} onPress={() => router.back()}>
-               <Ionicons name="chevron-back" size={24} color={colors.text.primary} />
+               <Ionicons
+                  name={APP_BACK_ICON}
+                  size={APP_BACK_ICON_SIZE}
+                  color={colors.text.primary}
+               />
             </TouchableOpacity>
          </View>
 

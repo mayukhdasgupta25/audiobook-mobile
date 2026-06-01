@@ -1,10 +1,8 @@
 import React, { useCallback, useState, useRef } from 'react';
 import {
    View,
-   Text,
    StyleSheet,
    ScrollView,
-   Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -15,7 +13,8 @@ import { BookmarkChapterCard } from '@/components/BookmarkChapterCard';
 import { CreatePlaylistModal } from '@/components/CreatePlaylistModal';
 import { LibrarySectionHeader } from '@/components/LibrarySectionHeader';
 import { LibraryHorizontalRow } from '@/components/LibraryHorizontalRow';
-import { spacing, typography } from '@/theme';
+import { TabScreenHeader } from '@/components/TabScreenHeader';
+import { spacing } from '@/theme';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { LIBRARY_PREVIEW_LIMIT } from '@/constants/library';
@@ -34,25 +33,6 @@ function LibraryScreenContent() {
          container: {
             flex: 1,
             backgroundColor: t.colors.background.screen,
-         },
-         header: {
-            paddingHorizontal: spacing.md,
-            paddingTop: spacing.md,
-            paddingBottom: spacing.sm,
-         },
-         title: {
-            fontSize: typography.fontSize['2xl'],
-            fontWeight: '700',
-            color: t.colors.text.primary,
-            ...Platform.select({
-               ios: { fontFamily: 'System', fontWeight: '700' },
-               android: { fontFamily: 'sans-serif-medium' },
-            }),
-         },
-         subtitle: {
-            fontSize: typography.fontSize.sm,
-            color: t.colors.text.secondary,
-            marginTop: spacing.xs,
          },
          favoriteCardWrap: {
             marginRight: spacing.sm,
@@ -109,12 +89,7 @@ function LibraryScreenContent() {
 
    return (
       <SafeAreaView style={styles.container} edges={['top']}>
-         <View style={styles.header}>
-            <View>
-               <Text style={styles.title}>Library</Text>
-               <Text style={styles.subtitle}>Your collections</Text>
-            </View>
-         </View>
+         <TabScreenHeader headerIcon="library" />
 
          <ScrollView
             ref={scrollRef}
