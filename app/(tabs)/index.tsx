@@ -40,8 +40,7 @@ import { resolveAvatarUrl } from '@/utils/resolveAvatarUrl';
 import { resolveMembershipTier } from '@/utils/membershipDisplay';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
-import { RootState } from '@/store';
-import { play } from '@/store/player';
+import { playContinueListeningChapter } from '@/utils/playContinueListeningChapter';
 
 const HEADER_ICON_SIZE = 24;
 const HEADER_ICON_HIT_SLOP = spacing.xs;
@@ -230,9 +229,6 @@ function HomeScreenContent() {
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
    const { activeSubscription } = useUserSubscription();
    const dispatch = useDispatch();
-   const currentChapterId = useSelector(
-      (state: RootState) => state.player.currentChapterId
-   );
    const { data: continueListening, isLoading: isContinueListeningLoading } =
       useContinueListening();
 
@@ -351,29 +347,23 @@ function HomeScreenContent() {
       [contentRows, loadNextPage]
    );
 
-   const handleContinuePress = useCallback(() => {
-      if (continueListening?.id) {
-         router.push(`/details/${continueListening.id}`);
-      }
-   }, [continueListening?.id]);
-
-   const handleContinuePlay = useCallback(() => {
+   const handleContinueListening = useCallback(async () => {
       if (!continueListening) {
          return;
       }
 
-      if (
-         continueListening.isLiveChapter &&
-         currentChapterId === continueListening.chapterId
-      ) {
-         dispatch(play());
-         return;
-      }
-
-      router.push(
-         `/details/${continueListening.id}?chapterId=${continueListening.chapterId}&autoPlay=true` as never
+      const started = await playContinueListeningChapter(
+         continueListening.id,
+         continueListening.chapterId,
+         dispatch
       );
-   }, [continueListening, currentChapterId, dispatch]);
+
+      if (!started) {
+         router.push(
+            `/details/${continueListening.id}?chapterId=${continueListening.chapterId}&autoPlay=true` as never
+         );
+      }
+   }, [continueListening, dispatch]);
 
    const showContinueListeningSkeleton =
       !continueListening && isContinueListeningLoading;
@@ -464,8 +454,12 @@ function HomeScreenContent() {
                         progress={continueListening.progress}
                         elapsedSeconds={continueListening.elapsedSeconds}
                         totalSeconds={continueListening.totalSeconds}
-                        onPress={handleContinuePress}
-                        onPlayPress={handleContinuePlay}
+                        onPress={() => {
+                           void handleContinueListening();
+                        }}
+                        onPlayPress={() => {
+                           void handleContinueListening();
+                        }}
                      />
                   ) : (
                      <SkeletonContinueListeningCard />

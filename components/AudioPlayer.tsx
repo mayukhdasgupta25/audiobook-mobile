@@ -413,6 +413,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
       currentChapterId,
       playbackPosition,
       totalDuration,
+      chapterEndPosition,
       isLoading,
       error,
       isVisible,
@@ -509,9 +510,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
    }, [setDragging]);
 
    const handleSeekComplete = useCallback(
-      (seconds: number) => {
-         seekToTime(seconds);
-      },
+      (seconds: number) => seekToTime(seconds),
       [seekToTime]
    );
 
@@ -1114,6 +1113,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
                      <AudioPlayerSeekBar
                         duration={totalDuration}
                         position={playbackPosition}
+                        endPosition={chapterEndPosition}
                         disabled={totalDuration <= 0 || isLoading}
                         onSeekStart={handleSeekStart}
                         onSeekEnd={handleSeekEnd}

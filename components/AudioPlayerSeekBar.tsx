@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import {
    getMaxSeekableProgress,
+   getPlaybackRemainingSeconds,
    progressToSeekSeconds,
 } from '@/utils/playbackPosition';
 import { formatDuration } from '@/utils/duration';
@@ -23,7 +24,11 @@ const PROGRESS_TOUCH_MIN_HEIGHT = 52;
 const PROGRESS_BAR_HORIZONTAL_PADDING = 10;
 const TIME_TEXT_SIZE = typography.fontSize.base;
 
-function touchXToProgress(touchX: number, barWidth: number, maxProgress: number): number {
+function touchXToClampedProgress(
+   touchX: number,
+   barWidth: number,
+   maxProgress: number
+): number {
    'worklet';
    if (barWidth <= 0) {
       return 0;
@@ -35,15 +40,19 @@ function touchXToProgress(touchX: number, barWidth: number, maxProgress: number)
 export interface AudioPlayerSeekBarProps {
    duration: number;
    position: number;
+   /** Max seek position (seconds) from GET /chapters/:id — caps scrubbing */
+   endPosition?: number | null;
    disabled?: boolean;
    onSeekStart: () => void;
    onSeekEnd: () => void;
-   onSeekComplete: (seconds: number) => void;
+   /** Called when the user releases; may return a Promise (e.g. await TrackPlayer seek). */
+   onSeekComplete: (seconds: number) => void | Promise<void>;
 }
 
 export const AudioPlayerSeekBar: React.FC<AudioPlayerSeekBarProps> = ({
    duration,
    position,
+   endPosition = null,
    disabled = false,
    onSeekStart,
    onSeekEnd,
@@ -102,7 +111,7 @@ export const AudioPlayerSeekBar: React.FC<AudioPlayerSeekBarProps> = ({
          },
          timeContainer: {
             flexDirection: 'row',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end',
             paddingHorizontal: PROGRESS_BAR_HORIZONTAL_PADDING,
          },
          timeText: {
@@ -116,8 +125,6 @@ export const AudioPlayerSeekBar: React.FC<AudioPlayerSeekBarProps> = ({
       })
    );
 
-   const [displayedTime, setDisplayedTime] = useState(0);
-
    const onSeekStartRef = useRef(onSeekStart);
    const onSeekEndRef = useRef(onSeekEnd);
    const onSeekCompleteRef = useRef(onSeekComplete);
@@ -125,151 +132,164 @@ export const AudioPlayerSeekBar: React.FC<AudioPlayerSeekBarProps> = ({
    onSeekEndRef.current = onSeekEnd;
    onSeekCompleteRef.current = onSeekComplete;
 
-   const isScrubbingRef = useRef(false);
+   const seekInFlightRef = useRef(false);
+   const seekCommittedShared = useSharedValue(false);
 
    const barWidthShared = useSharedValue(0);
    const durationShared = useSharedValue(duration);
-   const maxProgressShared = useSharedValue(getMaxSeekableProgress(duration));
-   const dragProgress = useSharedValue(0);
-   const actualProgress = useSharedValue(0);
+   const endPositionShared = useSharedValue(endPosition ?? 0);
+   const maxProgressShared = useSharedValue(
+      getMaxSeekableProgress(duration, endPosition)
+   );
+   const positionShared = useSharedValue(0);
+   /** Single source of truth for fill/handle position — avoids isScrubbing ? a : b flicker. */
+   const visualProgress = useSharedValue(0);
    const isScrubbing = useSharedValue(false);
-   const lastDisplayedSecond = useSharedValue(-1);
 
    useEffect(() => {
       durationShared.value = duration;
-      maxProgressShared.value = getMaxSeekableProgress(duration);
-   }, [duration, durationShared, maxProgressShared]);
+      endPositionShared.value = endPosition ?? 0;
+      maxProgressShared.value = getMaxSeekableProgress(duration, endPosition);
+   }, [duration, endPosition, durationShared, endPositionShared, maxProgressShared]);
 
    useEffect(() => {
-      if (isScrubbingRef.current || duration <= 0) {
-         return;
+      positionShared.value = duration > 0 ? position / duration : 0;
+   }, [position, duration, positionShared]);
+
+   // Sync playback progress to the thumb only when not scrubbing (UI thread).
+   useAnimatedReaction(
+      () => ({
+         progress: positionShared.value,
+         scrubbing: isScrubbing.value,
+      }),
+      (current) => {
+         if (!current.scrubbing) {
+            visualProgress.value = current.progress;
+         }
       }
-      actualProgress.value = position / duration;
-   }, [position, duration, actualProgress]);
+   );
+
+   const setScrubbing = useCallback(
+      (active: boolean) => {
+         isScrubbing.value = active;
+      },
+      [isScrubbing]
+   );
 
    const handleSeekStart = useCallback(() => {
-      isScrubbingRef.current = true;
+      setScrubbing(true);
       onSeekStartRef.current();
-   }, []);
+   }, [setScrubbing]);
 
-   const handleSeekComplete = useCallback((progress: number, durationSeconds: number) => {
-      const seconds = progressToSeekSeconds(progress, durationSeconds);
-      onSeekCompleteRef.current(seconds);
+   const handleSeekEnd = useCallback(() => {
+      setScrubbing(false);
       onSeekEndRef.current();
-      isScrubbingRef.current = false;
-   }, []);
+   }, [setScrubbing]);
 
-   const handleSeekCancel = useCallback(() => {
-      onSeekEndRef.current();
-      isScrubbingRef.current = false;
-      setDisplayedTime(0);
-      lastDisplayedSecond.value = -1;
-   }, [lastDisplayedSecond]);
+   const handleSeekComplete = useCallback(
+      async (progress: number, durationSeconds: number) => {
+         if (seekInFlightRef.current) {
+            return;
+         }
+         seekInFlightRef.current = true;
+         seekCommittedShared.value = true;
+         visualProgress.value = progress;
 
-   const updateDisplayedTime = useCallback((time: number) => {
-      setDisplayedTime(time);
-   }, []);
+         try {
+            const seconds = progressToSeekSeconds(
+               progress,
+               durationSeconds,
+               endPositionShared.value > 0 ? endPositionShared.value : null
+            );
+            await Promise.resolve(onSeekCompleteRef.current(seconds));
+         } finally {
+            seekInFlightRef.current = false;
+            seekCommittedShared.value = false;
+            handleSeekEnd();
+         }
+      },
+      [handleSeekEnd, seekCommittedShared, visualProgress]
+   );
 
-   const clearDisplayedTime = useCallback(() => {
-      setDisplayedTime(0);
-      lastDisplayedSecond.value = -1;
-   }, [lastDisplayedSecond]);
-
-   const panGesture = Gesture.Pan()
+   // Tap-to-seek: no pan onBegin, so no cancel/revert flicker.
+   const tapGesture = Gesture.Tap()
       .enabled(!disabled && duration > 0)
-      .activeOffsetX([-4, 4])
-      .failOffsetY([-16, 16])
-      .hitSlop({ top: 16, bottom: 16, left: 0, right: 0 })
-      .onBegin((event) => {
-         isScrubbing.value = true;
-         dragProgress.value = touchXToProgress(
+      .onEnd((event) => {
+         const progress = touchXToClampedProgress(
             event.x,
             barWidthShared.value,
             maxProgressShared.value
          );
+         isScrubbing.value = true;
+         visualProgress.value = progress;
+         runOnJS(handleSeekStart)();
+         runOnJS(handleSeekComplete)(progress, durationShared.value);
+      });
+
+   // Drag-to-scrub: onStart fires only after the pan activates (horizontal move).
+   const panGesture = Gesture.Pan()
+      .enabled(!disabled && duration > 0)
+      .activeOffsetX([-8, 8])
+      .failOffsetY([-12, 12])
+      .hitSlop({ top: 16, bottom: 16, left: 0, right: 0 })
+      .onStart((event) => {
+         const progress = touchXToClampedProgress(
+            event.x,
+            barWidthShared.value,
+            maxProgressShared.value
+         );
+         isScrubbing.value = true;
+         visualProgress.value = progress;
          runOnJS(handleSeekStart)();
       })
       .onUpdate((event) => {
-         dragProgress.value = touchXToProgress(
+         visualProgress.value = touchXToClampedProgress(
             event.x,
             barWidthShared.value,
             maxProgressShared.value
          );
       })
       .onEnd((event) => {
-         const progress = touchXToProgress(
+         const progress = touchXToClampedProgress(
             event.x,
             barWidthShared.value,
             maxProgressShared.value
          );
-         dragProgress.value = progress;
-         actualProgress.value = progress;
-         isScrubbing.value = false;
+         visualProgress.value = progress;
          runOnJS(handleSeekComplete)(progress, durationShared.value);
       })
       .onFinalize((_event, success) => {
-         if (success) {
+         if (success || seekCommittedShared.value) {
             return;
          }
-         isScrubbing.value = false;
-         runOnJS(handleSeekCancel)();
+         runOnJS(handleSeekEnd)();
       });
 
+   const seekGesture = Gesture.Exclusive(panGesture, tapGesture);
+
    const progressFillStyle = useAnimatedStyle(() => {
-      const progress = isScrubbing.value ? dragProgress.value : actualProgress.value;
       const width = barWidthShared.value;
       return {
-         width: width > 0 ? progress * width : 0,
+         width: width > 0 ? visualProgress.value * width : 0,
       };
    });
 
    const progressHandleStyle = useAnimatedStyle(() => {
-      const progress = isScrubbing.value ? dragProgress.value : actualProgress.value;
       const width = barWidthShared.value;
       return {
          left:
             width > 0
-               ? progress * width - PROGRESS_HANDLE_CENTER_OFFSET
+               ? visualProgress.value * width - PROGRESS_HANDLE_CENTER_OFFSET
                : -PROGRESS_HANDLE_CENTER_OFFSET,
       };
    });
 
-   useAnimatedReaction(
-      () => {
-         if (!isScrubbing.value || durationShared.value <= 0) {
-            return -1;
-         }
-         return Math.floor(dragProgress.value * durationShared.value);
-      },
-      (second) => {
-         if (second < 0) {
-            return;
-         }
-         if (second !== lastDisplayedSecond.value) {
-            lastDisplayedSecond.value = second;
-            runOnJS(updateDisplayedTime)(second);
-         }
-      }
-   );
-
-   useAnimatedReaction(
-      () => isScrubbing.value,
-      (scrubbing, wasScrubbing) => {
-         if (wasScrubbing && !scrubbing) {
-            runOnJS(clearDisplayedTime)();
-         }
-      }
-   );
-
-   const elapsedTime = Math.floor(position);
-   const totalTime = Math.floor(duration);
-   const previewTime = displayedTime > 0 ? displayedTime : elapsedTime;
-   const remainingTime = Math.max(0, totalTime - previewTime);
+   const remainingTime = getPlaybackRemainingSeconds(position, duration, endPosition);
 
    return (
       <View style={styles.progressContainer}>
          <View style={styles.progressBarWrapper}>
-            <GestureDetector gesture={panGesture}>
+            <GestureDetector gesture={seekGesture}>
                <View
                   style={styles.progressBarContainer}
                   onLayout={(event) => {
@@ -289,9 +309,9 @@ export const AudioPlayerSeekBar: React.FC<AudioPlayerSeekBarProps> = ({
             </GestureDetector>
          </View>
          <View style={styles.timeContainer}>
-            <Text style={styles.timeText}>{formatDuration(previewTime)}</Text>
-            <Text style={styles.timeText}>{formatDuration(totalTime)}</Text>
-            <Text style={styles.timeText}>-{formatDuration(remainingTime)}</Text>
+            <Text style={styles.timeText}>
+               {remainingTime > 0 ? `-${formatDuration(remainingTime)}` : formatDuration(0)}
+            </Text>
          </View>
       </View>
    );

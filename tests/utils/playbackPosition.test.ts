@@ -4,6 +4,7 @@ import {
    clampSyncPlaybackPosition,
    getMaxSeekableProgress,
    getMaxSeekableSeconds,
+   getPlaybackRemainingSeconds,
    progressFromTouchX,
    progressToSeekSeconds,
 } from '@/utils/playbackPosition';
@@ -90,6 +91,34 @@ describe('playbackPosition utils', () => {
       it('never exceeds max seekable progress', () => {
          expect(clampScrubProgress(1, 936)).toBe(getMaxSeekableProgress(936));
          expect(clampScrubProgress(1.5, 936)).toBe(getMaxSeekableProgress(936));
+      });
+   });
+
+   describe('getPlaybackRemainingSeconds', () => {
+      it('returns 0 at the seekable end', () => {
+         expect(getPlaybackRemainingSeconds(935.75, 936)).toBe(0);
+         expect(getPlaybackRemainingSeconds(399.75, 936, 400)).toBe(0);
+      });
+
+      it('uses endPosition not full duration for remaining time', () => {
+         expect(getPlaybackRemainingSeconds(390, 936, 400)).toBe(10);
+         expect(getPlaybackRemainingSeconds(596, 600, 596)).toBe(0);
+      });
+   });
+
+   describe('chapter endPosition cap', () => {
+      it('limits max seek below full duration when endPosition is earlier', () => {
+         expect(getMaxSeekableSeconds(936, 400)).toBe(399.75);
+         expect(getMaxSeekableProgress(936, 400)).toBeCloseTo(399.75 / 936, 5);
+      });
+
+      it('clamps scrub and seek to endPosition', () => {
+         expect(progressToSeekSeconds(1, 936, 400)).toBe(399.75);
+         expect(clampPlaybackSeekSeconds(500, 936, 400)).toBe(399.75);
+      });
+
+      it('caps seek sync to endPosition when earlier than duration', () => {
+         expect(clampSyncPlaybackPosition(500, 936, 'seek', 400)).toBe(399);
       });
    });
 });

@@ -239,9 +239,6 @@ export const DrawerMenu: React.FC<DrawerMenuProps> = ({
          darkModeRow: {
             flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: t.colors.background.card,
-            borderRadius: borderRadius.lg,
-            paddingHorizontal: spacing.md,
             paddingVertical: spacing.sm,
          },
          darkModeText: {
