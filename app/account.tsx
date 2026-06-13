@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { spacing, typography, borderRadius } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -26,13 +26,6 @@ import {
 } from '@/services/auth';
 import { ApiError } from '@/services/api';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
-import {
-   setSkipDurationSeconds,
-   type SkipDurationSeconds,
-} from '@/store/settings';
-
-const SKIP_DURATION_OPTIONS: SkipDurationSeconds[] = [5, 10, 15];
-
 export default function AccountScreen() {
    const { colors } = useTheme();
    const styles = useThemedStyles((t) =>
@@ -56,41 +49,6 @@ export default function AccountScreen() {
             fontSize: typography.fontSize.sm,
             color: t.colors.error,
             textAlign: 'center',
-         },
-         playbackContent: {
-            padding: spacing.md,
-         },
-         playbackHint: {
-            fontSize: typography.fontSize.sm,
-            color: t.colors.text.secondary,
-            marginBottom: spacing.md,
-            lineHeight: typography.lineHeight.relaxed * typography.fontSize.sm,
-         },
-         skipDurationRow: {
-            flexDirection: 'row',
-            gap: spacing.sm,
-         },
-         skipDurationOption: {
-            flex: 1,
-            paddingVertical: spacing.md,
-            paddingHorizontal: spacing.sm,
-            borderRadius: borderRadius.lg,
-            borderWidth: 2,
-            borderColor: t.colors.border.medium,
-            backgroundColor: 'transparent',
-            alignItems: 'center',
-         },
-         skipDurationOptionSelected: {
-            borderColor: t.colors.accent.primary,
-            backgroundColor: t.colors.background.highlight,
-         },
-         skipDurationOptionText: {
-            fontSize: typography.fontSize.base,
-            color: t.colors.text.secondary,
-            fontWeight: '600',
-         },
-         skipDurationOptionTextSelected: {
-            color: t.colors.accent.primary,
          },
          actionsContent: {
             padding: spacing.md,
@@ -120,10 +78,6 @@ export default function AccountScreen() {
    );
 
    const insets = useSafeAreaInsets();
-   const dispatch = useDispatch();
-   const skipDurationSeconds = useSelector(
-      (state: RootState) => state.settings.skipDurationSeconds
-   );
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
    const user = useSelector((state: RootState) => state.auth.user);
    const [isRequestingPasswordOtp, setIsRequestingPasswordOtp] = useState(false);
@@ -250,39 +204,6 @@ export default function AccountScreen() {
                      onManagePlanPress={handleManagePlanPress}
                      onRetryPress={() => refetchSubscription()}
                   />
-               </SettingsSection>
-
-               <SettingsSection title="Playback">
-                  <View style={styles.playbackContent}>
-                     <Text style={styles.playbackHint}>
-                        Skip forward and backward duration for in-app and lock screen controls.
-                     </Text>
-                     <View style={styles.skipDurationRow}>
-                        {SKIP_DURATION_OPTIONS.map((seconds) => {
-                           const isSelected = skipDurationSeconds === seconds;
-                           return (
-                              <TouchableOpacity
-                                 key={seconds}
-                                 style={[
-                                    styles.skipDurationOption,
-                                    isSelected && styles.skipDurationOptionSelected,
-                                 ]}
-                                 onPress={() => dispatch(setSkipDurationSeconds(seconds))}
-                                 activeOpacity={0.7}
-                              >
-                                 <Text
-                                    style={[
-                                       styles.skipDurationOptionText,
-                                       isSelected && styles.skipDurationOptionTextSelected,
-                                    ]}
-                                 >
-                                    {seconds}s
-                                 </Text>
-                              </TouchableOpacity>
-                           );
-                        })}
-                     </View>
-                  </View>
                </SettingsSection>
 
                <SettingsSection title="Profile">

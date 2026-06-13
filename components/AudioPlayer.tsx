@@ -32,11 +32,19 @@ import { RootState } from '@/store';
 import { setMinimized, setUiSuppressed, releasePlayback } from '@/store/player';
 import { useAudioPlayerControls } from '@/contexts/AudioPlaybackContext';
 import { PlaybackSpeedSheet } from '@/components/PlaybackSpeedSheet';
+import { SleepTimerSheet } from '@/components/SleepTimerSheet';
 import { AudioPlayerSeekBar } from '@/components/AudioPlayerSeekBar';
 import {
    formatPlaybackSpeedLabel,
    type PlaybackSpeed,
 } from '@/constants/playbackSpeed';
+import {
+   formatSleepTimerLabel,
+   formatSleepTimerRemaining,
+   type SleepTimerOption,
+} from '@/constants/sleepTimer';
+import { startSleepTimer, clearSleepTimer } from '@/store/settings';
+import { isSleepTimerActive } from '@/utils/sleepTimer';
 import { usePlaybackSync } from '@/hooks/usePlaybackSync';
 import { useBookmark, useBookmarkMutations } from '@/hooks/useBookmark';
 import { syncPlayback, initializePlaybackSession } from '@/services/audiobooks';
@@ -427,7 +435,16 @@ export const AudioPlayer: React.FC = React.memo(() => {
       (state: RootState) => state.settings.skipDurationSeconds
    );
    const playbackSpeed = useSelector((state: RootState) => state.settings.playbackSpeed);
+   const sleepTimerOption = useSelector(
+      (state: RootState) => state.settings.sleepTimerOption
+   );
+   const sleepTimerEndsAt = useSelector(
+      (state: RootState) => state.settings.sleepTimerEndsAt
+   );
+   const settings = useSelector((state: RootState) => state.settings);
    const [speedSheetVisible, setSpeedSheetVisible] = useState(false);
+   const [sleepTimerSheetVisible, setSleepTimerSheetVisible] = useState(false);
+   const [sleepTimerTick, setSleepTimerTick] = useState(0);
 
    // Get user from Redux for session initialization
    const user = useSelector((state: RootState) => state.auth.user);
@@ -468,6 +485,41 @@ export const AudioPlayer: React.FC = React.memo(() => {
          setSpeedSheetVisible(false);
       },
       [setPlaybackRate]
+   );
+
+   const sleepTimerActive = isSleepTimerActive(settings);
+
+   const sleepTimerLabel = useMemo(() => {
+      if (!sleepTimerActive) {
+         return 'Off';
+      }
+      if (sleepTimerOption === 'endOfChapter') {
+         return 'End ch.';
+      }
+      if (sleepTimerEndsAt) {
+         return formatSleepTimerRemaining(sleepTimerEndsAt);
+      }
+      return formatSleepTimerLabel(sleepTimerOption);
+   }, [sleepTimerActive, sleepTimerOption, sleepTimerEndsAt, sleepTimerTick]);
+
+   useEffect(() => {
+      if (!sleepTimerActive || sleepTimerOption === 'endOfChapter' || !sleepTimerEndsAt) {
+         return;
+      }
+      const id = setInterval(() => setSleepTimerTick((t) => t + 1), 1000);
+      return () => clearInterval(id);
+   }, [sleepTimerActive, sleepTimerOption, sleepTimerEndsAt]);
+
+   const handleSleepTimerSelect = useCallback(
+      (option: SleepTimerOption) => {
+         if (option === 'off') {
+            dispatch(clearSleepTimer());
+         } else {
+            dispatch(startSleepTimer(option));
+         }
+         setSleepTimerSheetVisible(false);
+      },
+      [dispatch]
    );
 
    const { data: bookmark } = useBookmark(currentChapterId);
@@ -1253,6 +1305,18 @@ export const AudioPlayer: React.FC = React.memo(() => {
                            {formatPlaybackSpeedLabel(playbackSpeed)}
                         </Text>
                      </TouchableOpacity>
+                     <TouchableOpacity
+                        style={styles.bottomAction}
+                        onPress={() => setSleepTimerSheetVisible(true)}
+                        activeOpacity={0.7}
+                     >
+                        <Ionicons
+                           name="moon-outline"
+                           size={FP.bottomActionIconSize}
+                           color={colors.accent.primaryDark}
+                        />
+                        <Text style={styles.bottomActionText}>{sleepTimerLabel}</Text>
+                     </TouchableOpacity>
                      </View>
                   </View>
                </Animated.View>
@@ -1264,6 +1328,13 @@ export const AudioPlayer: React.FC = React.memo(() => {
             currentSpeed={playbackSpeed}
             onSelect={handleSpeedSelect}
             onClose={() => setSpeedSheetVisible(false)}
+         />
+         <SleepTimerSheet
+            visible={sleepTimerSheetVisible}
+            currentOption={sleepTimerOption}
+            timerActive={sleepTimerActive}
+            onSelect={handleSleepTimerSelect}
+            onClose={() => setSleepTimerSheetVisible(false)}
          />
       </Animated.View>
    );
