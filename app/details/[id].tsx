@@ -416,13 +416,26 @@ export default function DetailsScreen() {
    },
    upgradeSection: {
       paddingHorizontal: spacing.md,
-      marginBottom: spacing.md,
       gap: spacing.sm,
+      alignItems: 'center',
+   },
+   upgradeSectionContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: '100%',
+      paddingHorizontal: spacing.md,
+   },
+   scrollContentRestricted: {
+      flexGrow: 1,
+   },
+   restrictedTabList: {
+      flex: 1,
    },
    upgradeBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      alignSelf: 'flex-start',
+      alignSelf: 'center',
       gap: spacing.xs,
       backgroundColor: t.colors.app.red,
       paddingHorizontal: spacing.md,
@@ -442,7 +455,7 @@ export default function DetailsScreen() {
    },
    upgradeBadgeText: {
       fontSize: typography.fontSize.base,
-      color: t.colors.text.dark,
+      color: t.colors.primary[50],
       fontWeight: '600',
       ...Platform.select({
          ios: {
@@ -457,6 +470,7 @@ export default function DetailsScreen() {
    upgradeMessage: {
       fontSize: typography.fontSize.sm,
       color: t.colors.text.secondaryDark,
+      textAlign: 'center',
       lineHeight: typography.lineHeight.relaxed * typography.fontSize.sm,
       ...Platform.select({
          ios: {
@@ -896,6 +910,28 @@ export default function DetailsScreen() {
       router.push('/subscription-plans');
    }, []);
 
+   const renderUpgradeSection = useCallback(() => {
+      if (!isAccessRestricted) {
+         return null;
+      }
+
+      return (
+         <View style={styles.upgradeSection}>
+            <TouchableOpacity
+               style={styles.upgradeBadge}
+               onPress={handleUpgradePlanPress}
+               activeOpacity={0.7}
+            >
+               <Ionicons name="lock-closed" size={16} color={colors.primary[50]} />
+               <Text style={styles.upgradeBadgeText}>Upgrade your plan</Text>
+            </TouchableOpacity>
+            {upgradeMessage ? (
+               <Text style={styles.upgradeMessage}>{upgradeMessage}</Text>
+            ) : null}
+         </View>
+      );
+   }, [isAccessRestricted, upgradeMessage, handleUpgradePlanPress, colors.primary, styles]);
+
    // Handle chapter press
    const handleChapterPress = useCallback(
       async (chapter: Chapter) => {
@@ -1033,7 +1069,11 @@ export default function DetailsScreen() {
    // Render empty state
    const renderEmpty = useCallback(() => {
       if (isAccessRestricted) {
-         return null;
+         return (
+            <View style={styles.upgradeSectionContainer}>
+               {renderUpgradeSection()}
+            </View>
+         );
       }
 
       if (isLoadingChapters) {
@@ -1061,7 +1101,7 @@ export default function DetailsScreen() {
             <Text style={styles.emptyText}>No chapters available</Text>
          </View>
       );
-   }, [isAccessRestricted, isLoadingChapters, chaptersError]);
+   }, [isAccessRestricted, isLoadingChapters, chaptersError, renderUpgradeSection]);
 
    const handleDetailTabPress = useCallback((key: string) => {
       setDetailTab(key as 'chapters' | 'about');
@@ -1086,28 +1126,6 @@ export default function DetailsScreen() {
          </View>
       );
    }, [audiobook, isAudiobookLoading]);
-
-   const renderUpgradeSection = useCallback(() => {
-      if (!isAccessRestricted) {
-         return null;
-      }
-
-      return (
-         <View style={styles.upgradeSection}>
-            <TouchableOpacity
-               style={styles.upgradeBadge}
-               onPress={handleUpgradePlanPress}
-               activeOpacity={0.7}
-            >
-               <Ionicons name="lock-closed" size={16} color={colors.accent.primary} />
-               <Text style={styles.upgradeBadgeText}>Upgrade your plan</Text>
-            </TouchableOpacity>
-            {upgradeMessage ? (
-               <Text style={styles.upgradeMessage}>{upgradeMessage}</Text>
-            ) : null}
-         </View>
-      );
-   }, [isAccessRestricted, upgradeMessage, handleUpgradePlanPress]);
 
    // Render book header (above tab slide panels)
    const renderBookHeader = useCallback(() => {
@@ -1214,8 +1232,6 @@ export default function DetailsScreen() {
                activeKey={detailTab}
                onTabPress={handleDetailTabPress}
             />
-
-            {renderUpgradeSection()}
          </>
       );
    }, [
@@ -1227,7 +1243,6 @@ export default function DetailsScreen() {
       handleBack,
       handlePlayAll,
       handleDetailTabPress,
-      renderUpgradeSection,
       isAccessRestricted,
       handleFavoritePress,
       favorite,
@@ -1256,6 +1271,7 @@ export default function DetailsScreen() {
                style={styles.tabSlideContainer}
             >
                <FlatList
+                  style={isAccessRestricted ? styles.restrictedTabList : undefined}
                   data={isAccessRestricted ? [] : allChapters}
                   renderItem={renderChapterItem}
                   keyExtractor={(item) => item.id}
@@ -1265,7 +1281,11 @@ export default function DetailsScreen() {
                   onEndReachedThreshold={0.5}
                   removeClippedSubviews={true}
                   showsVerticalScrollIndicator={false}
-                  contentContainerStyle={[styles.scrollContent, scrollContentStyle]}
+                  contentContainerStyle={[
+                     styles.scrollContent,
+                     scrollContentStyle,
+                     isAccessRestricted && styles.scrollContentRestricted,
+                  ]}
                />
                <ScrollView
                   showsVerticalScrollIndicator={false}

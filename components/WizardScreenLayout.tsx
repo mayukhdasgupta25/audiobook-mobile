@@ -148,6 +148,10 @@ export const WizardScreenLayout: React.FC<WizardScreenLayoutProps> = ({
             color: t.colors.error,
             textAlign: 'center',
          },
+         continueButton: {
+            borderWidth: 1,
+            borderColor: t.colors.accent.primary,
+         },
       })
    );
 
@@ -187,6 +191,7 @@ export const WizardScreenLayout: React.FC<WizardScreenLayoutProps> = ({
             disabled={continueDisabled}
             loading={isLoading}
             variant="outline"
+            style={styles.continueButton}
          />
       </>
    );

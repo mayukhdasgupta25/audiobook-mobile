@@ -4,7 +4,7 @@ import {
    syncUserLocationToProfile,
 } from '@/services/location';
 import { useDeviceLocationStore } from '@/store/deviceLocation';
-import { updateUserProfile } from '@/services/user';
+import { updateAuthUserProfile } from '@/services/authProfile';
 
 jest.mock('expo-location', () => ({
    PermissionStatus: { GRANTED: 'granted', DENIED: 'denied' },
@@ -23,12 +23,12 @@ jest.mock('expo-location', () => ({
    }),
 }));
 
-jest.mock('@/services/user', () => ({
-   updateUserProfile: jest.fn().mockResolvedValue({ success: true }),
+jest.mock('@/services/authProfile', () => ({
+   updateAuthUserProfile: jest.fn().mockResolvedValue({ message: 'ok', user: {} }),
 }));
 
-const mockedUpdateUserProfile = updateUserProfile as jest.MockedFunction<
-   typeof updateUserProfile
+const mockedUpdateAuthUserProfile = updateAuthUserProfile as jest.MockedFunction<
+   typeof updateAuthUserProfile
 >;
 
 describe('location service', () => {
@@ -66,7 +66,7 @@ describe('location service', () => {
       await syncUserLocationToProfile();
 
       expect(Location.getCurrentPositionAsync).not.toHaveBeenCalled();
-      expect(mockedUpdateUserProfile).toHaveBeenCalledWith({
+      expect(mockedUpdateAuthUserProfile).toHaveBeenCalledWith({
          location: {
             latitude: '48.8566',
             longitude: '2.3522',
@@ -89,7 +89,7 @@ describe('location service', () => {
 
       await syncUserLocationToProfile();
 
-      expect(mockedUpdateUserProfile).toHaveBeenCalledWith({
+      expect(mockedUpdateAuthUserProfile).toHaveBeenCalledWith({
          location: {
             latitude: '51.5074',
             longitude: '-0.1278',

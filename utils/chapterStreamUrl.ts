@@ -4,7 +4,6 @@
 
 import { Platform } from 'react-native';
 import { store } from '@/store';
-import { STREAMING_API_BASE_URL } from '@/services/api';
 import { getMasterPlaylist, getPlaylist } from '@/services/streaming';
 import {
    findStreamByBitrate,
@@ -13,7 +12,10 @@ import {
    parsePlaylist,
    type StreamInfo,
 } from '@/utils/m3u8Parser';
-import { normalizeM3u8Content, normalizeMediaUri } from '@/utils/m3u8Normalize';
+import {
+   normalizeM3u8Content,
+   resolvePlaybackMediaUri,
+} from '@/utils/m3u8Normalize';
 import { writePlaybackPlaylistFile } from '@/utils/playlistCacheFile';
 import type { StreamingPlaylistData } from '@/hooks/useStreamingPlaylist';
 
@@ -44,12 +46,7 @@ function bitrateFromPlaylistData(playlistData: StreamingPlaylistData): string {
  * iOS must use the public bit_transcode playlist (no auth); the API playlist returns 401 without a token.
  */
 export function resolveAbsoluteStreamUrl(pathOrUrl: string): string {
-   const normalized = normalizeMediaUri(pathOrUrl);
-   if (/^https?:\/\//i.test(normalized)) {
-      return normalized;
-   }
-   const base = STREAMING_API_BASE_URL.replace(/\/$/, '');
-   return `${base}/${normalized.replace(/^\//, '')}`;
+   return resolvePlaybackMediaUri(pathOrUrl);
 }
 
 function buildIosPlaybackUrl(selectedStream: StreamInfo): string {
@@ -62,7 +59,7 @@ async function buildAndroidPlaybackFileUrl(
    userId: string,
    rawPlaylistContent: string
 ): Promise<string> {
-   const normalized = normalizeM3u8Content(rawPlaylistContent);
+   const normalized = normalizeM3u8Content(rawPlaylistContent, { chapterId, bitrate });
    return writePlaybackPlaylistFile(chapterId, bitrate, userId, normalized);
 }
 
@@ -110,7 +107,10 @@ export async function fetchChapterPlaybackSource(
    const bitrate = bitrateMatch ? bitrateMatch[1] : selectedBitrate.toString();
 
    const rawPlaylistContent = await getPlaylist(chapterId, bitrate, userId);
-   const normalizedPlaylistContent = normalizeM3u8Content(rawPlaylistContent);
+   const normalizedPlaylistContent = normalizeM3u8Content(rawPlaylistContent, {
+      chapterId,
+      bitrate,
+   });
    const playlist = parsePlaylist(normalizedPlaylistContent);
 
    const playlistData: StreamingPlaylistData = {

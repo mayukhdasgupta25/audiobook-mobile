@@ -1,65 +1,99 @@
 /**
- * User profile service
- * Handles user profile API calls
+ * App-service user profile API (username, avatar, preferences).
+ * GET/PUT /api/v1/user/profile on the main API port.
  */
 
 import { get, put, ApiError } from './api';
 import { API_V1_PATH } from './api';
+import {
+   getAuthUserProfile,
+   type AuthUserProfile,
+} from './authProfile';
+import type { UserPreferences } from './profileTypes';
+
+export type { UserPreferences, ProfileLocationPayload, UserLocation } from './profileTypes';
 
 /**
- * User preferences interface
- */
-export interface UserPreferences {
-   theme: 'light' | 'dark';
-   autoPlay: boolean;
-   language: string;
-   playbackSpeed: number;
-   favoriteGenreIds?: string[];
-   languages?: string[];
-}
-
-/**
- * User profile interface matching API response
+ * Merged profile used by Redux and UI — app fields plus auth demographic fields.
  */
 export interface UserProfile {
    id: string;
    userId: string;
    username: string;
+   avatar: string | null;
+   preferences: UserPreferences;
+   createdAt: string;
+   updatedAt: string;
+   email: string;
    firstName: string | null;
    lastName: string | null;
-   avatar: string | null;
+   address: string | null;
+   contact: string | null;
    age: number | null;
    gender: string | null;
+   location: string | null;
+}
+
+/**
+ * App-local profile fields from app-service.
+ */
+export interface AppUserProfile {
+   id: string;
+   userId: string;
+   username: string;
+   avatar: string | null;
    preferences: UserPreferences;
    createdAt: string;
    updatedAt: string;
 }
 
-/**
- * User profile API response wrapper
- */
-export interface UserProfileResponse {
+export interface AppUserProfileResponse {
    success: boolean;
-   data: UserProfile;
+   data: AppUserProfile;
    message: string;
    statusCode: number;
    timestamp: string;
    path: string;
 }
 
-/**
- * Get user profile
- * Calls GET /api/v1/user/profile with authentication
- * @returns Promise with user profile response
- * @throws ApiError if profile fetch fails
- */
-export async function getUserProfile(): Promise<UserProfileResponse> {
+export interface UpdateAppProfileRequest {
+   username?: string;
+   avatar?: string | null;
+   preferences?: Pick<UserPreferences, 'favoriteGenreIds' | 'languages'>;
+}
+
+export function mergeUserProfiles(
+   auth: AuthUserProfile,
+   app: AppUserProfile
+): UserProfile {
+   return {
+      id: app.id,
+      userId: app.userId,
+      username: app.username,
+      avatar: app.avatar,
+      preferences: app.preferences,
+      createdAt: app.createdAt,
+      updatedAt: app.updatedAt,
+      email: auth.email,
+      firstName: auth.firstName ?? null,
+      lastName: auth.lastName ?? null,
+      address: auth.address ?? null,
+      contact: auth.contact ?? null,
+      age: auth.age ?? null,
+      gender: auth.gender ?? null,
+      location: auth.location ?? null,
+   };
+}
+
+export async function getAppUserProfile(): Promise<AppUserProfileResponse> {
    try {
-      // Use authenticated API call (useAuth=true) to include Bearer token
-      const response = await get<UserProfileResponse>(`${API_V1_PATH}/user/profile`, true);
+      const response = await get<AppUserProfileResponse>(
+         `${API_V1_PATH}/user/profile`,
+         true
+      );
       return response.data;
    } catch (error) {
-      console.error('[User Service] Get profile error', {
+      console.error('[User Service] Get app profile error', {
          error,
          errorType: error instanceof Error ? error.constructor.name : typeof error,
          errorMessage: error instanceof Error ? error.message : String(error),
@@ -68,57 +102,23 @@ export async function getUserProfile(): Promise<UserProfileResponse> {
          throw error;
       }
       throw new Error(
-         `Get profile failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+         `Get app profile failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
    }
 }
 
-/**
- * Location payload for PUT /user/profile — latitude and longitude only, as strings.
- */
-export interface ProfileLocationPayload {
-   latitude: string;
-   longitude: string;
-}
-
-/**
- * @deprecated Use ProfileLocationPayload for API requests and DeviceLocationReading for GPS cache.
- */
-export type UserLocation = ProfileLocationPayload;
-
-/**
- * Update user profile request payload
- */
-export interface UpdateProfileRequest {
-   firstName?: string | null;
-   lastName?: string | null;
-   avatar?: string | null;
-   location?: ProfileLocationPayload;
-   age?: number;
-   gender?: string;
-   preferences?: Pick<UserPreferences, 'favoriteGenreIds' | 'languages'>;
-}
-
-/**
- * Update user profile
- * Calls PUT /api/v1/user/profile with authentication
- * @param profileData - Profile data to update (firstName, lastName, avatar)
- * @returns Promise with updated user profile response
- * @throws ApiError if profile update fails
- */
-export async function updateUserProfile(
-   profileData: UpdateProfileRequest
-): Promise<UserProfileResponse> {
+export async function updateAppUserProfile(
+   profileData: UpdateAppProfileRequest
+): Promise<AppUserProfileResponse> {
    try {
-      // Use authenticated API call (useAuth=true) to include Bearer token
-      const response = await put<UserProfileResponse>(
+      const response = await put<AppUserProfileResponse>(
          `${API_V1_PATH}/user/profile`,
          profileData,
          true
       );
       return response.data;
    } catch (error) {
-      console.error('[User Service] Update profile error', {
+      console.error('[User Service] Update app profile error', {
          error,
          errorType: error instanceof Error ? error.constructor.name : typeof error,
          errorMessage: error instanceof Error ? error.message : String(error),
@@ -127,8 +127,29 @@ export async function updateUserProfile(
          throw error;
       }
       throw new Error(
-         `Update profile failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+         `Update app profile failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
    }
 }
 
+/**
+ * Fetches auth and app profiles in parallel and merges into a single UserProfile.
+ */
+export async function fetchMergedUserProfile(): Promise<UserProfile> {
+   const [authResponse, appResponse] = await Promise.all([
+      getAuthUserProfile(),
+      getAppUserProfile(),
+   ]);
+
+   if (!appResponse.data) {
+      throw new Error('App user profile not found');
+   }
+
+   return mergeUserProfiles(authResponse.user, appResponse.data);
+}
+
+/** @deprecated Use fetchMergedUserProfile — kept for callers expecting wrapped response shape. */
+export async function getUserProfile(): Promise<{ data: UserProfile }> {
+   const data = await fetchMergedUserProfile();
+   return { data };
+}

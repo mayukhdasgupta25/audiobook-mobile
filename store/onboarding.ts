@@ -21,6 +21,16 @@ export function formatGenderForApi(gender: GenderValue): string {
    return gender.toUpperCase();
 }
 
+/** Maps auth-service gender enum to onboarding store value (e.g. MALE → male). */
+export function parseGenderFromApi(gender: string | null | undefined): GenderValue | null {
+   if (!gender || !gender.trim()) {
+      return null;
+   }
+   const normalized = gender.trim().toLowerCase();
+   const match = GENDER_OPTIONS.find((option) => option.value === normalized);
+   return match?.value ?? null;
+}
+
 export const MIN_AGE = 13;
 export const MAX_AGE = 120;
 export const MAX_GENRE_SELECTIONS = 3;

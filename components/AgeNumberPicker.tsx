@@ -70,6 +70,7 @@ export const AgeNumberPicker: React.FC<AgeNumberPickerProps> = ({
          },
          list: {
             flex: 1,
+            zIndex: 2,
          },
          listContent: {
             paddingVertical: WHEEL_PADDING,
@@ -110,16 +111,16 @@ export const AgeNumberPicker: React.FC<AgeNumberPickerProps> = ({
             top: 0,
             left: 0,
             right: 0,
-            height: WHEEL_PADDING + spacing.sm,
-            zIndex: 2,
+            height: WHEEL_PADDING,
+            zIndex: 3,
          },
          fadeBottom: {
             position: 'absolute',
             bottom: 0,
             left: 0,
             right: 0,
-            height: WHEEL_PADDING + spacing.sm,
-            zIndex: 2,
+            height: WHEEL_PADDING,
+            zIndex: 3,
          },
          unitLabel: {
             marginTop: spacing.md,
