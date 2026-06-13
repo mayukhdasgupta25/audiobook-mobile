@@ -34,7 +34,7 @@ import {
    SkeletonTrendingList,
 } from '@/components/skeleton';
 import { apiConfig } from '@/services/api';
-import { Organization } from '@/services/organizations';
+import { Organization, getOrganizationImagePath } from '@/services/organizations';
 import { logout } from '@/utils/logout';
 import { resolveAvatarUrl } from '@/utils/resolveAvatarUrl';
 import { resolveMembershipTier } from '@/utils/membershipDisplay';
@@ -264,15 +264,15 @@ function HomeScreenContent() {
    const { contentRows, isLoading, loadNextPage, heroCarouselItems } = useHomeContent();
    const { data: moods, isLoading: moodsLoading } = useMoods();
    const { data: organizationsData, isLoading: organizationsLoading, isPending: organizationsPending } = useOrganizations();
-   const organizations = organizationsData?.data ?? [];
+   const organizations = organizationsData?.organizations ?? [];
 
    const getOrganizationImageUri = useCallback((org: Organization) => {
-      const path = org.logo ?? org.coverImage;
+      const path = getOrganizationImagePath(org);
       return path ? `${apiConfig.baseURL}${path}` : undefined;
    }, []);
 
    const handlePublisherPress = useCallback((org: Organization) => {
-      const imagePath = org.logo ?? org.coverImage;
+      const imagePath = getOrganizationImagePath(org);
       router.push({
          pathname: '/publisher/[id]',
          params: {
