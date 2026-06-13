@@ -201,10 +201,20 @@ export async function verifyRegistrationOtp(
 }
 
 /**
+ * OTP purposes accepted by POST /auth/resend-otp
+ */
+export type ResendOtpPurpose =
+   | 'REGISTRATION'
+   | 'EMAIL_UPDATE'
+   | 'PASSWORD_UPDATE'
+   | 'DEVICE_REMOVAL';
+
+/**
  * Resend OTP request payload
  */
 export interface ResendOtpRequest {
    email: string;
+   purpose: ResendOtpPurpose;
 }
 
 /**
@@ -216,18 +226,22 @@ export interface ResendOtpResponse {
 
 /**
  * Resend registration OTP function
- * Calls POST /auth/resend-otp with user's email
+ * Calls POST /auth/resend-otp with user's email and REGISTRATION purpose
  * @param request - Resend OTP request containing email
  * @returns Promise with response message
  * @throws ApiError if resend fails
  */
 export async function resendRegistrationOTP(
-   request: ResendOtpRequest
+   request: Pick<ResendOtpRequest, 'email'>
 ): Promise<ResendOtpResponse> {
    try {
+      const body: ResendOtpRequest = {
+         email: request.email,
+         purpose: 'REGISTRATION',
+      };
       const response = await post<ResendOtpResponse>(
          '/auth/resend-otp',
-         { email: request.email },
+         body,
          false,
          true
       );

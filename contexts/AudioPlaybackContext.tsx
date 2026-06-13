@@ -5,6 +5,7 @@
 
 import React, { createContext, useContext, type PropsWithChildren } from 'react';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { useSleepTimer } from '@/hooks/useSleepTimer';
 
 export type AudioPlaybackControls = ReturnType<typeof useAudioPlayer>;
 
@@ -12,6 +13,7 @@ const AudioPlaybackContext = createContext<AudioPlaybackControls | null>(null);
 
 export function AudioPlaybackProvider({ children }: PropsWithChildren): React.ReactElement {
    const controls = useAudioPlayer();
+   useSleepTimer();
 
    return (
       <AudioPlaybackContext.Provider value={controls}>

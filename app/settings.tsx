@@ -74,6 +74,7 @@ export default function SettingsScreen() {
                      icon="play-circle-outline"
                      iconBg={colors.iconBackgrounds.brown}
                      iconColor={colors.iconForegrounds.brown}
+                     onPress={() => router.push('/playback-settings')}
                   />
                   <SettingsMenuRow
                      title="Downloads"
@@ -81,6 +82,7 @@ export default function SettingsScreen() {
                      icon="download-outline"
                      iconBg={colors.iconBackgrounds.green}
                      iconColor={colors.iconForegrounds.green}
+                     onPress={() => router.push('/settings/downloads')}
                   />
                   <SettingsMenuRow
                      title="Audio Quality"
@@ -88,6 +90,7 @@ export default function SettingsScreen() {
                      icon="pulse-outline"
                      iconBg={colors.iconBackgrounds.pink}
                      iconColor={colors.iconForegrounds.pink}
+                     onPress={() => router.push('/audio-quality')}
                   />
                   <SettingsMenuRow
                      title="Car Mode"
@@ -118,6 +121,7 @@ export default function SettingsScreen() {
                      icon="heart-outline"
                      iconBg={colors.iconBackgrounds.pink}
                      iconColor={colors.iconForegrounds.pink}
+                     onPress={() => router.push('/content-preferences')}
                   />
                   <SettingsMenuRow
                      title="Recommendations"

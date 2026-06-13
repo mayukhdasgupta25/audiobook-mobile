@@ -16,7 +16,10 @@ export type ScreenHeaderIconKey =
    | 'subscription-plans'
    | 'manage-devices'
    | 'update-avatar'
-   | 'chapter-comments';
+   | 'chapter-comments'
+   | 'playback-settings'
+   | 'audio-quality'
+   | 'content-preferences';
 
 type IconToneKey = {
    background: keyof ThemeColors['iconBackgrounds'];
@@ -108,6 +111,24 @@ export const SCREEN_HEADER_ICONS: Record<ScreenHeaderIconKey, ScreenHeaderIconDe
       icon: 'chatbubbles-outline',
       title: 'Comments',
       tone: { background: 'blue', foreground: 'blue' },
+   },
+   'playback-settings': {
+      icon: 'play-circle-outline',
+      title: 'Playback Settings',
+      subtitle: 'Sleep timer, skip intervals, speed',
+      tone: { background: 'brown', foreground: 'brown' },
+   },
+   'audio-quality': {
+      icon: 'pulse-outline',
+      title: 'Audio Quality',
+      subtitle: 'Streaming quality for your plan',
+      tone: { background: 'pink', foreground: 'pink' },
+   },
+   'content-preferences': {
+      icon: 'heart-outline',
+      title: 'Content Preferences',
+      subtitle: 'Genres and languages you enjoy',
+      tone: { background: 'pink', foreground: 'pink' },
    },
 };
 

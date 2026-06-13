@@ -48,6 +48,8 @@ import { Platform } from 'react-native';
 import type { PlaybackSpeed } from '@/constants/playbackSpeed';
 import { applyPlaybackSpeed } from '@/utils/applyPlaybackSpeed';
 import { usePlayingChapterBounds } from '@/hooks/usePlayingChapterBounds';
+import { shouldPauseAtChapterEnd } from '@/utils/sleepTimer';
+import { clearSleepTimer } from '@/store/settings';
 
 const LOAD_TIMEOUT_MS = 30_000;
 
@@ -276,6 +278,16 @@ export function useAudioPlayer() {
             const state = store.getState().player;
             if (!state.audiobookId || !state.currentChapterId) {
                dispatch(stop());
+               return;
+            }
+            if (shouldPauseAtChapterEnd(store.getState().settings)) {
+               store.dispatch(clearSleepTimer());
+               dispatch(pause());
+               try {
+                  await TrackPlayer.pause();
+               } catch (error: unknown) {
+                  console.warn('[Audio Player] Sleep timer pause failed:', error);
+               }
                return;
             }
             lastLoadedChapterRef.current = null;
