@@ -19,7 +19,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { useGenres } from '@/hooks/useGenres';
 import { INDIAN_LANGUAGES } from '@/constants/indianLanguages';
-import { updateUserProfile } from '@/services/user';
+import { updateAppUserProfile } from '@/services/user';
 import { fetchUserProfile } from '@/store/auth';
 import { ApiError } from '@/services/api';
 import { AppDispatch, RootState } from '@/store';
@@ -162,7 +162,7 @@ export default function ContentPreferencesScreen() {
       setIsSubmitting(true);
 
       try {
-         await updateUserProfile({
+         await updateAppUserProfile({
             preferences: {
                favoriteGenreIds: genreIds,
                languages: languageCodes,

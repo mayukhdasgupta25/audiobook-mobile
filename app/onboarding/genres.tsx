@@ -6,7 +6,8 @@ import { WizardScreenLayout } from '@/components/WizardScreenLayout';
 import { SelectableChip } from '@/components/SelectableChip';
 import { useGenres } from '@/hooks/useGenres';
 import { syncUserLocationToProfile } from '@/services/location';
-import { updateUserProfile } from '@/services/user';
+import { updateAuthUserProfile } from '@/services/authProfile';
+import { updateAppUserProfile } from '@/services/user';
 import { completeOnboarding, fetchUserProfile } from '@/store/auth';
 import {
    useOnboardingStore,
@@ -90,9 +91,12 @@ export default function OnboardingGenresScreen() {
       setIsSubmitting(true);
 
       try {
-         await updateUserProfile({
+         await updateAuthUserProfile({
             age,
             gender: formatGenderForApi(gender),
+         });
+
+         await updateAppUserProfile({
             preferences: {
                favoriteGenreIds: genreIds,
                languages: languageCodes,

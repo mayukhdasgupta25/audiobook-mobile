@@ -1,13 +1,16 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { router, type Href } from 'expo-router';
+import { useSelector } from 'react-redux';
 import { WizardScreenLayout } from '@/components/WizardScreenLayout';
 import { SelectableChip } from '@/components/SelectableChip';
 import {
    useOnboardingStore,
    GENDER_OPTIONS,
+   parseGenderFromApi,
    type GenderValue,
 } from '@/store/onboarding';
+import { RootState } from '@/store';
 
 const TOTAL_STEPS = 4;
 
@@ -15,11 +18,24 @@ const TOTAL_STEPS = 4;
  * Onboarding step 2: select gender
  */
 export default function OnboardingGenderScreen() {
+   const userProfile = useSelector((state: RootState) => state.auth.userProfile);
    const storedGender = useOnboardingStore((s) => s.gender);
    const setStoredGender = useOnboardingStore((s) => s.setGender);
 
    const [selectedGender, setSelectedGender] = useState<GenderValue | null>(storedGender);
    const [error, setError] = useState<string | null>(null);
+
+   useEffect(() => {
+      if (storedGender !== null) {
+         setSelectedGender(storedGender);
+         return;
+      }
+      const fromProfile = parseGenderFromApi(userProfile?.gender);
+      if (fromProfile) {
+         setStoredGender(fromProfile);
+         setSelectedGender(fromProfile);
+      }
+   }, [userProfile?.gender, storedGender, setStoredGender]);
 
    const handleSelect = useCallback(
       (value: GenderValue) => {
