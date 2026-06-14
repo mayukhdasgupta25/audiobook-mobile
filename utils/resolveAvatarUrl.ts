@@ -1,13 +1,9 @@
-import { getMainApiUrl } from '@/services/api';
+import { resolveUserAvatarUrl, type UserImageSource } from '@/utils/imageAssets';
 
 /** Build a loadable avatar URI from API paths or absolute URLs */
-export function resolveAvatarUrl(avatar: string | null | undefined): string | undefined {
-   if (!avatar) {
-      return undefined;
-   }
-   if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-      return avatar;
-   }
-   const path = avatar.startsWith('/') ? avatar : `/${avatar}`;
-   return `${getMainApiUrl()}${path}`;
+export function resolveAvatarUrl(
+   avatar: string | null | undefined,
+   imageAssets?: UserImageSource['imageAssets']
+): string | undefined {
+   return resolveUserAvatarUrl({ avatar, imageAssets }, 'profileLarge');
 }

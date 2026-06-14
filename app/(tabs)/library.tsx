@@ -24,7 +24,7 @@ import { useFavorites } from '@/hooks/useFavorites';
 import { useFavoriteAudiobooks } from '@/hooks/useFavoriteAudiobooks';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePlayBookmarkChapter } from '@/hooks/usePlayBookmarkChapter';
-import { apiConfig } from '@/services/api';
+import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
 import { getBookmarkAudiobookId } from '@/utils/bookmarkDisplay';
 import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
@@ -154,10 +154,7 @@ function LibraryScreenContent() {
                skeletonVariant="favorite"
             >
                {favoriteBooks.map((book) => {
-                  const coverPath = book.contentCardCoverImage || book.coverImage;
-                  const imageUri = coverPath
-                     ? `${apiConfig.baseURL}${coverPath}`
-                     : undefined;
+                  const imageUri = resolveAudiobookImageUrl(book, 'contentRow');
                   return (
                      <View key={book.id} style={styles.favoriteCardWrap}>
                         <ContentCard

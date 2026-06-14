@@ -144,7 +144,10 @@ export default function UpdateAvatarScreen() {
       return 'User';
    }, [userProfile]);
 
-   const currentAvatarUri = resolveAvatarUrl(userProfile?.avatar);
+   const currentAvatarUri = resolveAvatarUrl(
+      userProfile?.avatar,
+      userProfile?.imageAssets
+   );
    const previewUri = selectedImage ?? currentAvatarUri;
    const hasExistingAvatar = Boolean(userProfile?.avatar);
 

@@ -6,9 +6,10 @@ import TrackPlayer from 'react-native-track-player';
 import type { AppDispatch } from '@/store';
 import { store } from '@/store';
 import { stop } from '@/store/player';
-import { getChapters, syncPlayback, type Chapter } from '@/services/audiobooks';
+import { getChapters, type Chapter } from '@/services/audiobooks';
 import { openChapterForPlayback } from '@/utils/openChapterForPlayback';
 import { requestChapterReload } from '@/services/playbackReload';
+import { markChapterCompletedAtEnd } from '@/utils/markChapterCompletedAtEnd';
 import { queryKeys } from '@/constants/queryKeys';
 import { queryClient } from '@/utils/queryClient';
 
@@ -68,7 +69,11 @@ export async function getAdjacentChapter(
 export async function switchToChapter(
    dispatch: AppDispatch,
    chapter: Chapter,
-   options?: { onChapterSwitched?: (chapterId: string) => void; totalChapters?: number }
+   options?: {
+      onChapterSwitched?: (chapterId: string) => void;
+      totalChapters?: number;
+      startFromBeginning?: boolean;
+   }
 ): Promise<void> {
    const totalDurationSeconds = totalDurationFromCachedPlaylist(chapter.id);
 
@@ -78,6 +83,7 @@ export async function switchToChapter(
       totalChapters: options?.totalChapters,
       totalDurationSeconds,
       autoPlay: true,
+      startFromBeginning: options?.startFromBeginning,
    });
    requestChapterReload();
    options?.onChapterSwitched?.(chapter.id);
@@ -112,17 +118,12 @@ export async function finalizeAudiobookPlayback(
       console.warn('[Chapter Navigation] Failed to pause at book end:', error);
    }
 
-   if (isVisible) {
-      await syncPlayback({
-         audiobookId,
-         chapterId: currentChapterId,
-         action: 'pause',
-         position: totalDuration,
-         durationSeconds: totalDuration,
-      }).catch((error: unknown) => {
-         console.error('[Chapter Navigation] Failed to sync at end:', error);
-      });
-   }
+   await markChapterCompletedAtEnd(
+      audiobookId,
+      currentChapterId,
+      totalDuration,
+      totalDuration
+   );
 
    dispatch(stop());
 }
@@ -136,9 +137,16 @@ export async function advanceToNextChapter(params: AdvanceToNextChapterParams): 
       const nextChapter = await getAdjacentChapter(audiobookId, currentChapterId, 1);
 
       if (nextChapter) {
+         await markChapterCompletedAtEnd(
+            audiobookId,
+            currentChapterId,
+            totalDuration,
+            totalDuration
+         );
          await switchToChapter(dispatch, nextChapter, {
             onChapterSwitched,
             totalChapters: allChapters.length,
+            startFromBeginning: true,
          });
          return;
       }

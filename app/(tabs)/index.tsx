@@ -34,11 +34,11 @@ import {
    SkeletonMoodCards,
    SkeletonTrendingList,
 } from '@/components/skeleton';
-import { apiConfig } from '@/services/api';
-import { Organization, getOrganizationImagePath } from '@/services/organizations';
+import { Organization, getOrganizationImagePath, getOrganizationImageUri } from '@/services/organizations';
 import { logout } from '@/utils/logout';
 import { RootState } from '@/store';
 import { resolveAvatarUrl } from '@/utils/resolveAvatarUrl';
+import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
 import { resolveMembershipTier } from '@/utils/membershipDisplay';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
@@ -252,7 +252,10 @@ function HomeScreenContent() {
       if (userProfile?.username) return userProfile.username;
       return 'User';
    }, [userProfile]);
-   const drawerAvatarUri = resolveAvatarUrl(userProfile?.avatar);
+   const drawerAvatarUri = resolveAvatarUrl(
+      userProfile?.avatar,
+      userProfile?.imageAssets
+   );
    const membershipTier = resolveMembershipTier(activeSubscription?.plan);
    const planName = activeSubscription?.plan.name;
 
@@ -291,10 +294,10 @@ function HomeScreenContent() {
    } = useOrganizations();
    const organizations = organizationsData?.organizations ?? [];
 
-   const getOrganizationImageUri = useCallback((org: Organization) => {
-      const path = getOrganizationImagePath(org);
-      return path ? `${apiConfig.baseURL}${path}` : undefined;
-   }, []);
+   const getOrganizationImageUriForCard = useCallback(
+      (org: Organization) => getOrganizationImageUri(org),
+      []
+   );
 
    const handlePublisherPress = useCallback((org: Organization) => {
       const imagePath = getOrganizationImagePath(org);
@@ -322,14 +325,13 @@ function HomeScreenContent() {
 
       const mapBook = (id: string, title: string, imageUri?: string) => {
          const book = booksById.get(id);
-         const coverPath = book?.coverImage || book?.contentCardCoverImage;
          return {
             id,
             title,
             author: book?.author ?? 'Unknown author',
             imageUri:
                imageUri ??
-               (coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined),
+               (book ? resolveAudiobookImageUrl(book, 'popularStory') : undefined),
          };
       };
 
@@ -343,7 +345,7 @@ function HomeScreenContent() {
          mapBook(
             book.id,
             book.title,
-            book.coverImage ? `${apiConfig.baseURL}${book.coverImage}` : undefined
+            resolveAudiobookImageUrl(book, 'popularStory')
          )
       );
    }, [contentRows, heroCarouselItems]);
@@ -493,7 +495,7 @@ function HomeScreenContent() {
             <PublisherRow
                organizations={organizations}
                isLoading={showPublishersSkeleton}
-               getImageUri={getOrganizationImageUri}
+               getImageUri={getOrganizationImageUriForCard}
                onPress={handlePublisherPress}
             />
 

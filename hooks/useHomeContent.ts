@@ -11,7 +11,7 @@ import { useGenres } from './useGenres';
 import { getAudiobooksByTag, getAudiobooksByGenre } from '@/services/audiobooks';
 import { Audiobook, PaginationInfo, AudiobooksResponse } from '@/services/audiobooks';
 import { ContentItem } from '@/components/ContentRow';
-import { apiConfig } from '@/services/api';
+import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
 import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
 
@@ -32,11 +32,7 @@ export interface ContentRowData {
  * Convert Audiobook to ContentItem format
  */
 function audiobookToContentItem(audiobook: Audiobook): ContentItem {
-   // Use contentCardCoverImage if available, fallback to coverImage
-   const imagePath = audiobook.contentCardCoverImage || audiobook.coverImage;
-   const imageUri = imagePath
-      ? `${apiConfig.baseURL}${imagePath}`
-      : undefined;
+   const imageUri = resolveAudiobookImageUrl(audiobook, 'contentRow');
 
    // Extract badge from tags (e.g., "TOP 10" from trending tag)
    const badge = audiobook.audiobookTags.find((tag) => tag.name.includes('TOP'))

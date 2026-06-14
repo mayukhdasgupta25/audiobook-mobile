@@ -5,6 +5,7 @@
 
 import { get, put, ApiError } from './api';
 import { API_V1_PATH } from './api';
+import type { ImageAssetsMap } from '@/constants/imageVariants';
 import {
    getAuthUserProfile,
    type AuthUserProfile,
@@ -21,6 +22,7 @@ export interface UserProfile {
    userId: string;
    username: string;
    avatar: string | null;
+   imageAssets?: ImageAssetsMap;
    preferences: UserPreferences;
    createdAt: string;
    updatedAt: string;
@@ -42,6 +44,7 @@ export interface AppUserProfile {
    userId: string;
    username: string;
    avatar: string | null;
+   imageAssets?: ImageAssetsMap;
    preferences: UserPreferences;
    createdAt: string;
    updatedAt: string;
@@ -71,6 +74,7 @@ export function mergeUserProfiles(
       userId: app.userId,
       username: app.username,
       avatar: app.avatar,
+      imageAssets: app.imageAssets,
       preferences: app.preferences,
       createdAt: app.createdAt,
       updatedAt: app.updatedAt,

@@ -4,6 +4,9 @@
 
 import { get, ApiError, API_V1_PATH } from './api';
 import { PaginationInfo, AudiobooksResponse } from './audiobooks';
+import type { ImageAssetsMap } from '@/constants/imageVariants';
+import { ORGANIZATION_IMAGE_SLOT_VARIANT } from '@/constants/imageVariants';
+import { pickImageAssetPath, resolveOrganizationImageUrl } from '@/utils/imageAssets';
 
 export interface Organization {
    id: string;
@@ -11,6 +14,7 @@ export interface Organization {
    slug: string;
    description?: string;
    image?: string | null;
+   imageAssets?: ImageAssetsMap;
    preferredGenre?: string | null;
    websiteUrl?: string | null;
    teamSize?: string | null;
@@ -90,7 +94,15 @@ export async function getOrganizationAudiobooks(
    }
 }
 
+export function getOrganizationImageUri(org: Organization): string | undefined {
+   return resolveOrganizationImageUrl(org, 'logo');
+}
+
+/** Returns relative path for route params when a full URI is not needed. */
 export function getOrganizationImagePath(org: Organization): string | undefined {
-   const path = org.image?.trim();
-   return path && path.length > 0 ? path : undefined;
+   return pickImageAssetPath(
+      org.image,
+      org.imageAssets,
+      ORGANIZATION_IMAGE_SLOT_VARIANT.logo
+   );
 }

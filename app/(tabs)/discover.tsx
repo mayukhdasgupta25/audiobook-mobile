@@ -22,7 +22,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { useHomeContent } from '@/hooks/useHomeContent';
-import { apiConfig } from '@/services/api';
+import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
 import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
@@ -125,9 +125,7 @@ function DiscoverScreenContent() {
             id: book.id,
             title: book.title,
             author: book.author,
-            imageUri: book.coverImage
-               ? `${apiConfig.baseURL}${book.coverImage}`
-               : undefined,
+            imageUri: resolveAudiobookImageUrl(book, 'popularStory'),
          })),
       [heroCarouselItems]
    );

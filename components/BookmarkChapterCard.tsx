@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Bookmark } from '@/services/bookmarks';
-import { apiConfig } from '@/services/api';
 import { spacing, typography, borderRadius } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
@@ -11,7 +10,7 @@ import {
    getBookmarkAudiobookId,
    getBookmarkChapterTitle,
    getBookmarkAudiobookTitle,
-   getBookmarkCoverPath,
+   getBookmarkCoverUri,
    getBookmarkChapterLabel,
 } from '@/utils/bookmarkDisplay';
 
@@ -97,8 +96,7 @@ export const BookmarkChapterCard: React.FC<BookmarkChapterCardProps> = ({
    );
 
    const audiobookId = getBookmarkAudiobookId(bookmark);
-   const coverPath = getBookmarkCoverPath(bookmark);
-   const coverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
+   const coverUri = getBookmarkCoverUri(bookmark);
    const chapterTitle = getBookmarkChapterTitle(bookmark);
    const audiobookTitle = getBookmarkAudiobookTitle(bookmark);
    const chapterLabel = getBookmarkChapterLabel(bookmark);

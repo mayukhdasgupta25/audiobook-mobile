@@ -19,7 +19,10 @@ import { useNotFoundRedirect } from '@/hooks/useNotFoundRedirect';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { queryKeys } from '@/constants/queryKeys';
 import { Audiobook } from '@/services/audiobooks';
-import { apiConfig } from '@/services/api';
+import {
+   getOrganizationImageUri,
+} from '@/services/organizations';
+import { toDisplayImageUri } from '@/utils/imageAssets';
 import {
    AudiobookGridCard,
    GRID_PADDING,
@@ -129,6 +132,7 @@ export default function PublisherDetailScreen() {
    const displayName = params.name ?? 'Publisher';
    const queryClient = useQueryClient();
    const {
+      data: organizationDetail,
       isNotFound,
       refetch: refetchOrganization,
       isRefetching: isOrganizationRefetching,
@@ -145,9 +149,13 @@ export default function PublisherDetailScreen() {
    );
 
    const pagination = data?.pagination;
-   const imageUri = params.imagePath
-      ? `${apiConfig.baseURL}${params.imagePath}`
-      : undefined;
+   const imageUri = useMemo(() => {
+      const org = organizationDetail?.organization;
+      if (org) {
+         return getOrganizationImageUri(org);
+      }
+      return toDisplayImageUri(params.imagePath, 'auth');
+   }, [organizationDetail, params.imagePath]);
 
    useEffect(() => {
       if (!data?.data) return;
