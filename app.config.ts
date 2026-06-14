@@ -1,6 +1,6 @@
 import { ExpoConfig, ConfigContext } from 'expo/config';
-import { ENVIRONMENT_BUILD_CONFIG } from './config/appEnvironments';
-import { loadEnv } from './config/loadEnv';
+import { ENVIRONMENT_BUILD_CONFIG } from './config/appEnvironments.js';
+import { loadEnv } from './config/loadEnv.js';
 
 const appEnv = loadEnv();
 const envConfig = ENVIRONMENT_BUILD_CONFIG[appEnv];

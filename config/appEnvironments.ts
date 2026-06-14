@@ -1,13 +1,21 @@
 /**
- * Build-time and runtime environment definitions for multi-env builds.
+ * Runtime types and re-exports for multi-env builds.
+ * Implementation lives in appEnvironments.js for Expo app.config compatibility.
  */
 
-export const APP_ENVIRONMENTS = [
+import {
+   APP_ENVIRONMENTS as APP_ENVIRONMENTS_JS,
+   ENVIRONMENT_BUILD_CONFIG as ENVIRONMENT_BUILD_CONFIG_JS,
+   getEnvironmentLabel as getEnvironmentLabelJs,
+   isAppEnvironment as isAppEnvironmentJs,
+} from './appEnvironments.js';
+
+export const APP_ENVIRONMENTS = APP_ENVIRONMENTS_JS as readonly [
    'development',
    'testing',
    'staging',
    'production',
-] as const;
+];
 
 export type AppEnvironment = (typeof APP_ENVIRONMENTS)[number];
 
@@ -19,50 +27,13 @@ export interface EnvironmentBuildConfig {
    enableDebugLogging: boolean;
 }
 
-export const ENVIRONMENT_BUILD_CONFIG: Record<AppEnvironment, EnvironmentBuildConfig> = {
-   development: {
-      name: 'Srota Dev',
-      bundleId: 'com.srota.mobile.dev',
-      channel: 'development',
-      enableUpdates: false,
-      enableDebugLogging: true,
-   },
-   testing: {
-      name: 'Srota Test',
-      bundleId: 'com.srota.mobile.test',
-      channel: 'testing',
-      enableUpdates: true,
-      enableDebugLogging: true,
-   },
-   staging: {
-      name: 'Srota Staging',
-      bundleId: 'com.srota.mobile.staging',
-      channel: 'staging',
-      enableUpdates: true,
-      enableDebugLogging: true,
-   },
-   production: {
-      name: 'Srota',
-      bundleId: 'com.srota.mobile',
-      channel: 'production',
-      enableUpdates: true,
-      enableDebugLogging: false,
-   },
-};
+export const ENVIRONMENT_BUILD_CONFIG =
+   ENVIRONMENT_BUILD_CONFIG_JS as Record<AppEnvironment, EnvironmentBuildConfig>;
 
 export function isAppEnvironment(value: string | undefined): value is AppEnvironment {
-   return APP_ENVIRONMENTS.includes(value as AppEnvironment);
+   return isAppEnvironmentJs(value);
 }
 
 export function getEnvironmentLabel(appEnv: AppEnvironment): string {
-   switch (appEnv) {
-      case 'development':
-         return 'DEV';
-      case 'testing':
-         return 'TEST';
-      case 'staging':
-         return 'STAGING';
-      case 'production':
-         return 'PROD';
-   }
+   return getEnvironmentLabelJs(appEnv);
 }
