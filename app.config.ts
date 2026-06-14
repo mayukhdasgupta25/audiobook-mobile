@@ -1,4 +1,9 @@
 import { ExpoConfig, ConfigContext } from 'expo/config';
+import { ENVIRONMENT_BUILD_CONFIG } from './config/appEnvironments';
+import { loadEnv } from './config/loadEnv';
+
+const appEnv = loadEnv();
+const envConfig = ENVIRONMENT_BUILD_CONFIG[appEnv];
 
 function getGoogleIosUrlScheme(clientId: string): string {
    if (clientId.startsWith('com.googleusercontent.apps.')) {
@@ -27,9 +32,11 @@ const googleSignInPlugin: [string, { iosUrlScheme: string }] | null =
         ]
       : null;
 
+const updatesUrl = process.env.EXPO_PUBLIC_UPDATES_URL?.trim();
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
    ...config,
-   name: 'Srota',
+   name: envConfig.name,
    slug: 'audiobook-mobile',
    version: '1.0.0',
    orientation: 'portrait',
@@ -41,17 +48,30 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#E8DCC4',
    },
    assetBundlePatterns: ['**/*'],
+   runtimeVersion: {
+      policy: 'appVersion',
+   },
+   updates: envConfig.enableUpdates
+      ? {
+           enabled: true,
+           fallbackToCacheTimeout: 0,
+           checkAutomatically: 'ON_LOAD',
+           ...(updatesUrl ? { url: updatesUrl } : {}),
+        }
+      : {
+           enabled: false,
+        },
    ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.srota.mobile',
+      bundleIdentifier: envConfig.bundleId,
       icon: './assets/icon.png',
       jsEngine: 'hermes',
       googleServicesFile: process.env.EXPO_PUBLIC_GOOGLE_SERVICES_IOS || undefined,
       infoPlist: {
+         CFBundleDisplayName: envConfig.name,
          UIBackgroundModes: ['audio'],
          NSLocalNetworkUsageDescription:
             'Srota connects to your audiobook server on your local network to stream chapters.',
-         // Triggers the Local Network privacy prompt so AVPlayer can reach LAN streaming URLs.
          NSBonjourServices: ['_http._tcp'],
          NSLocationWhenInUseUsageDescription:
             'Srota uses your location to personalize your experience and improve our service.',
@@ -63,7 +83,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
          foregroundImage: './assets/adaptive-icon.png',
          backgroundColor: '#E8DCC4',
       },
-      package: 'com.srota.mobile',
+      package: envConfig.bundleId,
       jsEngine: 'hermes',
       googleServicesFile: process.env.EXPO_PUBLIC_GOOGLE_SERVICES_ANDROID || undefined,
       permissions: [
@@ -104,5 +124,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
    newArchEnabled: true,
    experiments: {
       typedRoutes: true,
+   },
+   extra: {
+      appEnv,
+      updateChannel: envConfig.channel,
+      enableDebugLogging: envConfig.enableDebugLogging,
+      apiUrls: {
+         auth: process.env.EXPO_PUBLIC_AUTH_API_URL ?? null,
+         main: process.env.EXPO_PUBLIC_API_URL ?? null,
+         streaming: process.env.EXPO_PUBLIC_STREAMING_URL ?? null,
+      },
    },
 });
