@@ -19,7 +19,7 @@ import {
    getPersistedPlaybackAudiobookId,
    getPersistedPlaybackChapterId,
 } from '@/utils/playbackReturnPathStorage';
-import { apiConfig } from '@/services/api';
+import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
 
 export interface ContinueListeningData {
    id: string;
@@ -186,8 +186,9 @@ export function useContinueListening() {
 
       const title = book?.title ?? chapter?.audiobook?.title ?? chapterMetadata?.audiobookTitle ?? '';
       const author = book?.author ?? chapter?.audiobook?.author ?? '';
-      const coverPath = book?.coverImage || book?.contentCardCoverImage;
-      const coverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
+      const coverUri = book
+         ? resolveAudiobookImageUrl(book, 'continueListening')
+         : undefined;
 
       return {
          id: audiobookId,

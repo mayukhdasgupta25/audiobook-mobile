@@ -6,6 +6,7 @@
 import { get, post, put, ApiError, API_V1_PATH } from './api';
 import { store } from '@/store';
 import { clampSyncPlaybackPosition } from '@/utils/playbackPosition';
+import type { ImageAssetsMap } from '@/constants/imageVariants';
 
 /**
  * Tag interface matching API response
@@ -59,6 +60,7 @@ export interface Audiobook {
    duration: number;
    fileSize?: number;
    coverImage: string;
+   imageAssets?: ImageAssetsMap;
    homeHeroCoverImage: string | null;
    contentCardCoverImage: string | null;
    chaptersHeroCoverImage: string | null;
@@ -142,6 +144,7 @@ export interface Chapter {
    filePath: string;
    fileSize: number;
    coverImage: string;
+   imageAssets?: ImageAssetsMap;
    chapterCardCoverImage: string | null;
    maximizedChapterCoverImage: string | null;
    minimizedChapterCoverImage: string | null;

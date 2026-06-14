@@ -9,7 +9,7 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import type { Audiobook } from '@/services/audiobooks';
-import { apiConfig } from '@/services/api';
+import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
 import { spacing, typography, borderRadius } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
@@ -29,8 +29,7 @@ export function AudiobookLibraryRow({
    trailing,
 }: AudiobookLibraryRowProps) {
    const { colors } = useTheme();
-   const coverPath = audiobook.contentCardCoverImage || audiobook.coverImage;
-   const coverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
+   const coverUri = resolveAudiobookImageUrl(audiobook, 'listRow');
    const author = audiobook.author || audiobook.narrators?.[0] || 'Unknown author';
    const durationLabel = audiobook.duration ? formatDuration(audiobook.duration) : undefined;
 

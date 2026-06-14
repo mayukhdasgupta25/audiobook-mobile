@@ -18,7 +18,7 @@ import {
 } from '@/store/player';
 import { setPlaylist } from '@/store/streaming';
 import { initializePlaybackSession, syncPlayback } from '@/services/audiobooks';
-import { apiConfig } from '@/services/api';
+import { toDisplayImageUri } from '@/utils/imageAssets';
 import {
    advanceToNextChapter,
    skipToNextChapterRemote,
@@ -59,10 +59,7 @@ import { clearSleepTimer } from '@/store/settings';
 const LOAD_TIMEOUT_MS = 30_000;
 
 function buildArtworkUrl(coverImage: string | null): string | undefined {
-   if (!coverImage) {
-      return undefined;
-   }
-   return `${apiConfig.baseURL}${coverImage}`;
+   return toDisplayImageUri(coverImage ?? undefined);
 }
 
 function isAuthPlaybackError(error: unknown): boolean {
@@ -298,7 +295,9 @@ export function useAudioPlayer() {
             artist: chapterMetadata.audiobookTitle ?? 'AudioBook',
             // `album` stores audiobook id for notification tap navigation
             album: audiobookId ?? undefined,
-            artwork: buildArtworkUrl(chapterMetadata.coverImage),
+            artwork: buildArtworkUrl(
+               chapterMetadata.minimizedChapterCoverImage ?? chapterMetadata.coverImage
+            ),
             ...(speed !== 1 ? { pitchAlgorithm: PitchAlgorithm.Voice } : {}),
             // iOS plays the public bit_transcode HLS URL; auth headers break AVPlayer sub-requests.
             ...(Platform.OS === 'android'

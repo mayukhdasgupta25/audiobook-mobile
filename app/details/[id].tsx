@@ -33,7 +33,7 @@ import { SkeletonChapterRow, SkeletonDetailsHeader, SkeletonDetailsAbout } from 
 import { TabUnderline } from '@/components/TabUnderline';
 import { TabSlideView } from '@/components/TabSlideView';
 import { formatDuration } from '@/utils/duration';
-import { apiConfig } from '@/services/api';
+import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
 import { useDispatch } from 'react-redux';
 import { setTotalDuration, play } from '@/store/player';
 import { useChaptersProgress } from '@/hooks/useChaptersProgress';
@@ -1143,8 +1143,9 @@ export default function DetailsScreen() {
 
    // Render book header (above tab slide panels)
    const renderBookHeader = useCallback(() => {
-      const coverPath = audiobook?.coverImage || audiobook?.chaptersHeroCoverImage;
-      const smallCoverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
+      const smallCoverUri = audiobook
+         ? resolveAudiobookImageUrl(audiobook, 'detailsThumb')
+         : undefined;
       const chapterCount = allChapters.length;
       const genres = audiobook?.genres ?? [];
 

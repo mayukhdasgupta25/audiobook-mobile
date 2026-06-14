@@ -59,7 +59,7 @@ import {
    MINIMIZED_PLAYER_BAR_HEIGHT,
 } from '@/theme/tabLayout';
 import { formatDuration } from '@/utils/duration';
-import { apiConfig } from '@/services/api';
+import { toDisplayImageUri } from '@/utils/imageAssets';
 import { PLAYER_BOTTOM_SPRING } from '@/theme/tabAnimation';
 
 /**
@@ -580,7 +580,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
       const finalImagePath = imagePath || chapterMetadata.coverImage;
 
       if (!finalImagePath) return undefined;
-      return `${apiConfig.baseURL}${finalImagePath}`;
+      return toDisplayImageUri(finalImagePath);
    }, [chapterMetadata, isMinimized]);
 
    // Handle play/pause toggle

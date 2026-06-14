@@ -4,6 +4,8 @@
 
 import { get, post, del, ApiError, API_V1_PATH } from './api';
 
+import type { ImageAssetsMap } from '@/constants/imageVariants';
+
 export interface BookmarkChapterRef {
    audiobookId?: string;
    title?: string;
@@ -11,12 +13,14 @@ export interface BookmarkChapterRef {
    audiobookTitle?: string;
    coverImage?: string | null;
    chapterCardCoverImage?: string | null;
+   imageAssets?: ImageAssetsMap;
    audiobook?: {
       id?: string;
       title?: string;
       author?: string;
       coverImage?: string | null;
       contentCardCoverImage?: string | null;
+      imageAssets?: ImageAssetsMap;
    };
 }
 

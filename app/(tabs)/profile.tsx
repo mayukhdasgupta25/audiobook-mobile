@@ -23,7 +23,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { logout } from '@/utils/logout';
-import { resolveAvatarUrl } from '@/utils/resolveAvatarUrl';
+import { resolveUserAvatarUrl } from '@/utils/imageAssets';
 import { resolveMembershipTier } from '@/utils/membershipDisplay';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
@@ -83,7 +83,7 @@ function ProfileScreenContent() {
       return 'User';
    }, [userProfile]);
 
-   const avatarUri = resolveAvatarUrl(userProfile?.avatar);
+   const avatarUri = resolveUserAvatarUrl(userProfile, 'profileCompact');
    const membershipTier = resolveMembershipTier(activeSubscription?.plan);
    const planName = activeSubscription?.plan.name;
 
