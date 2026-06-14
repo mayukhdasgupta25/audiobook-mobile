@@ -239,3 +239,28 @@ export function findStreamByBitrate(
    return streams.find((stream) => getBitrateInKbps(stream.bandwidth) === targetBitrateKbps);
 }
 
+/**
+ * Pick the best available stream for a preferred bitrate, stepping down through lower tiers.
+ */
+export function selectStreamWithFallback(
+   streams: StreamInfo[],
+   preferredKbps: number
+): StreamInfo {
+   if (streams.length === 0) {
+      throw new Error('No streams available in master playlist');
+   }
+
+   const candidates = [
+      preferredKbps,
+      ...[256, 128, 64].filter((bitrate) => bitrate < preferredKbps),
+   ];
+
+   for (const bitrateKbps of candidates) {
+      const match = findStreamByBitrate(streams, bitrateKbps);
+      if (match) {
+         return match;
+      }
+   }
+
+   return streams[0];
+}

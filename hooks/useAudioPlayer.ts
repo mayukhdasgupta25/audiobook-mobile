@@ -48,6 +48,8 @@ import { Platform } from 'react-native';
 import type { PlaybackSpeed } from '@/constants/playbackSpeed';
 import { applyPlaybackSpeed } from '@/utils/applyPlaybackSpeed';
 import { usePlayingChapterBounds } from '@/hooks/usePlayingChapterBounds';
+import { usePreferredPlaybackBitrate } from '@/hooks/usePreferredPlaybackBitrate';
+import { getNextLowerBitrateKbps } from '@/utils/audioQualityDisplay';
 import { shouldPauseAtChapterEnd } from '@/utils/sleepTimer';
 import { clearSleepTimer } from '@/store/settings';
 
@@ -60,16 +62,31 @@ function buildArtworkUrl(coverImage: string | null): string | undefined {
    return `${apiConfig.baseURL}${coverImage}`;
 }
 
+function isAuthPlaybackError(error: unknown): boolean {
+   const message = error instanceof Error ? error.message : String(error ?? '');
+   return /\b(401|403|unauthorized|forbidden)\b/i.test(message);
+}
+
+function shouldAttemptBitrateFallback(error?: unknown): boolean {
+   if (error !== undefined && isAuthPlaybackError(error)) {
+      return false;
+   }
+   return true;
+}
+
 /**
  * Hook to manage audiobook chapter playback.
  */
 export function useAudioPlayer() {
    const dispatch = useDispatch();
    usePlayingChapterBounds();
+   const preferredPlaybackBitrate = usePreferredPlaybackBitrate();
    const isDraggingRef = useRef(false);
    const lastLoadedChapterRef = useRef<string | null>(null);
    const lastInitializedChapterRef = useRef<string | null>(null);
    const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   const chapterBitrateAttemptRef = useRef(preferredPlaybackBitrate);
+   const loadChapterRef = useRef<() => Promise<void>>(async () => {});
 
    const { isPlaying, currentChapterId, chapterMetadata, playbackPosition } = useSelector(
       (state: RootState) => state.player
@@ -106,6 +123,28 @@ export function useAudioPlayer() {
       [user?.id]
    );
 
+   const attemptBitrateFallback = useCallback((reason: string, error?: unknown): boolean => {
+      if (!shouldAttemptBitrateFallback(error)) {
+         return false;
+      }
+
+      const currentBitrate = chapterBitrateAttemptRef.current;
+      const nextBitrate = getNextLowerBitrateKbps(currentBitrate);
+      if (nextBitrate === null) {
+         return false;
+      }
+
+      if (__DEV__) {
+         console.warn(
+            `[Audio Player] Falling back ${currentBitrate}k → ${nextBitrate}k (${reason})`
+         );
+      }
+
+      chapterBitrateAttemptRef.current = nextBitrate;
+      lastLoadedChapterRef.current = null;
+      return true;
+   }, []);
+
    const loadChapter = useCallback(async () => {
       if (!isActivePlaybackSession()) {
          return;
@@ -135,6 +174,10 @@ export function useAudioPlayer() {
          const playerState = store.getState().player;
          if (playerState.isLoading && playerState.currentChapterId === currentChapterId) {
             console.warn('[Audio Player] Load timed out');
+            if (attemptBitrateFallback('load timeout')) {
+               void loadChapterRef.current();
+               return;
+            }
             dispatch(setError('Audio took too long to load. Check your connection and try again.'));
             dispatch(setLoading(false));
          }
@@ -152,17 +195,16 @@ export function useAudioPlayer() {
 
          const playbackSource = await resolveChapterPlaybackSource(
             currentChapterId,
-            user.id
+            user.id,
+            { forceBitrateKbps: chapterBitrateAttemptRef.current }
          );
 
-         if (!store.getState().streaming.playlistsByChapterId[currentChapterId]) {
-            dispatch(
-               setPlaylist({
-                  chapterId: currentChapterId,
-                  playlistData: playbackSource.playlistData,
-               })
-            );
-         }
+         dispatch(
+            setPlaylist({
+               chapterId: currentChapterId,
+               playlistData: playbackSource.playlistData,
+            })
+         );
 
          if (!isActivePlaybackSession()) {
             clearLoadTimeout();
@@ -184,6 +226,7 @@ export function useAudioPlayer() {
          if (__DEV__) {
             console.log('[Audio Player] Loading track', {
                platform: Platform.OS,
+               bitrateKbps: chapterBitrateAttemptRef.current,
                url: playbackUrl,
             });
          }
@@ -229,6 +272,11 @@ export function useAudioPlayer() {
          clearLoadTimeout();
       } catch (error: unknown) {
          console.error('[Audio Player] Failed to load chapter:', error);
+         if (attemptBitrateFallback('load failure', error)) {
+            clearLoadTimeout();
+            void loadChapterRef.current();
+            return;
+         }
          if (isActivePlaybackSession()) {
             dispatch(
                setError(
@@ -246,11 +294,17 @@ export function useAudioPlayer() {
       user?.id,
       dispatch,
       clearLoadTimeout,
+      attemptBitrateFallback,
    ]);
 
    useEffect(() => {
+      loadChapterRef.current = loadChapter;
+   }, [loadChapter]);
+
+   useEffect(() => {
       lastLoadedChapterRef.current = null;
-   }, [currentChapterId]);
+      chapterBitrateAttemptRef.current = preferredPlaybackBitrate;
+   }, [currentChapterId, preferredPlaybackBitrate]);
 
    // Register listeners before load/play so early events are not missed
    useEffect(() => {
@@ -310,6 +364,12 @@ export function useAudioPlayer() {
                'message' in event && typeof event.message === 'string'
                   ? event.message
                   : 'Playback error occurred';
+            if (attemptBitrateFallback('playback error', message)) {
+               clearLoadTimeout();
+               dispatch(setError(null));
+               void loadChapterRef.current();
+               return;
+            }
             dispatch(setError(message));
             dispatch(setLoading(false));
             clearLoadTimeout();
@@ -375,6 +435,12 @@ export function useAudioPlayer() {
             }
 
             if (playbackState === State.Error) {
+               if (attemptBitrateFallback('playback state error')) {
+                  clearLoadTimeout();
+                  dispatch(setError(null));
+                  void loadChapterRef.current();
+                  return;
+               }
                dispatch(setError('Playback error occurred'));
                dispatch(setLoading(false));
                clearLoadTimeout();
@@ -385,7 +451,7 @@ export function useAudioPlayer() {
       return () => {
          subs.forEach((sub) => sub.remove());
       };
-   }, [dispatch, onChapterSwitched, clearLoadTimeout]);
+   }, [dispatch, onChapterSwitched, clearLoadTimeout, attemptBitrateFallback]);
 
    useEffect(() => {
       void loadChapter();

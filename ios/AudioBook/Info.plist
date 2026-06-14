@@ -7,7 +7,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>AudioBook</string>
+    <string>Srota</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -27,8 +27,8 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>audiobook</string>
-          <string>com.audiobook.mobile</string>
+          <string>srota</string>
+          <string>com.srota.mobile</string>
         </array>
       </dict>
       <dict>
@@ -52,7 +52,7 @@
       <true/>
     </dict>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>AudioBook connects to your audiobook server on your local network to stream chapters.</string>
+    <string>Srota connects to your audiobook server on your local network to stream chapters.</string>
     <key>NSBonjourServices</key>
     <array>
       <string>_http._tcp</string>

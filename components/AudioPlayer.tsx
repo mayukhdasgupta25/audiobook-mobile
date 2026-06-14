@@ -1005,8 +1005,8 @@ export const AudioPlayer: React.FC = React.memo(() => {
                      backgroundColor: 'transparent',
                   }
                ),
-               zIndex: 250,
-               elevation: 250,
+               zIndex: 24,
+               elevation: 24,
             }
          ]}
       >

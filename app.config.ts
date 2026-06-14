@@ -29,31 +29,32 @@ const googleSignInPlugin: [string, { iosUrlScheme: string }] | null =
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
    ...config,
-   name: 'AudioBook',
+   name: 'Srota',
    slug: 'audiobook-mobile',
    version: '1.0.0',
    orientation: 'portrait',
    icon: './assets/icon.png',
    userInterfaceStyle: 'automatic',
    splash: {
+      image: './assets/images/srota-launch-logo.png',
       resizeMode: 'contain',
       backgroundColor: '#E8DCC4',
    },
    assetBundlePatterns: ['**/*'],
    ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.audiobook.mobile',
+      bundleIdentifier: 'com.srota.mobile',
       icon: './assets/icon.png',
       jsEngine: 'hermes',
       googleServicesFile: process.env.EXPO_PUBLIC_GOOGLE_SERVICES_IOS || undefined,
       infoPlist: {
          UIBackgroundModes: ['audio'],
          NSLocalNetworkUsageDescription:
-            'AudioBook connects to your audiobook server on your local network to stream chapters.',
+            'Srota connects to your audiobook server on your local network to stream chapters.',
          // Triggers the Local Network privacy prompt so AVPlayer can reach LAN streaming URLs.
          NSBonjourServices: ['_http._tcp'],
          NSLocationWhenInUseUsageDescription:
-            'AudioBook uses your location to personalize your experience and improve our service.',
+            'Srota uses your location to personalize your experience and improve our service.',
       },
    },
    android: {
@@ -62,7 +63,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
          foregroundImage: './assets/adaptive-icon.png',
          backgroundColor: '#E8DCC4',
       },
-      package: 'com.audiobook.mobile',
+      package: 'com.srota.mobile',
       jsEngine: 'hermes',
       googleServicesFile: process.env.EXPO_PUBLIC_GOOGLE_SERVICES_ANDROID || undefined,
       permissions: [
@@ -92,14 +93,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
          'expo-location',
          {
             locationWhenInUsePermission:
-               'AudioBook uses your location to personalize your experience and improve our service.',
+               'Srota uses your location to personalize your experience and improve our service.',
             isAndroidBackgroundLocationEnabled: false,
          },
       ],
       './app.plugin.js',
       ...(googleSignInPlugin ? [googleSignInPlugin] : []),
    ],
-   scheme: ['audiobook', 'trackplayer'],
+   scheme: ['srota', 'trackplayer'],
    newArchEnabled: true,
    experiments: {
       typedRoutes: true,
