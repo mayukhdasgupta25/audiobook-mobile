@@ -1,4 +1,4 @@
-package com.audiobook.mobile
+package com.srota.mobile
 
 import android.os.Build
 import android.os.Bundle

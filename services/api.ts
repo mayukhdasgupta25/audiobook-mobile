@@ -141,14 +141,7 @@ function buildApiUrl(port: string): string {
 
    // For main API (port 8082), check EXPO_PUBLIC_API_URL
    if (port === getMainApiPort() && process.env.EXPO_PUBLIC_API_URL) {
-      const mainApiUrl = normalizeUrl(process.env.EXPO_PUBLIC_API_URL, port);
-      // Warn if the URL is using the wrong port (8080 or 8081 instead of 8082)
-      if ((mainApiUrl.includes(':8080') || mainApiUrl.includes(':8081')) && !mainApiUrl.includes(':8082')) {
-         console.warn(
-            '[API Config Warning] EXPO_PUBLIC_API_URL is using port 8080 or 8081, but main API should use port 8082. Consider updating to port 8082.'
-         );
-      }
-      return mainApiUrl;
+      return normalizeUrl(process.env.EXPO_PUBLIC_API_URL, port);
    }
 
    // If auth API URL is set but main API URL is not, extract host from auth URL for main API
@@ -247,9 +240,6 @@ console.log('[API Config]', {
       : Platform.OS === 'ios'
          ? 'Using localhost for iOS simulator'
          : 'Using localhost for web',
-   warning: API_BASE_URL.includes(':8080') || API_BASE_URL.includes(':8081')
-      ? 'WARNING: Main API URL is using port 8080 or 8081! Should be 8082.'
-      : undefined,
 });
 
 /**

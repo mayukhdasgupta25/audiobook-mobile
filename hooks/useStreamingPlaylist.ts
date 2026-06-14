@@ -13,6 +13,7 @@ import { useResourceDeleted } from '@/hooks/useResourceDeleted';
 import { setPlaylist } from '@/store/streaming';
 import { PlaylistData, MasterPlaylistData } from '@/utils/m3u8Parser';
 import { fetchChapterPlaybackSource } from '@/utils/chapterStreamUrl';
+import { usePreferredPlaybackBitrate } from '@/hooks/usePreferredPlaybackBitrate';
 
 /**
  * Combined playlist data including master and detailed playlist info
@@ -25,7 +26,7 @@ export interface StreamingPlaylistData {
 
 /**
  * Hook to fetch and parse M3U8 playlists for a chapter
- * Automatically fetches master playlist, selects 128k bitrate (or first available),
+ * Automatically fetches master playlist, selects bitrate from subscription tier (with fallback),
  * and fetches the detailed playlist
  * 
  * @param chapterId - Chapter ID
@@ -48,15 +49,22 @@ export function useStreamingPlaylist(
    );
 
    const isChapterDeleted = useResourceDeleted('chapters', chapterId ?? '');
+   const preferredBitrateKbps = usePreferredPlaybackBitrate();
 
    const queryResult = useQuery({
-      queryKey: queryKeys.streaming.playlist(chapterId ?? '', userId ?? ''),
+      queryKey: queryKeys.streaming.playlist(
+         chapterId ?? '',
+         userId ?? '',
+         preferredBitrateKbps
+      ),
       queryFn: async (): Promise<StreamingPlaylistData> => {
          if (!chapterId || !userId) {
             throw new Error('Chapter ID and User ID are required');
          }
 
-         const source = await fetchChapterPlaybackSource(chapterId, userId);
+         const source = await fetchChapterPlaybackSource(chapterId, userId, {
+            preferredBitrateKbps,
+         });
          return source.playlistData;
       },
       // Only fetch if chapterId and userId are valid, user is authenticated, and auth is initialized

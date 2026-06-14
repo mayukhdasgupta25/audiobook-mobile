@@ -106,7 +106,7 @@ export const queryKeys = {
    },
 
    streaming: {
-      playlist: (chapterId: string, userId: string) =>
-         ['streaming', 'playlist', chapterId, userId] as const,
+      playlist: (chapterId: string, userId: string, preferredBitrateKbps?: number) =>
+         ['streaming', 'playlist', chapterId, userId, preferredBitrateKbps ?? null] as const,
    },
 } as const;

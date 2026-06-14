@@ -1,4 +1,4 @@
-package com.audiobook.mobile
+package com.srota.mobile
 
 import android.app.Application
 import android.content.res.Configuration
