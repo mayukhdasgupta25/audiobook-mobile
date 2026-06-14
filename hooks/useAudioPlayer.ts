@@ -43,7 +43,9 @@ import {
    syncTrackProgressToPlayerStore,
    clearPlayerLoadingIfNeeded,
 } from '@/utils/playerStoreSync';
-import { clampPlaybackSeekSeconds } from '@/utils/playbackPosition';
+import { clampPlaybackSeekSeconds, getMaxSeekableSeconds } from '@/utils/playbackPosition';
+import { CHAPTER_END_POSITION_MARGIN_SEC } from '@/constants/playbackConstants';
+import { notifyNextChapterPrefetchProgress } from '@/services/nextChapterPrefetchProgress';
 import { Platform } from 'react-native';
 import type { PlaybackSpeed } from '@/constants/playbackSpeed';
 import { applyPlaybackSpeed } from '@/utils/applyPlaybackSpeed';
@@ -87,6 +89,7 @@ export function useAudioPlayer() {
    const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
    const chapterBitrateAttemptRef = useRef(preferredPlaybackBitrate);
    const loadChapterRef = useRef<() => Promise<void>>(async () => {});
+   const isAdvancingChapterRef = useRef(false);
 
    const { isPlaying, currentChapterId, chapterMetadata, playbackPosition } = useSelector(
       (state: RootState) => state.player
@@ -121,6 +124,55 @@ export function useAudioPlayer() {
          }
       },
       [user?.id]
+   );
+
+   const handleChapterEnded = useCallback(async () => {
+      if (isAdvancingChapterRef.current) {
+         return;
+      }
+      isAdvancingChapterRef.current = true;
+      try {
+         const state = store.getState().player;
+         if (!state.audiobookId || !state.currentChapterId) {
+            dispatch(stop());
+            return;
+         }
+         if (shouldPauseAtChapterEnd(store.getState().settings)) {
+            store.dispatch(clearSleepTimer());
+            dispatch(pause());
+            try {
+               await TrackPlayer.pause();
+            } catch (error: unknown) {
+               console.warn('[Audio Player] Sleep timer pause failed:', error);
+            }
+            return;
+         }
+         lastLoadedChapterRef.current = null;
+         await advanceToNextChapter({
+            dispatch,
+            audiobookId: state.audiobookId,
+            currentChapterId: state.currentChapterId,
+            isVisible: state.isVisible,
+            totalDuration: state.totalDuration,
+            onChapterSwitched,
+         });
+      } finally {
+         isAdvancingChapterRef.current = false;
+      }
+   }, [dispatch, onChapterSwitched]);
+
+   const maybeTriggerChapterEndFromPosition = useCallback(
+      (position: number, duration: number) => {
+         if (!store.getState().player.isPlaying) {
+            return;
+         }
+         const { chapterEndPosition } = store.getState().player;
+         const effectiveEnd = getMaxSeekableSeconds(duration, chapterEndPosition);
+         if (position >= effectiveEnd - CHAPTER_END_POSITION_MARGIN_SEC) {
+            void handleChapterEnded();
+         }
+      },
+      [handleChapterEnded]
    );
 
    const attemptBitrateFallback = useCallback((reason: string, error?: unknown): boolean => {
@@ -325,34 +377,13 @@ export function useAudioPlayer() {
                event.position,
                event.duration
             );
+            notifyNextChapterPrefetchProgress(event.position, event.duration);
+            maybeTriggerChapterEndFromPosition(event.position, event.duration);
             clearLoadTimeout();
          }),
 
          TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
-            const state = store.getState().player;
-            if (!state.audiobookId || !state.currentChapterId) {
-               dispatch(stop());
-               return;
-            }
-            if (shouldPauseAtChapterEnd(store.getState().settings)) {
-               store.dispatch(clearSleepTimer());
-               dispatch(pause());
-               try {
-                  await TrackPlayer.pause();
-               } catch (error: unknown) {
-                  console.warn('[Audio Player] Sleep timer pause failed:', error);
-               }
-               return;
-            }
-            lastLoadedChapterRef.current = null;
-            await advanceToNextChapter({
-               dispatch,
-               audiobookId: state.audiobookId,
-               currentChapterId: state.currentChapterId,
-               isVisible: state.isVisible,
-               totalDuration: state.totalDuration,
-               onChapterSwitched,
-            });
+            await handleChapterEnded();
          }),
 
          TrackPlayer.addEventListener(Event.PlaybackError, (event) => {
@@ -451,7 +482,14 @@ export function useAudioPlayer() {
       return () => {
          subs.forEach((sub) => sub.remove());
       };
-   }, [dispatch, onChapterSwitched, clearLoadTimeout, attemptBitrateFallback]);
+   }, [
+      dispatch,
+      onChapterSwitched,
+      clearLoadTimeout,
+      attemptBitrateFallback,
+      handleChapterEnded,
+      maybeTriggerChapterEndFromPosition,
+   ]);
 
    useEffect(() => {
       void loadChapter();
@@ -498,6 +536,8 @@ export function useAudioPlayer() {
          const trackIsPlaying = playbackState.state === State.Playing;
          if (trackIsPlaying) {
             syncTrackProgressToPlayerStore(dispatch, position, duration);
+            notifyNextChapterPrefetchProgress(position, duration);
+            maybeTriggerChapterEndFromPosition(position, duration);
          } else {
             clearPlayerLoadingIfNeeded(dispatch);
          }
@@ -505,7 +545,7 @@ export function useAudioPlayer() {
       } catch {
          // Player not ready yet
       }
-   }, [currentChapterId, dispatch, clearLoadTimeout]);
+   }, [currentChapterId, dispatch, clearLoadTimeout, maybeTriggerChapterEndFromPosition]);
 
    // Poll only while playing — RNTP progress events can be unreliable on Android with HLS
    useEffect(() => {
