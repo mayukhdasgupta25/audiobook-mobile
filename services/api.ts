@@ -456,11 +456,13 @@ export async function apiRequest<T>(
 
       if (!response.ok) {
          const errorData = await response.json().catch(() => ({}));
-         console.error('[API Error]', {
-            status: response.status,
-            statusText: response.statusText,
-            errorData,
-         });
+         if (response.status !== 404) {
+            console.error('[API Error]', {
+               status: response.status,
+               statusText: response.statusText,
+               errorData,
+            });
+         }
          const apiError = new ApiError(
             response.status,
             response.statusText,
@@ -585,12 +587,14 @@ export async function apiRequest<T>(
          }
       }
 
-      console.error('[API Request Error]', {
-         error,
-         errorType: error instanceof Error ? error.constructor.name : typeof error,
-         errorMessage: error instanceof Error ? error.message : String(error),
-         url,
-      });
+      if (!(error instanceof ApiError && error.status === 404)) {
+         console.error('[API Request Error]', {
+            error,
+            errorType: error instanceof Error ? error.constructor.name : typeof error,
+            errorMessage: error instanceof Error ? error.message : String(error),
+            url,
+         });
+      }
 
       if (error instanceof ApiError) {
          throw error;

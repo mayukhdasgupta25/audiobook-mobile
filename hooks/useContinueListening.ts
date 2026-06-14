@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { getChapterProgress } from '@/services/audiobooks';
 import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
 import { useAudiobook } from '@/hooks/useAudiobook';
 import { useChapters } from '@/hooks/useChapters';
@@ -98,7 +99,7 @@ export function useContinueListening() {
    const chapters = chaptersData?.data ?? [];
 
    const { data: discoveredChapter, isLoading: isDiscoveringChapter } = useQuery({
-      queryKey: ['continueListening', 'discover', audiobookId],
+      queryKey: queryKeys.playback.continueListeningDiscover(audiobookId ?? ''),
       queryFn: () => findMostRecentChapterProgress(chapters),
       enabled:
          persistedLoaded &&
@@ -107,7 +108,6 @@ export function useContinueListening() {
          !!audiobookId &&
          !candidateChapterId &&
          chapters.length > 0,
-      staleTime: 60_000,
    });
 
    const resolvedChapterId =
@@ -120,7 +120,7 @@ export function useContinueListening() {
       playbackPosition > 0;
 
    const { data: savedProgress, isLoading: isProgressLoading } = useQuery({
-      queryKey: ['chapterProgress', resolvedChapterId],
+      queryKey: queryKeys.playback.chapterProgress(resolvedChapterId ?? ''),
       queryFn: async () => {
          const progress = await getChapterProgress(resolvedChapterId!);
          return progress?.currentPosition ?? 0;
@@ -131,7 +131,6 @@ export function useContinueListening() {
          isInitialized &&
          !!resolvedChapterId &&
          !useLiveProgress,
-      staleTime: 30_000,
       retry: (failureCount, error) => {
          if (error instanceof ApiError && error.status === 404) {
             return false;

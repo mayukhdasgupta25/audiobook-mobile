@@ -8,6 +8,7 @@ import {
    changeSubscriptionPlan,
    UserSubscription,
 } from '@/services/subscriptions';
+import { queryKeys } from '@/constants/queryKeys';
 
 export interface SubscribeToPlanInput {
    planId: string;
@@ -28,8 +29,8 @@ export function useSubscriptionMutation() {
          return createSubscription({ planId });
       },
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['subscriptions', 'me'] });
-         queryClient.invalidateQueries({ queryKey: ['subscription-plans'] });
+         queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.me() });
+         queryClient.invalidateQueries({ queryKey: queryKeys.subscriptionPlans.all() });
       },
    });
 }

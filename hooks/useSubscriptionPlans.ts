@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { getSubscriptionPlans } from '@/services/subscriptions';
 import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
 
 /**
@@ -21,7 +22,7 @@ export function useSubscriptionPlans() {
    );
 
    const query = useQuery({
-      queryKey: ['subscription-plans'],
+      queryKey: queryKeys.subscriptionPlans.all(),
       queryFn: () => getSubscriptionPlans(),
       enabled: isAuthenticated && isInitialized,
       retry: (failureCount, error) => {
@@ -30,7 +31,6 @@ export function useSubscriptionPlans() {
          }
          return failureCount < 2;
       },
-      staleTime: 5 * 60 * 1000,
    });
 
    const plans = useMemo(() => {

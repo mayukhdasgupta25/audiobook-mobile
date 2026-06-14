@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSelector } from 'react-redux';
 import { useQueries } from '@tanstack/react-query';
+import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
 import { APP_BACK_ICON, APP_BACK_ICON_SIZE } from '@/constants/navigationIcons';
 import { typography, spacing, borderRadius } from '@/theme';
@@ -22,6 +23,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { Chapter, getChapters, initializePlaybackSession } from '@/services/audiobooks';
 import { useAudiobook } from '@/hooks/useAudiobook';
+import { useNotFoundRedirect } from '@/hooks/useNotFoundRedirect';
 import { useStreamingPlaylist } from '@/hooks/useStreamingPlaylist';
 import { ChapterListItem } from '@/components/ChapterListItem';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -614,7 +616,9 @@ export default function DetailsScreen() {
    }, [isPlayerVisible, insets.bottom]);
 
    // Fetch audiobook data
-   const { data: audiobookData, isLoading: isAudiobookLoading } = useAudiobook(id || '');
+   const { data: audiobookData, isLoading: isAudiobookLoading, isNotFound } =
+      useAudiobook(id || '');
+   useNotFoundRedirect(isNotFound, 'This audiobook is no longer available.');
 
    const audiobook = audiobookData?.data;
 
@@ -661,7 +665,7 @@ export default function DetailsScreen() {
       const options = [];
       for (let page = 1; page <= currentPage; page++) {
          options.push({
-            queryKey: ['chapters', id, page],
+            queryKey: queryKeys.audiobooks.chapters(id, page),
             queryFn: () => getChapters(id, page),
             enabled: true,
          });

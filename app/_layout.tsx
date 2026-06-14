@@ -27,6 +27,7 @@ import { ToastProvider } from '@/contexts/ToastContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { Toast } from '@/components/Toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { DomainEventsSync } from '@/components/DomainEventsSync';
 import { preloadAppAssets } from '@/utils/preloadAppAssets';
 import '../global.css';
 
@@ -256,6 +257,7 @@ export default function RootLayout() {
                   <Provider store={store}>
                      <PersistGate loading={null} persistor={persistor}>
                         <QueryClientProvider client={queryClient}>
+                           <DomainEventsSync />
                            <ThemeProvider>
                               <ThemedAppShell>
                                  <InnerLayout />

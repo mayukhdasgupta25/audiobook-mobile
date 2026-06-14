@@ -11,56 +11,51 @@ import {
    UpdatePlaylistRequest,
    AddPlaylistItemRequest,
 } from '@/services/playlists';
-import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
+import { isNotFoundError } from '@/utils/isNotFoundError';
+import { shouldRetryQuery } from '@/utils/queryRetry';
 import { useAuthQueryEnabled } from './useAuthQueryEnabled';
+import { useResourceDeleted } from './useResourceDeleted';
 import { showToast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/getApiErrorMessage';
-
-export type PlaylistsQueryKey = ['playlists', { limit?: number } | 'all'];
-
-export function playlistsQueryKey(limit?: number): PlaylistsQueryKey {
-   if (limit != null) {
-      return ['playlists', { limit }];
-   }
-   return ['playlists', 'all'];
-}
 
 export function usePlaylists(limit?: number) {
    const enabled = useAuthQueryEnabled();
 
    return useQuery({
-      queryKey: playlistsQueryKey(limit),
+      queryKey: queryKeys.playlists.me(limit),
       queryFn: () => getPlaylists(limit != null ? { limit } : undefined),
       enabled,
-      retry: (failureCount, error) => {
-         if (error instanceof ApiError && error.status === 401) return false;
-         return failureCount < 2;
-      },
-      staleTime: 60 * 1000,
+      retry: shouldRetryQuery,
    });
 }
 
 export function usePlaylistItems(playlistId: string) {
-   const enabled = useAuthQueryEnabled(!!playlistId);
+   const isDeleted = useResourceDeleted('playlists', playlistId);
+   const enabled = useAuthQueryEnabled(!!playlistId && !isDeleted);
 
-   return useQuery({
-      queryKey: ['playlistItems', playlistId],
+   const query = useQuery({
+      queryKey: queryKeys.playlists.items(playlistId),
       queryFn: () => getPlaylistItems(playlistId),
       enabled,
-      retry: (failureCount, error) => {
-         if (error instanceof ApiError && error.status === 401) return false;
-         return failureCount < 2;
-      },
-      staleTime: 30 * 1000,
+      retry: shouldRetryQuery,
+      meta: { silent404: true },
    });
+
+   const isNotFound =
+      isDeleted || isNotFoundError(query.error);
+
+   return {
+      ...query,
+      isNotFound,
+   };
 }
 
 export function usePlaylistMutations() {
    const queryClient = useQueryClient();
 
    const invalidateAll = () => {
-      queryClient.invalidateQueries({ queryKey: ['playlists'] });
-      queryClient.invalidateQueries({ queryKey: ['playlistItems'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.playlists.all() });
    };
 
    const create = useMutation({
@@ -96,7 +91,9 @@ export function usePlaylistMutations() {
       }: { playlistId: string } & AddPlaylistItemRequest) =>
          addPlaylistItem(playlistId, body),
       onSuccess: (_data, variables) => {
-         queryClient.invalidateQueries({ queryKey: ['playlistItems', variables.playlistId] });
+         queryClient.invalidateQueries({
+            queryKey: queryKeys.playlists.items(variables.playlistId),
+         });
          showToast({ message: 'Added to playlist', type: 'success' });
       },
       onError: (error) => {
@@ -115,7 +112,9 @@ export function usePlaylistMutations() {
          position: number;
       }) => updatePlaylistItem(playlistId, itemId, { position }),
       onSuccess: (_data, variables) => {
-         queryClient.invalidateQueries({ queryKey: ['playlistItems', variables.playlistId] });
+         queryClient.invalidateQueries({
+            queryKey: queryKeys.playlists.items(variables.playlistId),
+         });
       },
    });
 
@@ -128,7 +127,9 @@ export function usePlaylistMutations() {
          itemId: string;
       }) => deletePlaylistItem(playlistId, itemId),
       onSuccess: (_data, variables) => {
-         queryClient.invalidateQueries({ queryKey: ['playlistItems', variables.playlistId] });
+         queryClient.invalidateQueries({
+            queryKey: queryKeys.playlists.items(variables.playlistId),
+         });
       },
    });
 
