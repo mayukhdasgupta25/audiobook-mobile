@@ -12,12 +12,14 @@ import {
    KeyboardAvoidingView,
    ScrollView,
    BackHandler,
+   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlaylistItems, usePlaylists, usePlaylistMutations } from '@/hooks/usePlaylists';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useNotFoundRedirect } from '@/hooks/useNotFoundRedirect';
 import { usePlaylistAudiobooks } from '@/hooks/usePlaylistAudiobooks';
 import { useAudiobookSearch } from '@/hooks/useAudiobookSearch';
@@ -197,14 +199,20 @@ export default function PlaylistDetailScreen() {
    const { id } = useLocalSearchParams<{ id: string }>();
    const playlistId = id ?? '';
 
-   const { data: playlistsData } = usePlaylists();
+   const { data: playlistsData, refetch: refetchPlaylists, isRefetching: isPlaylistsRefetching } =
+      usePlaylists();
    const playlist = useMemo(
       () => playlistsData?.data?.find((p) => p.id === playlistId),
       [playlistsData, playlistId]
    );
 
-   const { data: itemsData, isLoading: itemsLoading, isNotFound } =
-      usePlaylistItems(playlistId);
+   const {
+      data: itemsData,
+      isLoading: itemsLoading,
+      isNotFound,
+      refetch: refetchPlaylistItems,
+      isRefetching: isItemsRefetching,
+   } = usePlaylistItems(playlistId);
    useNotFoundRedirect(isNotFound, 'This playlist is no longer available.');
    const { update, remove, addItem, removeItem } = usePlaylistMutations();
 
@@ -260,6 +268,14 @@ export default function PlaylistDetailScreen() {
 
    const { books: playlistBooks, isLoading: booksLoading } = usePlaylistAudiobooks(items);
    const isLoading = itemsLoading || booksLoading;
+
+   const playlistRefreshFns = useMemo(
+      () => [refetchPlaylistItems, refetchPlaylists],
+      [refetchPlaylistItems, refetchPlaylists]
+   );
+   const { refreshing, onRefresh } = usePullToRefresh(playlistRefreshFns, {
+      isRefetching: isItemsRefetching || isPlaylistsRefetching,
+   });
 
    const { data: searchData, isFetching: isSearching } = useAudiobookSearch(debouncedSearch);
    const searchResults = searchData?.data ?? [];
@@ -516,6 +532,14 @@ export default function PlaylistDetailScreen() {
                ListHeaderComponent={listHeader}
                ListEmptyComponent={
                   <Text style={styles.empty}>No audiobooks in this playlist yet.</Text>
+               }
+               refreshControl={
+                  <RefreshControl
+                     refreshing={refreshing}
+                     onRefresh={onRefresh}
+                     tintColor={colors.accent.primary}
+                     colors={[colors.accent.primary]}
+                  />
                }
                contentContainerStyle={styles.listContent}
             />

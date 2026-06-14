@@ -4,10 +4,11 @@ import {
    StyleSheet,
    ScrollView,
    TouchableOpacity,
+   RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedTabScreen } from '@/components/AnimatedTabScreen';
 import { ProfileUserCard } from '@/components/profile/ProfileUserCard';
@@ -26,7 +27,10 @@ import { resolveAvatarUrl } from '@/utils/resolveAvatarUrl';
 import { resolveMembershipTier } from '@/utils/membershipDisplay';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
-import { RootState } from '@/store';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { useProfileStats } from '@/hooks/useProfileStats';
+import { fetchUserProfile } from '@/store/auth';
+import { RootState, AppDispatch } from '@/store';
 
 function ProfileScreenContent() {
    const { colors } = useTheme();
@@ -55,9 +59,16 @@ function ProfileScreenContent() {
    );
    const scrollRef = useRef<ScrollView>(null);
    const insets = useSafeAreaInsets();
+   const dispatch = useDispatch<AppDispatch>();
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
    const user = useSelector((state: RootState) => state.auth.user);
-   const { activeSubscription } = useUserSubscription();
+   const {
+      activeSubscription,
+      refetch: refetchSubscription,
+      isRefetching: isSubscriptionRefetching,
+   } = useUserSubscription();
+   const { refetch: refetchProfileStats, isRefetching: isProfileStatsRefetching } =
+      useProfileStats();
 
    const displayName = useMemo(() => {
       if (userProfile?.firstName && userProfile?.lastName) {
@@ -182,6 +193,18 @@ function ProfileScreenContent() {
 
    useTabScrollToTop('profile', scrollRef);
 
+   const profileRefreshFns = useMemo(
+      () => [
+         refetchProfileStats,
+         refetchSubscription,
+         () => dispatch(fetchUserProfile()),
+      ],
+      [refetchProfileStats, refetchSubscription, dispatch]
+   );
+   const { refreshing, onRefresh } = usePullToRefresh(profileRefreshFns, {
+      isRefetching: isProfileStatsRefetching || isSubscriptionRefetching,
+   });
+
    return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
          <ScrollView
@@ -192,6 +215,14 @@ function ProfileScreenContent() {
                { paddingBottom: scrollContentPadding },
             ]}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+               <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={colors.accent.primary}
+                  colors={[colors.accent.primary]}
+               />
+            }
          >
             <View style={styles.header}>
                <TouchableOpacity

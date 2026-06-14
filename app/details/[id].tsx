@@ -8,13 +8,14 @@ import {
    ScrollView,
    ActivityIndicator,
    TouchableOpacity,
+   RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSelector } from 'react-redux';
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
 import { APP_BACK_ICON, APP_BACK_ICON_SIZE } from '@/constants/navigationIcons';
@@ -43,6 +44,7 @@ import { StarRating } from '@/components/StarRating';
 import { useFavorite, useFavoriteMutations } from '@/hooks/useFavorite';
 import { useReviewMutation } from '@/hooks/useReviewMutation';
 import { AddToPlaylistSheet } from '@/components/AddToPlaylistSheet';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 export default function DetailsScreen() {
    const { colors } = useTheme();
@@ -615,14 +617,22 @@ export default function DetailsScreen() {
       return { paddingBottom };
    }, [isPlayerVisible, insets.bottom]);
 
+   const queryClient = useQueryClient();
+
    // Fetch audiobook data
-   const { data: audiobookData, isLoading: isAudiobookLoading, isNotFound } =
-      useAudiobook(id || '');
+   const {
+      data: audiobookData,
+      isLoading: isAudiobookLoading,
+      isNotFound,
+      refetch: refetchAudiobook,
+      isRefetching: isAudiobookRefetching,
+   } = useAudiobook(id || '');
    useNotFoundRedirect(isNotFound, 'This audiobook is no longer available.');
 
    const audiobook = audiobookData?.data;
 
-   const { data: favorite } = useFavorite(id || '');
+   const { data: favorite, refetch: refetchFavorite, isRefetching: isFavoriteRefetching } =
+      useFavorite(id || '');
    const { add: addFavorite, remove: removeFavorite } = useFavoriteMutations(id || '');
    const reviewMutation = useReviewMutation(id || '');
 
@@ -1257,6 +1267,43 @@ export default function DetailsScreen() {
       handleRate,
    ]);
 
+   const handleDetailsRefresh = useCallback(async () => {
+      setCurrentPage(1);
+      setAllChapters([]);
+      setPagination(null);
+      lastProcessedDataRef.current = { chapterIds: new Set(), pagination: null };
+
+      const refetches: Promise<unknown>[] = [refetchAudiobook(), refetchFavorite()];
+      if (id) {
+         refetches.push(
+            queryClient.refetchQueries({
+               queryKey: queryKeys.audiobooks.chapters(id, 1),
+            })
+         );
+      }
+      await Promise.all(refetches);
+   }, [refetchAudiobook, refetchFavorite, id, queryClient]);
+
+   const detailsRefreshFns = useMemo(
+      () => [handleDetailsRefresh],
+      [handleDetailsRefresh]
+   );
+   const { refreshing, onRefresh } = usePullToRefresh(detailsRefreshFns, {
+      isRefetching:
+         isAudiobookRefetching ||
+         isFavoriteRefetching ||
+         chapterQueries.some((query) => query.isRefetching),
+   });
+
+   const detailsRefreshControl = (
+      <RefreshControl
+         refreshing={refreshing}
+         onRefresh={onRefresh}
+         tintColor={colors.accent.primary}
+         colors={[colors.accent.primary]}
+      />
+   );
+
    return (
       <>
          {id ? (
@@ -1285,6 +1332,7 @@ export default function DetailsScreen() {
                   onEndReachedThreshold={0.5}
                   removeClippedSubviews={true}
                   showsVerticalScrollIndicator={false}
+                  refreshControl={detailsRefreshControl}
                   contentContainerStyle={[
                      styles.scrollContent,
                      scrollContentStyle,
@@ -1293,6 +1341,7 @@ export default function DetailsScreen() {
                />
                <ScrollView
                   showsVerticalScrollIndicator={false}
+                  refreshControl={detailsRefreshControl}
                   contentContainerStyle={[styles.scrollContent, scrollContentStyle]}
                >
                   {renderAboutContent()}

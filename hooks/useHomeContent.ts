@@ -71,11 +71,15 @@ export function useHomeContent() {
       data: tagsData,
       isLoading: tagsLoading,
       error: tagsError,
+      refetch: refetchTags,
+      isRefetching: isTagsRefetching,
    } = useTags();
    const {
       data: genresData,
       isLoading: genresLoading,
       error: genresError,
+      refetch: refetchGenres,
+      isRefetching: isGenresRefetching,
    } = useGenres();
 
    // Get first 2 tags for content rows, sorted so Trending comes before New Releases
@@ -365,12 +369,32 @@ export function useHomeContent() {
       return sorted;
    }, [contentRows, tagQueries]);
 
+   const isRefetching =
+      isTagsRefetching ||
+      isGenresRefetching ||
+      tagQueries.some((query) => query.isRefetching) ||
+      genreQueries.some((query) => query.isRefetching);
+
+   const refetchAll = useCallback(async () => {
+      setRowPages({});
+      paginationLoadingRef.current = {};
+
+      await Promise.all([
+         refetchTags(),
+         refetchGenres(),
+         ...tagQueries.map((query) => query.refetch()),
+         ...genreQueries.map((query) => query.refetch()),
+      ]);
+   }, [refetchTags, refetchGenres, tagQueries, genreQueries]);
+
    return {
       contentRows,
       isLoading,
       error,
       loadNextPage,
-      heroCarouselItems, // Return array of audiobooks for hero carousel
+      heroCarouselItems,
+      refetchAll,
+      isRefetching,
    };
 }
 

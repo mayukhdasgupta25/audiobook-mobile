@@ -1,10 +1,11 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
    View,
    Text,
    StyleSheet,
    FlatList,
    Platform,
+   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -13,12 +14,15 @@ import { BookmarkChapterCard } from '@/components/BookmarkChapterCard';
 import { SkeletonBookmarkRow } from '@/components/skeleton';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePlayBookmarkChapter } from '@/hooks/usePlayBookmarkChapter';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Bookmark } from '@/services/bookmarks';
 import { getBookmarkAudiobookId } from '@/utils/bookmarkDisplay';
 import { spacing, typography } from '@/theme';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
 
 export default function LibraryBookmarksScreen() {
+   const { colors } = useTheme();
    const styles = useThemedStyles((t) =>
       StyleSheet.create({
          container: {
@@ -50,9 +54,12 @@ export default function LibraryBookmarksScreen() {
          },
       })
    );
-   const { data, isLoading } = useBookmarks();
+   const { data, isLoading, refetch, isRefetching } = useBookmarks();
    const bookmarks = data?.data ?? [];
    const { playBookmark } = usePlayBookmarkChapter();
+
+   const refreshFns = useMemo(() => [refetch], [refetch]);
+   const { refreshing, onRefresh } = usePullToRefresh(refreshFns, { isRefetching });
 
    const renderItem = useCallback(
       ({ item }: { item: Bookmark }) => {
@@ -86,6 +93,14 @@ export default function LibraryBookmarksScreen() {
                keyExtractor={(item) => item.id}
                renderItem={renderItem}
                contentContainerStyle={styles.listContent}
+               refreshControl={
+                  <RefreshControl
+                     refreshing={refreshing}
+                     onRefresh={onRefresh}
+                     tintColor={colors.accent.primary}
+                     colors={[colors.accent.primary]}
+                  />
+               }
                ListEmptyComponent={
                   <View style={styles.center}>
                      <Text style={styles.emptyText}>No bookmarks yet</Text>

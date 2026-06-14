@@ -2,7 +2,7 @@
  * Resolves Continue Listening data from live player state, persisted playback, or API progress.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { getChapterProgress } from '@/services/audiobooks';
@@ -89,16 +89,20 @@ export function useContinueListening() {
 
    const candidateChapterId = liveChapterId ?? persistedChapterId;
 
-   const { data: audiobookData, isLoading: isAudiobookLoading } = useAudiobook(
+   const { data: audiobookData, isLoading: isAudiobookLoading, refetch: refetchAudiobook } = useAudiobook(
       audiobookId ?? ''
    );
-   const { data: chaptersData, isLoading: isChaptersLoading } = useChapters(
+   const { data: chaptersData, isLoading: isChaptersLoading, refetch: refetchChapters } = useChapters(
       audiobookId ?? ''
    );
 
    const chapters = chaptersData?.data ?? [];
 
-   const { data: discoveredChapter, isLoading: isDiscoveringChapter } = useQuery({
+   const {
+      data: discoveredChapter,
+      isLoading: isDiscoveringChapter,
+      refetch: refetchDiscoveredChapter,
+   } = useQuery({
       queryKey: queryKeys.playback.continueListeningDiscover(audiobookId ?? ''),
       queryFn: () => findMostRecentChapterProgress(chapters),
       enabled:
@@ -119,7 +123,11 @@ export function useContinueListening() {
       playerAudiobookId === audiobookId &&
       playbackPosition > 0;
 
-   const { data: savedProgress, isLoading: isProgressLoading } = useQuery({
+   const {
+      data: savedProgress,
+      isLoading: isProgressLoading,
+      refetch: refetchSavedProgress,
+   } = useQuery({
       queryKey: queryKeys.playback.chapterProgress(resolvedChapterId ?? ''),
       queryFn: async () => {
          const progress = await getChapterProgress(resolvedChapterId!);
@@ -216,5 +224,19 @@ export function useContinueListening() {
             isDiscoveringChapter ||
             isProgressLoading));
 
-   return { data, isLoading };
+   const refetch = useCallback(async () => {
+      await Promise.all([
+         refetchAudiobook(),
+         refetchChapters(),
+         refetchDiscoveredChapter(),
+         refetchSavedProgress(),
+      ]);
+   }, [
+      refetchAudiobook,
+      refetchChapters,
+      refetchDiscoveredChapter,
+      refetchSavedProgress,
+   ]);
+
+   return { data, isLoading, refetch };
 }
