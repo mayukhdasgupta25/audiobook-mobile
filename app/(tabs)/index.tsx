@@ -6,6 +6,7 @@ import {
    Text,
    TouchableOpacity,
    Platform,
+   RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -36,10 +37,12 @@ import {
 import { apiConfig } from '@/services/api';
 import { Organization, getOrganizationImagePath } from '@/services/organizations';
 import { logout } from '@/utils/logout';
+import { RootState } from '@/store';
 import { resolveAvatarUrl } from '@/utils/resolveAvatarUrl';
 import { resolveMembershipTier } from '@/utils/membershipDisplay';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { playContinueListeningChapter } from '@/utils/playContinueListeningChapter';
 
 const HEADER_ICON_SIZE = 24;
@@ -227,10 +230,14 @@ function HomeScreenContent() {
    const { greeting, subtitle: timeOfDaySubtitle } = useTimeOfDay();
 
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
-   const { activeSubscription } = useUserSubscription();
+   const { activeSubscription, refetch: refetchSubscription, isRefetching: isSubscriptionRefetching } =
+      useUserSubscription();
    const dispatch = useDispatch();
-   const { data: continueListening, isLoading: isContinueListeningLoading } =
-      useContinueListening();
+   const {
+      data: continueListening,
+      isLoading: isContinueListeningLoading,
+      refetch: refetchContinueListening,
+   } = useContinueListening();
 
    const greetingName = useMemo(() => {
       if (userProfile?.firstName) return userProfile.firstName;
@@ -261,9 +268,27 @@ function HomeScreenContent() {
       }
    }, []);
 
-   const { contentRows, isLoading, loadNextPage, heroCarouselItems } = useHomeContent();
-   const { data: moods, isLoading: moodsLoading } = useMoods();
-   const { data: organizationsData, isLoading: organizationsLoading, isPending: organizationsPending } = useOrganizations();
+   const {
+      contentRows,
+      isLoading,
+      loadNextPage,
+      heroCarouselItems,
+      refetchAll,
+      isRefetching: isHomeContentRefetching,
+   } = useHomeContent();
+   const {
+      data: moods,
+      isLoading: moodsLoading,
+      refetch: refetchMoods,
+      isRefetching: isMoodsRefetching,
+   } = useMoods();
+   const {
+      data: organizationsData,
+      isLoading: organizationsLoading,
+      isPending: organizationsPending,
+      refetch: refetchOrganizations,
+      isRefetching: isOrganizationsRefetching,
+   } = useOrganizations();
    const organizations = organizationsData?.organizations ?? [];
 
    const getOrganizationImageUri = useCallback((org: Organization) => {
@@ -379,6 +404,30 @@ function HomeScreenContent() {
 
    useTabScrollToTop('index', scrollRef);
 
+   const homeRefreshFns = useMemo(
+      () => [
+         refetchAll,
+         refetchMoods,
+         refetchOrganizations,
+         refetchSubscription,
+         refetchContinueListening,
+      ],
+      [
+         refetchAll,
+         refetchMoods,
+         refetchOrganizations,
+         refetchSubscription,
+         refetchContinueListening,
+      ]
+   );
+   const { refreshing, onRefresh } = usePullToRefresh(homeRefreshFns, {
+      isRefetching:
+         isHomeContentRefetching ||
+         isMoodsRefetching ||
+         isOrganizationsRefetching ||
+         isSubscriptionRefetching,
+   });
+
    return (
       <SafeAreaView style={styles.container} edges={['top']}>
          <View style={styles.topBar}>
@@ -414,6 +463,14 @@ function HomeScreenContent() {
                { paddingBottom: scrollPadding },
             ]}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+               <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={colors.accent.primary}
+                  colors={[colors.accent.primary]}
+               />
+            }
          >
             {/* Greeting */}
             <View style={styles.greetingSection}>

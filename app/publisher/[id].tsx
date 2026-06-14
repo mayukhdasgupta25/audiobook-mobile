@@ -7,13 +7,17 @@ import {
    ActivityIndicator,
    TouchableOpacity,
    Platform,
+   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useOrganizationAudiobooks, useOrganization } from '@/hooks/useOrganizations';
 import { useNotFoundRedirect } from '@/hooks/useNotFoundRedirect';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { queryKeys } from '@/constants/queryKeys';
 import { Audiobook } from '@/services/audiobooks';
 import { apiConfig } from '@/services/api';
 import {
@@ -123,13 +127,19 @@ export default function PublisherDetailScreen() {
    }>();
    const organizationId = params.id ?? '';
    const displayName = params.name ?? 'Publisher';
-   const { isNotFound } = useOrganization(organizationId);
+   const queryClient = useQueryClient();
+   const {
+      isNotFound,
+      refetch: refetchOrganization,
+      isRefetching: isOrganizationRefetching,
+   } = useOrganization(organizationId);
    useNotFoundRedirect(isNotFound, 'This publisher is no longer available.');
 
    const [page, setPage] = useState(1);
    const [allAudiobooks, setAllAudiobooks] = useState<Audiobook[]>([]);
 
-   const { data, isLoading, isFetching } = useOrganizationAudiobooks(
+   const { data, isLoading, isFetching, isRefetching: isAudiobooksRefetching } =
+      useOrganizationAudiobooks(
       organizationId,
       page
    );
@@ -157,6 +167,25 @@ export default function PublisherDetailScreen() {
          setPage((p) => p + 1);
       }
    }, [pagination, isFetching]);
+
+   const handlePublisherRefresh = useCallback(async () => {
+      setPage(1);
+      setAllAudiobooks([]);
+      await Promise.all([
+         refetchOrganization(),
+         queryClient.refetchQueries({
+            queryKey: queryKeys.organizations.audiobooks(organizationId, 1),
+         }),
+      ]);
+   }, [refetchOrganization, queryClient, organizationId]);
+
+   const publisherRefreshFns = useMemo(
+      () => [handlePublisherRefresh],
+      [handlePublisherRefresh]
+   );
+   const { refreshing, onRefresh } = usePullToRefresh(publisherRefreshFns, {
+      isRefetching: isOrganizationRefetching || isAudiobooksRefetching,
+   });
 
    const renderAudiobook = useCallback(
       ({ item }: { item: Audiobook }) => (
@@ -225,6 +254,14 @@ export default function PublisherDetailScreen() {
                ListEmptyComponent={listEmpty}
                onEndReached={handleLoadMore}
                onEndReachedThreshold={0.4}
+               refreshControl={
+                  <RefreshControl
+                     refreshing={refreshing}
+                     onRefresh={onRefresh}
+                     tintColor={colors.accent.primary}
+                     colors={[colors.accent.primary]}
+                  />
+               }
                ListFooterComponent={
                   isFetching && allAudiobooks.length > 0 ? (
                      <ActivityIndicator

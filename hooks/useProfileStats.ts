@@ -82,5 +82,13 @@ export function useProfileStats() {
       stats,
       isLoading: userAudiobooksQuery.isLoading || favoritesQuery.isLoading,
       isError: userAudiobooksQuery.isError || favoritesQuery.isError,
+      refetch: async () => {
+         await Promise.all([
+            userAudiobooksQuery.refetch(),
+            favoritesQuery.refetch(),
+         ]);
+      },
+      isRefetching:
+         userAudiobooksQuery.isRefetching || favoritesQuery.isRefetching,
    };
 }

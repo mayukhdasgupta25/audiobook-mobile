@@ -1,9 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
    ScrollView,
    StyleSheet,
-   ActivityIndicator,
-   View,
+   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { LibraryScreenLayout } from '@/components/library/LibraryScreenLayout';
@@ -13,6 +12,7 @@ import { LibraryEmptyState } from '@/components/library/LibraryEmptyState';
 import { SkeletonBookmarkRow } from '@/components/skeleton';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useFavoriteAudiobooks } from '@/hooks/useFavoriteAudiobooks';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { spacing } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -22,17 +22,16 @@ export default function LibraryFavoritesScreen() {
       scrollContent: {
          paddingBottom: spacing.xl,
       },
-      loadingBanner: {
-         marginBottom: spacing.md,
-         alignItems: 'center',
-      },
    });
 
-   const { data, isLoading, isRefetching } = useFavorites();
+   const { data, isLoading, refetch, isRefetching } = useFavorites();
    const favorites = data?.data ?? [];
    const { books, isLoading: booksLoading } = useFavoriteAudiobooks(favorites);
 
    const loading = isLoading || (favorites.length > 0 && booksLoading);
+
+   const refreshFns = useMemo(() => [refetch], [refetch]);
+   const { refreshing, onRefresh } = usePullToRefresh(refreshFns, { isRefetching });
 
    return (
       <LibraryScreenLayout headerIcon="favorites" onBack={() => router.back()}>
@@ -47,12 +46,15 @@ export default function LibraryFavoritesScreen() {
             <ScrollView
                contentContainerStyle={styles.scrollContent}
                showsVerticalScrollIndicator={false}
+               refreshControl={
+                  <RefreshControl
+                     refreshing={refreshing}
+                     onRefresh={onRefresh}
+                     tintColor={colors.accent.primary}
+                     colors={[colors.accent.primary]}
+                  />
+               }
             >
-               {isRefetching ? (
-                  <View style={styles.loadingBanner}>
-                     <ActivityIndicator color={colors.accent.primary} />
-                  </View>
-               ) : null}
                <LibraryListCard>
                   {books.map((book) => (
                      <AudiobookLibraryRow

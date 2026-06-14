@@ -13,6 +13,7 @@ import {
    ActivityIndicator,
    Modal,
    TextInput,
+   RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -36,6 +37,7 @@ import { setMinimized, setUiSuppressed } from '@/store/player';
 import { getTabBarFloatBottom } from '@/theme/tabLayout';
 import { useComments, useCommentMutation } from '@/hooks/useComments';
 import { useNotes, useNoteMutations } from '@/hooks/useNotes';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { RootState } from '@/store';
 import { Comment } from '@/services/comments';
 
@@ -225,12 +227,23 @@ export default function ChapterCommentsScreen() {
       };
    }, []);
 
-   const { data: commentsData, isLoading: commentsLoading, isFetching } = useComments(
+   const {
+      data: commentsData,
+      isLoading: commentsLoading,
+      isFetching,
+      refetch: refetchComments,
+      isRefetching: isCommentsRefetching,
+   } = useComments(
       audiobookId,
       commentPage
    );
    const commentMutation = useCommentMutation(audiobookId);
-   const { data: notesData, isLoading: notesLoading } = useNotes(audiobookId);
+   const {
+      data: notesData,
+      isLoading: notesLoading,
+      refetch: refetchNotes,
+      isRefetching: isNotesRefetching,
+   } = useNotes(audiobookId);
    const { create: createNote, remove: removeNote } = useNoteMutations(audiobookId);
 
    const notes = notesData?.data ?? [];
@@ -312,6 +325,27 @@ export default function ChapterCommentsScreen() {
       }
    }, [commentsPagination, isFetching]);
 
+   const handleCommentsRefresh = useCallback(async () => {
+      setCommentPage(1);
+      setAllComments([]);
+      await refetchComments();
+   }, [refetchComments]);
+
+   const commentsRefreshFns = useMemo(
+      () => [handleCommentsRefresh],
+      [handleCommentsRefresh]
+   );
+   const {
+      refreshing: commentsRefreshing,
+      onRefresh: onCommentsRefresh,
+   } = usePullToRefresh(commentsRefreshFns, { isRefetching: isCommentsRefetching });
+
+   const notesRefreshFns = useMemo(() => [refetchNotes], [refetchNotes]);
+   const {
+      refreshing: notesRefreshing,
+      onRefresh: onNotesRefresh,
+   } = usePullToRefresh(notesRefreshFns, { isRefetching: isNotesRefetching });
+
    const handleCreateNote = useCallback(() => {
       const title = noteTitle.trim();
       const content = noteContent.trim();
@@ -370,6 +404,14 @@ export default function ChapterCommentsScreen() {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             onScrollBeginDrag={Keyboard.dismiss}
+            refreshControl={
+               <RefreshControl
+                  refreshing={commentsRefreshing}
+                  onRefresh={onCommentsRefresh}
+                  tintColor={colors.accent.primary}
+                  colors={[colors.accent.primary]}
+               />
+            }
             ListFooterComponent={
                commentsPagination?.hasNextPage ? (
                   <TouchableOpacity
@@ -414,6 +456,14 @@ export default function ChapterCommentsScreen() {
             )}
             contentContainerStyle={{ paddingBottom: listBottomPadding + 72 }}
             keyboardShouldPersistTaps="handled"
+            refreshControl={
+               <RefreshControl
+                  refreshing={notesRefreshing}
+                  onRefresh={onNotesRefresh}
+                  tintColor={colors.accent.primary}
+                  colors={[colors.accent.primary]}
+               />
+            }
          />
       );
    };
