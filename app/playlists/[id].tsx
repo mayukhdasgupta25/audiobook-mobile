@@ -18,6 +18,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlaylistItems, usePlaylists, usePlaylistMutations } from '@/hooks/usePlaylists';
+import { useNotFoundRedirect } from '@/hooks/useNotFoundRedirect';
 import { usePlaylistAudiobooks } from '@/hooks/usePlaylistAudiobooks';
 import { useAudiobookSearch } from '@/hooks/useAudiobookSearch';
 import { APP_BACK_ICON, APP_BACK_ICON_SIZE } from '@/constants/navigationIcons';
@@ -202,7 +203,9 @@ export default function PlaylistDetailScreen() {
       [playlistsData, playlistId]
    );
 
-   const { data: itemsData, isLoading: itemsLoading } = usePlaylistItems(playlistId);
+   const { data: itemsData, isLoading: itemsLoading, isNotFound } =
+      usePlaylistItems(playlistId);
+   useNotFoundRedirect(isNotFound, 'This playlist is no longer available.');
    const { update, remove, addItem, removeItem } = usePlaylistMutations();
 
    const [editing, setEditing] = useState(false);

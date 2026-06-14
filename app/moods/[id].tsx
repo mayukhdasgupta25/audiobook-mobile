@@ -16,6 +16,7 @@ import { MoodAudiobookRow } from '@/components/moods/MoodAudiobookRow';
 import { MoodAboutSection } from '@/components/moods/MoodAboutSection';
 import { SkeletonMoodDetailPage, SkeletonMoodAudiobookRow } from '@/components/skeleton';
 import { useMood } from '@/hooks/useMood';
+import { useNotFoundRedirect } from '@/hooks/useNotFoundRedirect';
 import { useMoodAudiobooks } from '@/hooks/useMoodAudiobooks';
 import { APP_BACK_ICON, APP_BACK_ICON_SIZE } from '@/constants/navigationIcons';
 import { spacing, typography } from '@/theme';
@@ -130,7 +131,9 @@ export default function MoodDetailScreen() {
       data: mood,
       isLoading: isMoodLoading,
       error: moodError,
+      isNotFound,
    } = useMood(moodId);
+   useNotFoundRedirect(isNotFound, 'This mood is no longer available.');
 
    const {
       data: audiobooksData,

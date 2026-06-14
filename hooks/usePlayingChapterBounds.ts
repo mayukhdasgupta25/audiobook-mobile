@@ -9,12 +9,14 @@ import { RootState } from '@/store';
 import { setChapterEndPosition, setPosition } from '@/store/player';
 import { getChapterById } from '@/services/audiobooks';
 import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { store } from '@/store';
 import { clampPlaybackSeekSeconds } from '@/utils/playbackPosition';
 
 export function usePlayingChapterBounds(): void {
    const dispatch = useDispatch();
    const chapterId = useSelector((state: RootState) => state.player.currentChapterId);
+   const audiobookId = useSelector((state: RootState) => state.player.audiobookId);
    const isAuthenticated = useSelector(
       (state: RootState) => state.auth.isAuthenticated
    );
@@ -23,10 +25,12 @@ export function usePlayingChapterBounds(): void {
    );
 
    const { data: chapter } = useQuery({
-      queryKey: ['chapter', chapterId],
+      queryKey:
+         audiobookId && chapterId
+            ? queryKeys.audiobooks.chapter(audiobookId, chapterId)
+            : ['audiobooks', 'chapters', 'detail', chapterId ?? ''],
       queryFn: () => getChapterById(chapterId!),
       enabled: !!chapterId && isAuthenticated && isInitialized,
-      staleTime: 5 * 60 * 1000,
       retry: (failureCount, error) => {
          if (error instanceof ApiError && error.status === 401) {
             return false;

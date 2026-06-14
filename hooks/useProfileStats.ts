@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { getUserAudiobooksByProfileId } from '@/services/userAudiobooks';
 import { getFavorites } from '@/services/favorites';
 import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { formatProfileListeningHours } from '@/utils/listeningDuration';
 import { useAuthQueryEnabled } from '@/hooks/useAuthQueryEnabled';
 import { RootState } from '@/store';
@@ -26,7 +27,7 @@ export function useProfileStats() {
    const authEnabled = useAuthQueryEnabled();
 
    const userAudiobooksQuery = useQuery({
-      queryKey: ['user-audiobooks', userProfileId],
+      queryKey: queryKeys.userAudiobooks.me(),
       queryFn: () => getUserAudiobooksByProfileId(userProfileId!),
       enabled: authEnabled && Boolean(userProfileId),
       retry: (failureCount, error) => {
@@ -35,11 +36,10 @@ export function useProfileStats() {
          }
          return failureCount < 2;
       },
-      staleTime: 60 * 1000,
    });
 
    const favoritesQuery = useQuery({
-      queryKey: ['favorites', 'profile-stats'],
+      queryKey: queryKeys.favorites.me(),
       queryFn: () => getFavorites(),
       enabled: authEnabled,
       retry: (failureCount, error) => {
@@ -48,7 +48,6 @@ export function useProfileStats() {
          }
          return failureCount < 2;
       },
-      staleTime: 60 * 1000,
    });
 
    const stats: ProfileStatsValues = useMemo(() => {

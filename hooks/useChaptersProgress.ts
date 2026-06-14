@@ -7,9 +7,8 @@ import { useQueries } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { getChapterProgress } from '@/services/audiobooks';
 import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
-
-const STALE_TIME_MS = 60_000;
 
 export function useChaptersProgress(
    chapterIds: string[],
@@ -35,13 +34,12 @@ export function useChaptersProgress(
          const useLiveProgress = isActiveChapter && (isPlaying || isPlayerVisible);
 
          return {
-            queryKey: ['chapterProgress', chapterId] as const,
+            queryKey: queryKeys.playback.chapterProgress(chapterId),
             queryFn: async () => {
                const progress = await getChapterProgress(chapterId);
                return progress?.currentPosition ?? 0;
             },
             enabled: shouldFetch && !useLiveProgress,
-            staleTime: STALE_TIME_MS,
             retry: (failureCount: number, error: unknown) => {
                if (error instanceof ApiError && error.status === 404) {
                   return false;

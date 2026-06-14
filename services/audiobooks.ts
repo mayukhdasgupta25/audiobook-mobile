@@ -471,12 +471,14 @@ export async function getAudiobookById(
       );
       return response.data;
    } catch (error) {
-      console.warn('[Audiobooks Service] Get audiobook by ID error', {
-         error,
-         errorType: error instanceof Error ? error.constructor.name : typeof error,
-         errorMessage: error instanceof Error ? error.message : String(error),
-         audiobookId,
-      });
+      if (!(error instanceof ApiError && error.status === 404)) {
+         console.warn('[Audiobooks Service] Get audiobook by ID error', {
+            error,
+            errorType: error instanceof Error ? error.constructor.name : typeof error,
+            errorMessage: error instanceof Error ? error.message : String(error),
+            audiobookId,
+         });
+      }
       if (error instanceof ApiError) {
          throw error;
       }

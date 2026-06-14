@@ -1,4 +1,17 @@
-import { QueryClient, QueryCache, MutationCache } from '@tanstack/react-query';
+import { AppState } from 'react-native';
+import { QueryClient, QueryCache, MutationCache, focusManager } from '@tanstack/react-query';
+import { ApiError } from '@/services/api';
+import { shouldRetryQuery } from '@/utils/queryRetry';
+
+/**
+ * React Native focus integration — refetch stale queries when app returns to foreground.
+ */
+focusManager.setEventListener((handleFocus) => {
+   const subscription = AppState.addEventListener('change', (status) => {
+      handleFocus(status === 'active');
+   });
+   return () => subscription.remove();
+});
 
 /**
  * Shared TanStack Query client for the app.
@@ -7,19 +20,15 @@ import { QueryClient, QueryCache, MutationCache } from '@tanstack/react-query';
 export const queryClient = new QueryClient({
    defaultOptions: {
       queries: {
-         retry: (failureCount, error) => {
-            if (error && typeof error === 'object' && 'status' in error && error.status === 401) {
-               return false;
-            }
-            return failureCount < 2;
-         },
-         refetchOnWindowFocus: false,
-         staleTime: 10 * 1000,
-         gcTime: 1 * 60 * 1000,
+         retry: shouldRetryQuery,
+         refetchOnWindowFocus: true,
+         refetchOnReconnect: true,
+         staleTime: 5 * 60 * 1000,
+         gcTime: 2 * 60 * 1000,
       },
       mutations: {
          retry: (failureCount, error) => {
-            if (error && typeof error === 'object' && 'status' in error && error.status === 401) {
+            if (error instanceof ApiError && (error.status === 401 || error.status === 404)) {
                return false;
             }
             return failureCount < 2;

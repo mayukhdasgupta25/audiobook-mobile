@@ -5,6 +5,7 @@ import {
    deleteBookmark,
 } from '@/services/bookmarks';
 import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { useAuthQueryEnabled } from './useAuthQueryEnabled';
 import { showToast } from '@/utils/toast';
 import { getApiErrorMessage } from '@/utils/getApiErrorMessage';
@@ -13,20 +14,21 @@ export function useBookmark(chapterId: string | null | undefined) {
    const enabled = useAuthQueryEnabled(!!chapterId);
 
    return useQuery({
-      queryKey: ['bookmark', chapterId],
+      queryKey: queryKeys.bookmarks.byChapter(chapterId!),
       queryFn: () => getBookmarkByChapterId(chapterId!),
       enabled,
       retry: (failureCount, error) => {
          if (error instanceof ApiError && error.status === 401) return false;
          return failureCount < 2;
       },
-      staleTime: 60 * 1000,
    });
 }
 
 export function useBookmarkMutations(chapterId: string | null | undefined) {
    const queryClient = useQueryClient();
-   const queryKey = ['bookmark', chapterId] as const;
+   const queryKey = chapterId
+      ? queryKeys.bookmarks.byChapter(chapterId)
+      : queryKeys.bookmarks.all();
 
    const add = useMutation({
       mutationFn: async () => {
@@ -44,9 +46,11 @@ export function useBookmarkMutations(chapterId: string | null | undefined) {
          }
       },
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+         queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks.all() });
          if (chapterId) {
-            queryClient.invalidateQueries({ queryKey: ['bookmark', chapterId] });
+            queryClient.invalidateQueries({
+               queryKey: queryKeys.bookmarks.byChapter(chapterId),
+            });
          }
          showToast({ message: 'Bookmark saved', type: 'success' });
       },
@@ -58,9 +62,11 @@ export function useBookmarkMutations(chapterId: string | null | undefined) {
    const remove = useMutation({
       mutationFn: (bookmarkId: string) => deleteBookmark(bookmarkId),
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+         queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks.all() });
          if (chapterId) {
-            queryClient.invalidateQueries({ queryKey: ['bookmark', chapterId] });
+            queryClient.invalidateQueries({
+               queryKey: queryKeys.bookmarks.byChapter(chapterId),
+            });
          }
          showToast({ message: 'Bookmark removed', type: 'success' });
       },

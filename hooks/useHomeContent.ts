@@ -12,6 +12,7 @@ import { getAudiobooksByTag, getAudiobooksByGenre } from '@/services/audiobooks'
 import { Audiobook, PaginationInfo, AudiobooksResponse } from '@/services/audiobooks';
 import { ContentItem } from '@/components/ContentRow';
 import { apiConfig } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
 
 /**
@@ -107,20 +108,18 @@ export function useHomeContent() {
    // Build query options for tags - fetch all pages up to current page
    const tagQueryOptions = useMemo(() => {
       const options: {
-         queryKey: unknown[];
+         queryKey: readonly unknown[];
          queryFn: () => Promise<AudiobooksResponse>;
          enabled: boolean;
-         staleTime: number;
       }[] = [];
       tags.forEach((tag) => {
          const currentPage = rowPages[`tag-${tag.name}`] || 1;
          // Fetch all pages from 1 to currentPage
          for (let page = 1; page <= currentPage; page++) {
             options.push({
-               queryKey: ['audiobooks', 'tag', tag.name, page],
+               queryKey: queryKeys.audiobooks.byTag(tag.name, page),
                queryFn: () => getAudiobooksByTag(tag.name, page),
                enabled: !!tag.name && isAuthenticated && isInitialized && page > 0,
-               staleTime: 5 * 60 * 1000,
             });
          }
       });
@@ -130,20 +129,18 @@ export function useHomeContent() {
    // Build query options for genres - fetch all pages up to current page
    const genreQueryOptions = useMemo(() => {
       const options: {
-         queryKey: unknown[];
+         queryKey: readonly unknown[];
          queryFn: () => Promise<AudiobooksResponse>;
          enabled: boolean;
-         staleTime: number;
       }[] = [];
       genres.forEach((genre) => {
          const currentPage = rowPages[`genre-${genre.id}`] || 1;
          // Fetch all pages from 1 to currentPage
          for (let page = 1; page <= currentPage; page++) {
             options.push({
-               queryKey: ['audiobooks', 'genre', genre.id, page],
+               queryKey: queryKeys.audiobooks.byGenre(genre.id, page),
                queryFn: () => getAudiobooksByGenre(genre.id, page),
                enabled: !!genre.id && isAuthenticated && isInitialized && page > 0,
-               staleTime: 5 * 60 * 1000,
             });
          }
       });

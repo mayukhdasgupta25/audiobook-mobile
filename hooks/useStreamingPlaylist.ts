@@ -6,8 +6,10 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSelector, useDispatch } from 'react-redux';
-import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
+import { shouldRetryQuery } from '@/utils/queryRetry';
+import { useResourceDeleted } from '@/hooks/useResourceDeleted';
 import { setPlaylist } from '@/store/streaming';
 import { PlaylistData, MasterPlaylistData } from '@/utils/m3u8Parser';
 import { fetchChapterPlaybackSource } from '@/utils/chapterStreamUrl';
@@ -45,8 +47,10 @@ export function useStreamingPlaylist(
       (state: RootState) => state.auth.isInitialized
    );
 
+   const isChapterDeleted = useResourceDeleted('chapters', chapterId ?? '');
+
    const queryResult = useQuery({
-      queryKey: ['streamingPlaylist', chapterId, userId],
+      queryKey: queryKeys.streaming.playlist(chapterId ?? '', userId ?? ''),
       queryFn: async (): Promise<StreamingPlaylistData> => {
          if (!chapterId || !userId) {
             throw new Error('Chapter ID and User ID are required');
@@ -61,16 +65,10 @@ export function useStreamingPlaylist(
          !!chapterId &&
          !!userId &&
          isAuthenticated &&
-         isInitialized,
-      retry: (failureCount, error) => {
-         // Don't retry on 401 (unauthorized) errors
-         if (error instanceof ApiError && error.status === 401) {
-            return false;
-         }
-         // Retry up to 2 times for other errors
-         return failureCount < 2;
-      },
-      staleTime: 5 * 60 * 1000, // 5 minutes - same as global config
+         isInitialized &&
+         !isChapterDeleted,
+      retry: shouldRetryQuery,
+      meta: { silent404: true },
    });
 
    // Store playlist data in Redux when successfully fetched

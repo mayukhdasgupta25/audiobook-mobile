@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { getMySubscription } from '@/services/subscriptions';
 import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
 
 /**
@@ -21,7 +22,7 @@ export function useUserSubscription() {
    );
 
    const query = useQuery({
-      queryKey: ['subscriptions', 'me'],
+      queryKey: queryKeys.subscriptions.me(),
       queryFn: () => getMySubscription(),
       enabled: isAuthenticated && isInitialized,
       retry: (failureCount, error) => {
@@ -30,7 +31,6 @@ export function useUserSubscription() {
          }
          return failureCount < 2;
       },
-      staleTime: 5 * 60 * 1000,
    });
 
    const activeSubscription = useMemo(

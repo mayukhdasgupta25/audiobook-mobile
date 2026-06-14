@@ -12,7 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useOrganizationAudiobooks } from '@/hooks/useOrganizations';
+import { useOrganizationAudiobooks, useOrganization } from '@/hooks/useOrganizations';
+import { useNotFoundRedirect } from '@/hooks/useNotFoundRedirect';
 import { Audiobook } from '@/services/audiobooks';
 import { apiConfig } from '@/services/api';
 import {
@@ -122,6 +123,8 @@ export default function PublisherDetailScreen() {
    }>();
    const organizationId = params.id ?? '';
    const displayName = params.name ?? 'Publisher';
+   const { isNotFound } = useOrganization(organizationId);
+   useNotFoundRedirect(isNotFound, 'This publisher is no longer available.');
 
    const [page, setPage] = useState(1);
    const [allAudiobooks, setAllAudiobooks] = useState<Audiobook[]>([]);
