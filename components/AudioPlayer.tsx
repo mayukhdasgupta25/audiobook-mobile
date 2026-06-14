@@ -48,6 +48,7 @@ import { isSleepTimerActive } from '@/utils/sleepTimer';
 import { usePlaybackSync } from '@/hooks/usePlaybackSync';
 import { useBookmark, useBookmarkMutations } from '@/hooks/useBookmark';
 import { syncPlayback, initializePlaybackSession } from '@/services/audiobooks';
+import { saveChapterPlaybackProgress } from '@/utils/markChapterCompletedAtEnd';
 import { spacing, typography, borderRadius, shadows } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
@@ -586,17 +587,19 @@ export const AudioPlayer: React.FC = React.memo(() => {
    const handlePlayPause = useCallback(() => {
       if (isPlaying) {
          void pausePlayback();
-         // Sync playback state when pausing (only if player is active)
          if (isVisible && audiobookId && currentChapterId) {
-            syncPlayback({
-               audiobookId,
-               chapterId: currentChapterId,
-               action: 'pause',
-               position: playbackPosition,
-               durationSeconds: totalDuration > 0 ? totalDuration : undefined,
-            }).catch((error: unknown) => {
-               console.error('[Audio Player] Failed to sync playback on pause:', error);
-            });
+            const durationHint = totalDuration > 0 ? totalDuration : playbackPosition;
+            if (durationHint > 0 || playbackPosition > 0) {
+               void saveChapterPlaybackProgress(
+                  audiobookId,
+                  currentChapterId,
+                  playbackPosition,
+                  durationHint,
+                  { completed: false }
+               ).catch((error: unknown) => {
+                  console.error('[Audio Player] Failed to save progress on pause:', error);
+               });
+            }
          }
       } else {
          void playPlayback();
@@ -633,16 +636,21 @@ export const AudioPlayer: React.FC = React.memo(() => {
 
    const handleClose = useCallback(() => {
       void (async () => {
-         if (isPlaying && audiobookId && currentChapterId) {
-            await syncPlayback({
-               audiobookId,
-               chapterId: currentChapterId,
-               action: 'pause',
-               position: playbackPosition,
-               durationSeconds: totalDuration > 0 ? totalDuration : undefined,
-            }).catch((error: unknown) => {
-               console.error('[Audio Player] Failed to sync playback on close:', error);
-            });
+         if (audiobookId && currentChapterId) {
+            const durationHint = totalDuration > 0 ? totalDuration : playbackPosition;
+            if (durationHint > 0 || playbackPosition > 0) {
+               await saveChapterPlaybackProgress(
+                  audiobookId,
+                  currentChapterId,
+                  playbackPosition,
+                  durationHint,
+                  { completed: false }
+               ).catch((error: unknown) => {
+                  console.error('[Audio Player] Failed to save progress on close:', error);
+               });
+            }
+         }
+         if (isPlaying) {
             await pausePlayback();
          }
          await resetPlayer();
@@ -653,6 +661,7 @@ export const AudioPlayer: React.FC = React.memo(() => {
       audiobookId,
       currentChapterId,
       playbackPosition,
+      totalDuration,
       pausePlayback,
       resetPlayer,
       dispatch,

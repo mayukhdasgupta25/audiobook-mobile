@@ -3,7 +3,7 @@
  * Handles audiobook API calls
  */
 
-import { get, post, ApiError, API_V1_PATH } from './api';
+import { get, post, put, ApiError, API_V1_PATH } from './api';
 import { store } from '@/store';
 import { clampSyncPlaybackPosition } from '@/utils/playbackPosition';
 
@@ -539,6 +539,40 @@ export async function getChapterProgress(
       }
       throw new Error(
          `Failed to fetch chapter progress: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+   }
+}
+
+/**
+ * Update saved playback progress for a chapter.
+ * PUT /api/v1/chapters/:chapterId/progress
+ */
+export interface UpdateChapterProgressRequest {
+   currentPosition: number;
+   completed?: boolean;
+}
+
+export async function updateChapterProgress(
+   chapterId: string,
+   body: UpdateChapterProgressRequest
+): Promise<ChapterProgress> {
+   try {
+      const response = await put<ChapterProgressResponse>(
+         `${API_V1_PATH}/chapters/${chapterId}/progress`,
+         body,
+         true
+      );
+      return response.data.data;
+   } catch (error) {
+      console.warn('[Audiobooks Service] Update chapter progress error', {
+         error,
+         chapterId,
+      });
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new Error(
+         `Failed to update chapter progress: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
    }
 }

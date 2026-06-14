@@ -53,6 +53,7 @@ import { usePlayingChapterBounds } from '@/hooks/usePlayingChapterBounds';
 import { usePreferredPlaybackBitrate } from '@/hooks/usePreferredPlaybackBitrate';
 import { getNextLowerBitrateKbps } from '@/utils/audioQualityDisplay';
 import { shouldPauseAtChapterEnd } from '@/utils/sleepTimer';
+import { markChapterCompletedAtEnd } from '@/utils/markChapterCompletedAtEnd';
 import { clearSleepTimer } from '@/store/settings';
 
 const LOAD_TIMEOUT_MS = 30_000;
@@ -145,6 +146,12 @@ export function useAudioPlayer() {
             } catch (error: unknown) {
                console.warn('[Audio Player] Sleep timer pause failed:', error);
             }
+            await markChapterCompletedAtEnd(
+               state.audiobookId,
+               state.currentChapterId,
+               state.playbackPosition > 0 ? state.playbackPosition : state.totalDuration,
+               state.totalDuration
+            );
             return;
          }
          lastLoadedChapterRef.current = null;
@@ -420,7 +427,12 @@ export function useAudioPlayer() {
             const playerSnapshot = store.getState().player;
             if (playerSnapshot.currentChapterId) {
                if (playbackState === State.Playing && !playerSnapshot.isPlaying) {
-                  dispatch(play());
+                  // Redux paused first (user tap) but native still playing — reconcile, never flip to play.
+                  try {
+                     await TrackPlayer.pause();
+                  } catch (error: unknown) {
+                     console.warn('[Audio Player] Reconcile pause failed:', error);
+                  }
                } else if (
                   (playbackState === State.Paused || playbackState === State.Stopped) &&
                   playerSnapshot.isPlaying
@@ -520,7 +532,11 @@ export function useAudioPlayer() {
 
          const reduxPlayer = store.getState().player;
          if (playbackState.state === State.Playing && !reduxPlayer.isPlaying) {
-            dispatch(play());
+            try {
+               await TrackPlayer.pause();
+            } catch (error: unknown) {
+               console.warn('[Audio Player] Poll reconcile pause failed:', error);
+            }
          } else if (
             (playbackState.state === State.Paused ||
                playbackState.state === State.Stopped) &&

@@ -4,8 +4,9 @@
 
 import type { AppDispatch } from '@/store';
 import { setChapter, play, setTotalDuration } from '@/store/player';
-import { getChapterProgress, type Chapter } from '@/services/audiobooks';
+import { type Chapter } from '@/services/audiobooks';
 import type { ChapterMetadata } from '@/store/player';
+import { resolveChapterResumePosition } from '@/utils/chapterResumePosition';
 import {
    persistPlaybackAudiobookId,
    persistPlaybackChapterId,
@@ -34,6 +35,8 @@ export interface OpenChapterOptions {
    totalDurationSeconds?: number;
    totalChapters?: number;
    autoPlay?: boolean;
+   /** Skip saved progress and start at 0 (e.g. auto-advance to next chapter). */
+   startFromBeginning?: boolean;
 }
 
 /**
@@ -45,14 +48,12 @@ export async function openChapterForPlayback({
    totalDurationSeconds,
    totalChapters,
    autoPlay = true,
+   startFromBeginning = false,
 }: OpenChapterOptions): Promise<number> {
-   let resumePosition = 0;
-   try {
-      const progress = await getChapterProgress(chapter.id);
-      resumePosition = Math.max(0, progress?.currentPosition ?? 0);
-   } catch (error: unknown) {
-      console.warn('[openChapterForPlayback] Failed to fetch progress, starting at 0:', error);
-   }
+   const resumePosition = await resolveChapterResumePosition(chapter.id, {
+      startFromBeginning,
+      totalDurationSeconds,
+   });
 
    const detailsPath = `/details/${chapter.audiobookId}`;
 
