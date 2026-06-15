@@ -1,8 +1,6 @@
 import Expo
 import React
 import ReactAppDependencyProvider
-import AVFoundation
-import UIKit
 
 @UIApplicationMain
 public class AppDelegate: ExpoAppDelegate {
@@ -29,23 +27,12 @@ public class AppDelegate: ExpoAppDelegate {
       withModuleName: "main",
       in: window,
       launchOptions: launchOptions)
-
-    setupAudioSession()
 #endif
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  private func setupAudioSession() {
-    do {
-      let audioSession = AVAudioSession.sharedInstance()
-      try audioSession.setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetooth])
-      try audioSession.setActive(true)
-    } catch {
-      print("[AppDelegate] Failed to setup audio session: \(error)")
-    }
-  }
-
+  // Linking API
   public override func application(
     _ app: UIApplication,
     open url: URL,
@@ -54,6 +41,7 @@ public class AppDelegate: ExpoAppDelegate {
     return super.application(app, open: url, options: options) || RCTLinkingManager.application(app, open: url, options: options)
   }
 
+  // Universal Links
   public override func application(
     _ application: UIApplication,
     continue userActivity: NSUserActivity,
@@ -65,7 +53,10 @@ public class AppDelegate: ExpoAppDelegate {
 }
 
 class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
+  // Extension point for config-plugins
+
   override func sourceURL(for bridge: RCTBridge) -> URL? {
+    // needed to return the correct URL for expo-dev-client.
     bridge.bundleURL ?? bundleURL()
   }
 
