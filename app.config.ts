@@ -17,9 +17,9 @@ function getGoogleIosUrlScheme(clientId: string): string {
 
    throw new Error(
       'EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID must be a valid iOS OAuth client ID ' +
-         '(e.g. 123456789-abc.apps.googleusercontent.com) or reversed URL scheme ' +
-         '(e.g. com.googleusercontent.apps.123456789-abc). ' +
-         'Get this from Google Cloud Console → APIs & Services → Credentials → iOS client.',
+      '(e.g. 123456789-abc.apps.googleusercontent.com) or reversed URL scheme ' +
+      '(e.g. com.googleusercontent.apps.123456789-abc). ' +
+      'Get this from Google Cloud Console → APIs & Services → Credentials → iOS client.',
    );
 }
 
@@ -27,9 +27,9 @@ const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
 const googleSignInPlugin: [string, { iosUrlScheme: string }] | null =
    googleIosClientId && googleIosClientId !== 'com.googleusercontent.apps'
       ? [
-           '@react-native-google-signin/google-signin',
-           { iosUrlScheme: getGoogleIosUrlScheme(googleIosClientId) },
-        ]
+         '@react-native-google-signin/google-signin',
+         { iosUrlScheme: getGoogleIosUrlScheme(googleIosClientId) },
+      ]
       : null;
 
 const updatesUrl = process.env.EXPO_PUBLIC_UPDATES_URL?.trim();
@@ -48,19 +48,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#E8DCC4',
    },
    assetBundlePatterns: ['**/*'],
-   runtimeVersion: {
-      policy: 'appVersion',
-   },
+   runtimeVersion: '1.0.0',
    updates: envConfig.enableUpdates
       ? {
-           enabled: true,
-           fallbackToCacheTimeout: 0,
-           checkAutomatically: 'ON_LOAD',
-           ...(updatesUrl ? { url: updatesUrl } : {}),
-        }
+         enabled: true,
+         fallbackToCacheTimeout: 0,
+         checkAutomatically: 'ON_LOAD',
+         ...(updatesUrl ? { url: updatesUrl } : {}),
+      }
       : {
-           enabled: false,
-        },
+         enabled: false,
+      },
    ios: {
       supportsTablet: true,
       bundleIdentifier: envConfig.bundleId,
