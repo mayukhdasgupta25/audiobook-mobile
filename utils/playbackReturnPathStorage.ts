@@ -4,6 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { normalizeResourceId } from '@/utils/resourceId';
 
 const RETURN_PATH_KEY = '@audiobook/playbackReturnPath';
 const AUDIOBOOK_ID_KEY = '@audiobook/playbackAudiobookId';
@@ -45,7 +46,7 @@ export async function persistPlaybackChapterId(chapterId: string | null): Promis
 
 export async function getPersistedPlaybackChapterId(): Promise<string | null> {
    const id = await AsyncStorage.getItem(CHAPTER_ID_KEY);
-   return id && id.length > 0 ? id : null;
+   return normalizeResourceId(id);
 }
 
 export async function resolvePersistedPlaybackRoute(): Promise<string | null> {

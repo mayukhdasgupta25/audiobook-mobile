@@ -20,6 +20,7 @@ import {
    getPersistedPlaybackChapterId,
 } from '@/utils/playbackReturnPathStorage';
 import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
+import { normalizeResourceId } from '@/utils/resourceId';
 
 export interface ContinueListeningData {
    id: string;
@@ -82,12 +83,15 @@ export function useContinueListening() {
 
    const audiobookId = playerAudiobookId ?? persistedAudiobookId ?? null;
 
+   const normalizedCurrentChapterId = normalizeResourceId(currentChapterId);
+   const normalizedPersistedChapterId = normalizeResourceId(persistedChapterId);
+
    const liveChapterId =
       playerAudiobookId && playerAudiobookId === audiobookId
-         ? currentChapterId
+         ? normalizedCurrentChapterId
          : null;
 
-   const candidateChapterId = liveChapterId ?? persistedChapterId;
+   const candidateChapterId = liveChapterId ?? normalizedPersistedChapterId;
 
    const { data: audiobookData, isLoading: isAudiobookLoading, refetch: refetchAudiobook } = useAudiobook(
       audiobookId ?? ''
@@ -119,7 +123,7 @@ export function useContinueListening() {
 
    const useLiveProgress =
       !!resolvedChapterId &&
-      resolvedChapterId === currentChapterId &&
+      resolvedChapterId === normalizedCurrentChapterId &&
       playerAudiobookId === audiobookId &&
       playbackPosition > 0;
 
