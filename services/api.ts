@@ -113,8 +113,12 @@ function normalizeUrl(url: string, defaultPort: string): string {
       return normalized;
    }
 
-   // If URL includes protocol but no port, add port
+   // If URL includes protocol but no port, add port (omit default 80/443)
    if (normalized.match(/^https?:\/\//)) {
+      const isHttps = normalized.startsWith('https://');
+      if ((isHttps && defaultPort === '443') || (!isHttps && defaultPort === '80')) {
+         return normalized;
+      }
       return `${normalized}:${defaultPort}`;
    }
 
@@ -441,10 +445,13 @@ export async function apiRequest<T>(
       }
    }
 
+   const isM3U8Endpoint = endpoint.includes('.m3u8');
+
    try {
       const response = await fetch(url, {
          ...options,
          headers,
+         ...(isM3U8Endpoint ? { cache: 'no-store' as RequestCache } : {}),
       });
 
       if (!response.ok) {
@@ -497,8 +504,6 @@ export async function apiRequest<T>(
       const contentType = response.headers.get('content-type') || '';
       let data: T;
 
-      // Check if endpoint is M3U8 or content-type indicates text/plain
-      const isM3U8Endpoint = endpoint.includes('.m3u8');
       const isTextContent =
          contentType.includes('text/plain') ||
          contentType.includes('application/vnd.apple.mpegurl') ||
@@ -507,6 +512,9 @@ export async function apiRequest<T>(
       if (isM3U8Endpoint || isTextContent) {
          // Handle text/plain responses (e.g., M3U8 playlists)
          const textData = await response.text();
+         if (isM3U8Endpoint && !textData.trim().startsWith('#')) {
+            throw new Error('Invalid or empty M3U8 playlist response');
+         }
          data = textData as unknown as T;
       } else {
          // Handle JSON responses (default)

@@ -10,6 +10,36 @@ export interface M3u8NormalizeContext {
    bitrate?: string;
 }
 
+function isDevRewriteHost(hostname: string): boolean {
+   const host = hostname.toLowerCase();
+   return (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '10.0.2.2' ||
+      /^192\.168\./.test(host)
+   );
+}
+
+/** Keep external/CDN URLs intact; only rewrite dev-server hosts to the client streaming base. */
+function shouldPreserveAbsolutePlaybackUri(uri: string): boolean {
+   try {
+      const parsed = new URL(uri);
+      const host = parsed.hostname.toLowerCase();
+
+      if (host.includes('amazonaws.com') || host.includes('cloudfront.net')) {
+         return true;
+      }
+
+      if (parsed.search.includes('X-Amz-')) {
+         return true;
+      }
+
+      return !isDevRewriteHost(host);
+   } catch {
+      return false;
+   }
+}
+
 /**
  * Normalize a single media URI from the playlist (segment, init map, etc.).
  * Fixes path quirks only; does not rewrite hosts.
@@ -40,6 +70,10 @@ export function resolvePlaybackMediaUri(
    const base = STREAMING_API_BASE_URL.replace(/\/$/, '');
 
    if (/^https?:\/\//i.test(fixed)) {
+      if (shouldPreserveAbsolutePlaybackUri(fixed)) {
+         return fixed;
+      }
+
       try {
          const parsed = new URL(fixed);
          return `${base}${parsed.pathname}${parsed.search}`;

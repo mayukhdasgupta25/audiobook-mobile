@@ -36,6 +36,12 @@ describe('m3u8Normalize', () => {
          ).toBe('http://192.168.1.4:8082/bit_transcode/chapter-1/128k/segment_000.m4s');
       });
 
+      it('preserves S3 pre-signed URLs unchanged', () => {
+         const s3Url =
+            'https://s3.ap-south-1.amazonaws.com/bucket/uploads/bit_transcode/chapter-1/128k/init.mp4?X-Amz-Signature=abc';
+         expect(resolvePlaybackMediaUri(s3Url, context)).toBe(s3Url);
+      });
+
       it('resolves relative bit_transcode paths', () => {
          expect(
             resolvePlaybackMediaUri('bit_transcode/chapter-1/128k/init.mp4')
@@ -50,7 +56,7 @@ describe('m3u8Normalize', () => {
    });
 
    describe('normalizeM3u8Content', () => {
-      it('rewrites init map and segment lines in a variant playlist', () => {
+      it('rewrites init map and segment lines for localhost dev URLs', () => {
          const input = [
             '#EXTM3U',
             '#EXT-X-VERSION:7',
@@ -68,6 +74,24 @@ describe('m3u8Normalize', () => {
          expect(output).toContain(
             'http://192.168.1.4:8082/bit_transcode/chapter-1/128k/segment_000.m4s'
          );
+      });
+
+      it('preserves S3 segment URLs in the playlist', () => {
+         const s3Init =
+            'https://s3.ap-south-1.amazonaws.com/bucket/init.mp4?X-Amz-Signature=abc';
+         const s3Segment =
+            'https://s3.ap-south-1.amazonaws.com/bucket/segment_000.m4s?X-Amz-Signature=def';
+         const input = [
+            '#EXTM3U',
+            `#EXT-X-MAP:URI="${s3Init}"`,
+            '#EXTINF:4.0,',
+            s3Segment,
+         ].join('\n');
+
+         const output = normalizeM3u8Content(input, context);
+
+         expect(output).toContain(`URI="${s3Init}"`);
+         expect(output).toContain(s3Segment);
       });
    });
 });
