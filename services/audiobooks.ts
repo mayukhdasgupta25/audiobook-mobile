@@ -6,6 +6,7 @@
 import { get, post, put, ApiError, API_V1_PATH } from './api';
 import { store } from '@/store';
 import { clampSyncPlaybackPosition } from '@/utils/playbackPosition';
+import { normalizeResourceId } from '@/utils/resourceId';
 import type { ImageAssetsMap } from '@/constants/imageVariants';
 
 /**
@@ -523,9 +524,14 @@ export async function getChapterById(chapterId: string): Promise<Chapter> {
 export async function getChapterProgress(
    chapterId: string
 ): Promise<ChapterProgress | null> {
+   const normalizedChapterId = normalizeResourceId(chapterId);
+   if (!normalizedChapterId) {
+      return null;
+   }
+
    try {
       const response = await get<ChapterProgressResponse>(
-         `${API_V1_PATH}/chapters/${chapterId}/progress`,
+         `${API_V1_PATH}/chapters/${normalizedChapterId}/progress`,
          true
       );
       return response.data.data;
