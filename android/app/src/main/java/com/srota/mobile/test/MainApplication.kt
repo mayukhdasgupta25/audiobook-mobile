@@ -1,4 +1,4 @@
-package com.srota.mobile
+package com.srota.mobile.test
 
 import android.app.Application
 import android.content.res.Configuration

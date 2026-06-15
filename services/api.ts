@@ -216,31 +216,34 @@ export const API_V1_PATH = getApiV1Path();
 // API v1 stream base path
 export const API_V1_STREAM_PATH = getApiV1StreamPath();
 
-// Log API configuration on module load
-console.log('[API Config]', {
-   AUTH_API_BASE_URL,
-   API_BASE_URL,
-   STREAMING_API_BASE_URL,
-   API_V1_PATH,
-   API_V1_STREAM_PATH,
-   Platform: Platform.OS,
-   EXPO_PUBLIC_AUTH_API_URL: process.env.EXPO_PUBLIC_AUTH_API_URL,
-   EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
-   EXPO_PUBLIC_STREAMING_URL: process.env.EXPO_PUBLIC_STREAMING_URL,
-   EXPO_PUBLIC_AUTH_API_PORT: process.env.EXPO_PUBLIC_AUTH_API_PORT,
-   EXPO_PUBLIC_API_PORT: process.env.EXPO_PUBLIC_API_PORT,
-   EXPO_PUBLIC_STREAMING_URL_PORT: process.env.EXPO_PUBLIC_STREAMING_URL_PORT,
-   EXPO_PUBLIC_API_V1_PATH: process.env.EXPO_PUBLIC_API_V1_PATH,
-   EXPO_PUBLIC_API_V1_STREAM_PATH: process.env.EXPO_PUBLIC_API_V1_STREAM_PATH,
-   authPort: getAuthApiPort(),
-   mainPort: getMainApiPort(),
-   streamingPort: getStreamingApiPort(),
-   note: Platform.OS === 'android'
-      ? 'Using 10.0.2.2 for Android emulator (maps to host localhost)'
-      : Platform.OS === 'ios'
-         ? 'Using localhost for iOS simulator'
-         : 'Using localhost for web',
-});
+// Log API configuration on module load (non-production / debug builds only)
+const appEnv = process.env.EXPO_PUBLIC_APP_ENV ?? 'development';
+if (__DEV__ || appEnv !== 'production') {
+   console.log('[API Config]', {
+      AUTH_API_BASE_URL,
+      API_BASE_URL,
+      STREAMING_API_BASE_URL,
+      API_V1_PATH,
+      API_V1_STREAM_PATH,
+      Platform: Platform.OS,
+      EXPO_PUBLIC_AUTH_API_URL: process.env.EXPO_PUBLIC_AUTH_API_URL,
+      EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+      EXPO_PUBLIC_STREAMING_URL: process.env.EXPO_PUBLIC_STREAMING_URL,
+      EXPO_PUBLIC_AUTH_API_PORT: process.env.EXPO_PUBLIC_AUTH_API_PORT,
+      EXPO_PUBLIC_API_PORT: process.env.EXPO_PUBLIC_API_PORT,
+      EXPO_PUBLIC_STREAMING_URL_PORT: process.env.EXPO_PUBLIC_STREAMING_URL_PORT,
+      EXPO_PUBLIC_API_V1_PATH: process.env.EXPO_PUBLIC_API_V1_PATH,
+      EXPO_PUBLIC_API_V1_STREAM_PATH: process.env.EXPO_PUBLIC_API_V1_STREAM_PATH,
+      authPort: getAuthApiPort(),
+      mainPort: getMainApiPort(),
+      streamingPort: getStreamingApiPort(),
+      note: Platform.OS === 'android'
+         ? 'Using 10.0.2.2 for Android emulator (maps to host localhost)'
+         : Platform.OS === 'ios'
+            ? 'Using localhost for iOS simulator'
+            : 'Using localhost for web',
+   });
+}
 
 /**
  * API client configuration

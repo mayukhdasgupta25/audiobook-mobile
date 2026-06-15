@@ -71,6 +71,8 @@ expo-env.d.ts
 coverage/
 
 # Environment variables
+# .env and .env.local are gitignored (local overrides / secrets)
+# Committed templates: .env.development, .env.testing, .env.staging, .env.production
 .env
 .env.local
 .env.*.local

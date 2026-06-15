@@ -28,6 +28,7 @@ import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { Toast } from '@/components/Toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DomainEventsSync } from '@/components/DomainEventsSync';
+import { EnvironmentBadge } from '@/components/EnvironmentBadge';
 import { preloadAppAssets } from '@/utils/preloadAppAssets';
 import '../global.css';
 
@@ -284,6 +285,7 @@ export default function RootLayout() {
                            <ThemeProvider>
                               <ThemedAppShell>
                                  <InnerLayout />
+                                 <EnvironmentBadge />
                                  <Toast />
                               </ThemedAppShell>
                            </ThemeProvider>
