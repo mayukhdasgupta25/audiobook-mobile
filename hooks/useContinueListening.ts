@@ -2,11 +2,12 @@
  * Resolves Continue Listening data from live player state, persisted playback, or API progress.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { getChapterProgress } from '@/services/audiobooks';
 import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
 import { useAudiobook } from '@/hooks/useAudiobook';
 import { useChapters } from '@/hooks/useChapters';
@@ -18,7 +19,8 @@ import {
    getPersistedPlaybackAudiobookId,
    getPersistedPlaybackChapterId,
 } from '@/utils/playbackReturnPathStorage';
-import { apiConfig } from '@/services/api';
+import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
+import { normalizeResourceId } from '@/utils/resourceId';
 
 export interface ContinueListeningData {
    id: string;
@@ -81,24 +83,31 @@ export function useContinueListening() {
 
    const audiobookId = playerAudiobookId ?? persistedAudiobookId ?? null;
 
+   const normalizedCurrentChapterId = normalizeResourceId(currentChapterId);
+   const normalizedPersistedChapterId = normalizeResourceId(persistedChapterId);
+
    const liveChapterId =
       playerAudiobookId && playerAudiobookId === audiobookId
-         ? currentChapterId
+         ? normalizedCurrentChapterId
          : null;
 
-   const candidateChapterId = liveChapterId ?? persistedChapterId;
+   const candidateChapterId = liveChapterId ?? normalizedPersistedChapterId;
 
-   const { data: audiobookData, isLoading: isAudiobookLoading } = useAudiobook(
+   const { data: audiobookData, isLoading: isAudiobookLoading, refetch: refetchAudiobook } = useAudiobook(
       audiobookId ?? ''
    );
-   const { data: chaptersData, isLoading: isChaptersLoading } = useChapters(
+   const { data: chaptersData, isLoading: isChaptersLoading, refetch: refetchChapters } = useChapters(
       audiobookId ?? ''
    );
 
    const chapters = chaptersData?.data ?? [];
 
-   const { data: discoveredChapter, isLoading: isDiscoveringChapter } = useQuery({
-      queryKey: ['continueListening', 'discover', audiobookId],
+   const {
+      data: discoveredChapter,
+      isLoading: isDiscoveringChapter,
+      refetch: refetchDiscoveredChapter,
+   } = useQuery({
+      queryKey: queryKeys.playback.continueListeningDiscover(audiobookId ?? ''),
       queryFn: () => findMostRecentChapterProgress(chapters),
       enabled:
          persistedLoaded &&
@@ -107,7 +116,6 @@ export function useContinueListening() {
          !!audiobookId &&
          !candidateChapterId &&
          chapters.length > 0,
-      staleTime: 60_000,
    });
 
    const resolvedChapterId =
@@ -115,12 +123,16 @@ export function useContinueListening() {
 
    const useLiveProgress =
       !!resolvedChapterId &&
-      resolvedChapterId === currentChapterId &&
+      resolvedChapterId === normalizedCurrentChapterId &&
       playerAudiobookId === audiobookId &&
       playbackPosition > 0;
 
-   const { data: savedProgress, isLoading: isProgressLoading } = useQuery({
-      queryKey: ['chapterProgress', resolvedChapterId],
+   const {
+      data: savedProgress,
+      isLoading: isProgressLoading,
+      refetch: refetchSavedProgress,
+   } = useQuery({
+      queryKey: queryKeys.playback.chapterProgress(resolvedChapterId ?? ''),
       queryFn: async () => {
          const progress = await getChapterProgress(resolvedChapterId!);
          return progress?.currentPosition ?? 0;
@@ -131,7 +143,6 @@ export function useContinueListening() {
          isInitialized &&
          !!resolvedChapterId &&
          !useLiveProgress,
-      staleTime: 30_000,
       retry: (failureCount, error) => {
          if (error instanceof ApiError && error.status === 404) {
             return false;
@@ -179,8 +190,9 @@ export function useContinueListening() {
 
       const title = book?.title ?? chapter?.audiobook?.title ?? chapterMetadata?.audiobookTitle ?? '';
       const author = book?.author ?? chapter?.audiobook?.author ?? '';
-      const coverPath = book?.coverImage || book?.contentCardCoverImage;
-      const coverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
+      const coverUri = book
+         ? resolveAudiobookImageUrl(book, 'continueListening')
+         : undefined;
 
       return {
          id: audiobookId,
@@ -217,5 +229,19 @@ export function useContinueListening() {
             isDiscoveringChapter ||
             isProgressLoading));
 
-   return { data, isLoading };
+   const refetch = useCallback(async () => {
+      await Promise.all([
+         refetchAudiobook(),
+         refetchChapters(),
+         refetchDiscoveredChapter(),
+         refetchSavedProgress(),
+      ]);
+   }, [
+      refetchAudiobook,
+      refetchChapters,
+      refetchDiscoveredChapter,
+      refetchSavedProgress,
+   ]);
+
+   return { data, isLoading, refetch };
 }

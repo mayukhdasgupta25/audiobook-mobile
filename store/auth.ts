@@ -7,7 +7,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import * as SecureStore from 'expo-secure-store';
 import { User, type AuthProvider, isAuthProvider } from '@/services/auth';
 import { fetchAndStoreDeviceDetails } from '@/services/device';
-import { getUserProfile, UserProfile } from '@/services/user';
+import { fetchMergedUserProfile, UserProfile } from '@/services/user';
 import { useOnboardingStore } from '@/store/onboarding';
 import { isOnboardingProfileIncomplete } from '@/utils/onboardingProfile';
 
@@ -145,8 +145,7 @@ export const fetchUserProfile = createAsyncThunk(
    'auth/fetchUserProfile',
    async (): Promise<UserProfile> => {
       try {
-         const response = await getUserProfile();
-         return response.data;
+         return await fetchMergedUserProfile();
       } catch (error) {
          console.error('Error fetching user profile:', error);
          throw error;
@@ -287,6 +286,12 @@ const authSlice = createSlice({
             state.userProfile = action.payload;
             state.profileFetched = true;
             applyOnboardingRequirementFromProfile(state, action.payload);
+            if (state.user && action.payload.email) {
+               state.user = { ...state.user, email: action.payload.email };
+               SecureStore.setItemAsync(USER_KEY, JSON.stringify(state.user)).catch((error) =>
+                  console.error('[Auth] Error saving user data after profile fetch:', error)
+               );
+            }
             // Persist user profile to secure store
             const profileJson = JSON.stringify(action.payload);
             SecureStore.setItemAsync(USER_PROFILE_KEY, profileJson).catch((error) => {

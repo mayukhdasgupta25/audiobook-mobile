@@ -4,18 +4,27 @@
 
 import { Platform } from 'react-native';
 import { store } from '@/store';
-import { STREAMING_API_BASE_URL } from '@/services/api';
 import { getMasterPlaylist, getPlaylist } from '@/services/streaming';
 import {
-   findStreamByBitrate,
    getBitrateInKbps,
    parseMasterPlaylist,
    parsePlaylist,
+   selectStreamWithFallback,
    type StreamInfo,
 } from '@/utils/m3u8Parser';
-import { normalizeM3u8Content, normalizeMediaUri } from '@/utils/m3u8Normalize';
+import {
+   normalizeM3u8Content,
+   resolvePlaybackMediaUri,
+} from '@/utils/m3u8Normalize';
 import { writePlaybackPlaylistFile } from '@/utils/playlistCacheFile';
 import type { StreamingPlaylistData } from '@/hooks/useStreamingPlaylist';
+
+export interface ChapterPlaybackSourceOptions {
+   /** Subscription tier target; steps down if variant missing from master playlist. */
+   preferredBitrateKbps?: number;
+   /** Exact bitrate for playback retry fallback (skips cache when different). */
+   forceBitrateKbps?: number;
+}
 
 export interface ChapterPlaybackSource {
    /** Android: file:// normalized M3U8. iOS: remote HTTP playlist (AVPlayer requires HTTP HLS). */
@@ -24,8 +33,21 @@ export interface ChapterPlaybackSource {
    playlistData: StreamingPlaylistData;
 }
 
+function resolveTargetBitrateKbps(options?: ChapterPlaybackSourceOptions): number {
+   if (options?.forceBitrateKbps !== undefined) {
+      return options.forceBitrateKbps;
+   }
+   return options?.preferredBitrateKbps ?? 128;
+}
+
 function sumSegmentDuration(playlistData: StreamingPlaylistData): number {
    return playlistData.playlist.segments.reduce((sum, segment) => sum + segment.duration, 0);
+}
+
+function bitrateFromStream(selectedStream: StreamInfo): string {
+   const selectedBitrate = getBitrateInKbps(selectedStream.bandwidth);
+   const bitrateMatch = selectedStream.playlistPath.match(/\/(\d+)k\//);
+   return bitrateMatch ? bitrateMatch[1] : selectedBitrate.toString();
 }
 
 function bitrateFromPlaylistData(playlistData: StreamingPlaylistData): string {
@@ -44,12 +66,7 @@ function bitrateFromPlaylistData(playlistData: StreamingPlaylistData): string {
  * iOS must use the public bit_transcode playlist (no auth); the API playlist returns 401 without a token.
  */
 export function resolveAbsoluteStreamUrl(pathOrUrl: string): string {
-   const normalized = normalizeMediaUri(pathOrUrl);
-   if (/^https?:\/\//i.test(normalized)) {
-      return normalized;
-   }
-   const base = STREAMING_API_BASE_URL.replace(/\/$/, '');
-   return `${base}/${normalized.replace(/^\//, '')}`;
+   return resolvePlaybackMediaUri(pathOrUrl);
 }
 
 function buildIosPlaybackUrl(selectedStream: StreamInfo): string {
@@ -62,7 +79,7 @@ async function buildAndroidPlaybackFileUrl(
    userId: string,
    rawPlaylistContent: string
 ): Promise<string> {
-   const normalized = normalizeM3u8Content(rawPlaylistContent);
+   const normalized = normalizeM3u8Content(rawPlaylistContent, { chapterId, bitrate });
    return writePlaybackPlaylistFile(chapterId, bitrate, userId, normalized);
 }
 
@@ -86,12 +103,10 @@ function selectedStreamFromCached(cached: StreamingPlaylistData): StreamInfo {
    return match ?? cached.masterPlaylist.streams[0];
 }
 
-/**
- * Fetch master + media playlist, normalize segment URLs, write local M3U8 for the player.
- */
-export async function fetchChapterPlaybackSource(
+async function buildSourceFromMaster(
    chapterId: string,
-   userId: string
+   userId: string,
+   targetBitrateKbps: number
 ): Promise<ChapterPlaybackSource> {
    const masterPlaylistContent = await getMasterPlaylist(chapterId);
    const masterPlaylist = parseMasterPlaylist(masterPlaylistContent);
@@ -100,17 +115,15 @@ export async function fetchChapterPlaybackSource(
       throw new Error('No streams found in master playlist');
    }
 
-   let selectedStream = findStreamByBitrate(masterPlaylist.streams, 128);
-   if (!selectedStream) {
-      selectedStream = masterPlaylist.streams[0];
-   }
-
+   const selectedStream = selectStreamWithFallback(masterPlaylist.streams, targetBitrateKbps);
    const selectedBitrate = getBitrateInKbps(selectedStream.bandwidth);
-   const bitrateMatch = selectedStream.playlistPath.match(/\/(\d+)k\//);
-   const bitrate = bitrateMatch ? bitrateMatch[1] : selectedBitrate.toString();
+   const bitrate = bitrateFromStream(selectedStream);
 
    const rawPlaylistContent = await getPlaylist(chapterId, bitrate, userId);
-   const normalizedPlaylistContent = normalizeM3u8Content(rawPlaylistContent);
+   const normalizedPlaylistContent = normalizeM3u8Content(rawPlaylistContent, {
+      chapterId,
+      bitrate,
+   });
    const playlist = parsePlaylist(normalizedPlaylistContent);
 
    const playlistData: StreamingPlaylistData = {
@@ -135,15 +148,28 @@ export async function fetchChapterPlaybackSource(
 }
 
 /**
- * Use cached Redux playlist metadata when available; always refresh normalized local M3U8.
+ * Fetch master + media playlist, normalize segment URLs, write local M3U8 for the player.
+ */
+export async function fetchChapterPlaybackSource(
+   chapterId: string,
+   userId: string,
+   options?: ChapterPlaybackSourceOptions
+): Promise<ChapterPlaybackSource> {
+   return buildSourceFromMaster(chapterId, userId, resolveTargetBitrateKbps(options));
+}
+
+/**
+ * Use cached Redux playlist metadata when bitrate matches; otherwise refetch at requested bitrate.
  */
 export async function resolveChapterPlaybackSource(
    chapterId: string,
-   userId: string
+   userId: string,
+   options?: ChapterPlaybackSourceOptions
 ): Promise<ChapterPlaybackSource> {
+   const targetBitrateKbps = resolveTargetBitrateKbps(options);
    const cached = store.getState().streaming.playlistsByChapterId[chapterId];
 
-   if (cached) {
+   if (cached && cached.selectedBitrate === targetBitrateKbps) {
       const bitrate = bitrateFromPlaylistData(cached);
       const rawPlaylistContent = await getPlaylist(chapterId, bitrate, userId);
       const stream = selectedStreamFromCached(cached);
@@ -162,5 +188,5 @@ export async function resolveChapterPlaybackSource(
       };
    }
 
-   return fetchChapterPlaybackSource(chapterId, userId);
+   return fetchChapterPlaybackSource(chapterId, userId, options);
 }

@@ -21,7 +21,7 @@ import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { SecondaryButton } from '@/components/SecondaryButton';
-import { updateUserProfile } from '@/services/user';
+import { updateAppUserProfile } from '@/services/user';
 import { fetchUserProfile } from '@/store/auth';
 import { AppDispatch, RootState } from '@/store';
 import { ApiError } from '@/services/api';
@@ -144,7 +144,10 @@ export default function UpdateAvatarScreen() {
       return 'User';
    }, [userProfile]);
 
-   const currentAvatarUri = resolveAvatarUrl(userProfile?.avatar);
+   const currentAvatarUri = resolveAvatarUrl(
+      userProfile?.avatar,
+      userProfile?.imageAssets
+   );
    const previewUri = selectedImage ?? currentAvatarUri;
    const hasExistingAvatar = Boolean(userProfile?.avatar);
 
@@ -205,7 +208,7 @@ export default function UpdateAvatarScreen() {
       setIsLoading(true);
 
       try {
-         await updateUserProfile({ avatar: selectedImage });
+         await updateAppUserProfile({ avatar: selectedImage });
 
          try {
             await dispatch(fetchUserProfile()).unwrap();
@@ -253,7 +256,7 @@ export default function UpdateAvatarScreen() {
                   setIsLoading(true);
 
                   try {
-                     await updateUserProfile({ avatar: null });
+                     await updateAppUserProfile({ avatar: null });
 
                      try {
                         await dispatch(fetchUserProfile()).unwrap();

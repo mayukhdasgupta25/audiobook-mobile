@@ -6,11 +6,14 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSelector, useDispatch } from 'react-redux';
-import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
+import { shouldRetryQuery } from '@/utils/queryRetry';
+import { useResourceDeleted } from '@/hooks/useResourceDeleted';
 import { setPlaylist } from '@/store/streaming';
 import { PlaylistData, MasterPlaylistData } from '@/utils/m3u8Parser';
 import { fetchChapterPlaybackSource } from '@/utils/chapterStreamUrl';
+import { usePreferredPlaybackBitrate } from '@/hooks/usePreferredPlaybackBitrate';
 
 /**
  * Combined playlist data including master and detailed playlist info
@@ -23,7 +26,7 @@ export interface StreamingPlaylistData {
 
 /**
  * Hook to fetch and parse M3U8 playlists for a chapter
- * Automatically fetches master playlist, selects 128k bitrate (or first available),
+ * Automatically fetches master playlist, selects bitrate from subscription tier (with fallback),
  * and fetches the detailed playlist
  * 
  * @param chapterId - Chapter ID
@@ -45,14 +48,23 @@ export function useStreamingPlaylist(
       (state: RootState) => state.auth.isInitialized
    );
 
+   const isChapterDeleted = useResourceDeleted('chapters', chapterId ?? '');
+   const preferredBitrateKbps = usePreferredPlaybackBitrate();
+
    const queryResult = useQuery({
-      queryKey: ['streamingPlaylist', chapterId, userId],
+      queryKey: queryKeys.streaming.playlist(
+         chapterId ?? '',
+         userId ?? '',
+         preferredBitrateKbps
+      ),
       queryFn: async (): Promise<StreamingPlaylistData> => {
          if (!chapterId || !userId) {
             throw new Error('Chapter ID and User ID are required');
          }
 
-         const source = await fetchChapterPlaybackSource(chapterId, userId);
+         const source = await fetchChapterPlaybackSource(chapterId, userId, {
+            preferredBitrateKbps,
+         });
          return source.playlistData;
       },
       // Only fetch if chapterId and userId are valid, user is authenticated, and auth is initialized
@@ -61,16 +73,10 @@ export function useStreamingPlaylist(
          !!chapterId &&
          !!userId &&
          isAuthenticated &&
-         isInitialized,
-      retry: (failureCount, error) => {
-         // Don't retry on 401 (unauthorized) errors
-         if (error instanceof ApiError && error.status === 401) {
-            return false;
-         }
-         // Retry up to 2 times for other errors
-         return failureCount < 2;
-      },
-      staleTime: 5 * 60 * 1000, // 5 minutes - same as global config
+         isInitialized &&
+         !isChapterDeleted,
+      retry: shouldRetryQuery,
+      meta: { silent404: true },
    });
 
    // Store playlist data in Redux when successfully fetched

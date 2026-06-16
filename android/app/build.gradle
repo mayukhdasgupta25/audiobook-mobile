@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.audiobook.mobile'
+    namespace 'com.srota.mobile.test'
     defaultConfig {
-        applicationId 'com.audiobook.mobile'
+        applicationId 'com.srota.mobile.test'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

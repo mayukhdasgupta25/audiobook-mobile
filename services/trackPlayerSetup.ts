@@ -7,6 +7,7 @@ import TrackPlayer, {
    AppKilledPlaybackBehavior,
    Capability,
    RatingType,
+   RepeatMode,
 } from 'react-native-track-player';
 import { Platform } from 'react-native';
 import { ensureMediaNotificationPermission } from '@/utils/ensureMediaNotificationPermission';
@@ -70,6 +71,7 @@ export async function updateTrackPlayerOptions(
       forwardJumpInterval: skipDurationSeconds,
       backwardJumpInterval: skipDurationSeconds,
       progressUpdateEventInterval: 1,
+      repeatMode: RepeatMode.Off,
       ratingType: Platform.OS === 'android' ? RatingType.Heart : undefined,
       likeOptions: {
          title: speedLabel,

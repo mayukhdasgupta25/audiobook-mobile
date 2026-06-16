@@ -20,6 +20,10 @@ import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { signup } from '@/services/auth';
 import { AppDispatch } from '@/store';
 import { ApiError } from '@/services/api';
+import {
+   validateIndianContact,
+   validateRegistrationPassword,
+} from '@/utils/registrationValidation';
 
 /**
  * Sign up screen with email, password, and confirm password inputs
@@ -144,6 +148,8 @@ export default function SignUpScreen() {
    const [email, setEmail] = useState('');
    const [password, setPassword] = useState('');
    const [confirmPassword, setConfirmPassword] = useState('');
+   const [address, setAddress] = useState('');
+   const [contact, setContact] = useState('');
    const [isLoading, setIsLoading] = useState(false);
    const [error, setError] = useState<string | null>(null);
 
@@ -152,7 +158,7 @@ export default function SignUpScreen() {
       setError(null);
 
       // Basic validation
-      if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
+      if (!email.trim() || !password.trim() || !confirmPassword.trim() || !address.trim() || !contact.trim()) {
          setError('Please fill in all fields');
          return;
       }
@@ -170,17 +176,28 @@ export default function SignUpScreen() {
          return;
       }
 
-      // Validate password length
-      if (password.length < 6) {
-         setError('Password must be at least 6 characters long');
+      const passwordError = validateRegistrationPassword(password);
+      if (passwordError) {
+         setError(passwordError);
+         return;
+      }
+
+      const contactError = validateIndianContact(contact);
+      if (contactError) {
+         setError(contactError);
          return;
       }
 
       setIsLoading(true);
 
       try {
-         // Call signup API - this will send OTP to the user's email
-         await signup({ email: email.trim(), password });
+         await signup({
+            email: email.trim(),
+            password,
+            confirmPassword,
+            address: address.trim(),
+            contact: contact.trim(),
+         });
 
          // Redirect to OTP verification screen with email
          router.push({
@@ -215,7 +232,7 @@ export default function SignUpScreen() {
       } finally {
          setIsLoading(false);
       }
-   }, [email, password, confirmPassword, dispatch]);
+   }, [email, password, confirmPassword, address, contact, dispatch]);
 
    const handleNavigateToSignIn = useCallback(() => {
       Keyboard.dismiss();
@@ -285,6 +302,26 @@ export default function SignUpScreen() {
                         autoCapitalize="none"
                         icon="lock-closed-outline"
                         testID="signup-confirm-password-input"
+                     />
+
+                     <TextInput
+                        label="Address"
+                        value={address}
+                        onChangeText={setAddress}
+                        placeholder="Enter your address"
+                        autoCapitalize="words"
+                        icon="location-outline"
+                        testID="signup-address-input"
+                     />
+
+                     <TextInput
+                        label="Contact"
+                        value={contact}
+                        onChangeText={setContact}
+                        placeholder="Enter your mobile number"
+                        keyboardType="phone-pad"
+                        icon="call-outline"
+                        testID="signup-contact-input"
                      />
 
                      {/* Error Message */}

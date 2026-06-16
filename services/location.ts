@@ -11,7 +11,8 @@ import {
    useDeviceLocationStore,
    type DeviceLocationReading,
 } from '@/store/deviceLocation';
-import { updateUserProfile, type ProfileLocationPayload } from './user';
+import { updateAuthUserProfile } from './authProfile';
+import type { ProfileLocationPayload } from './profileTypes';
 
 const LOCATION_PERMISSION_MESSAGE =
    'AudioBook uses your location to personalize your experience and improve our service.';
@@ -194,7 +195,7 @@ export async function syncUserLocationToProfile(
             return;
          }
 
-         await updateUserProfile({ location: toProfileLocationPayload(location) });
+         await updateAuthUserProfile({ location: toProfileLocationPayload(location) });
          console.log('[Location] User profile updated with device location.');
       } catch (error) {
          console.warn('[Location] Failed to sync location to profile:', error);

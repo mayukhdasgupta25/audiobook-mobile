@@ -6,17 +6,22 @@ import {
    ScrollView,
    TouchableOpacity,
    Platform,
+   RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { MoodHeroCard } from '@/components/moods/MoodHeroCard';
 import { MoodBestForCard } from '@/components/moods/MoodBestForCard';
 import { MoodAudiobookRow } from '@/components/moods/MoodAudiobookRow';
 import { MoodAboutSection } from '@/components/moods/MoodAboutSection';
 import { SkeletonMoodDetailPage, SkeletonMoodAudiobookRow } from '@/components/skeleton';
 import { useMood } from '@/hooks/useMood';
+import { useNotFoundRedirect } from '@/hooks/useNotFoundRedirect';
 import { useMoodAudiobooks } from '@/hooks/useMoodAudiobooks';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { queryKeys } from '@/constants/queryKeys';
 import { APP_BACK_ICON, APP_BACK_ICON_SIZE } from '@/constants/navigationIcons';
 import { spacing, typography } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -122,6 +127,7 @@ export default function MoodDetailScreen() {
    const insets = useSafeAreaInsets();
    const params = useLocalSearchParams<{ id: string }>();
    const moodId = params.id ?? '';
+   const queryClient = useQueryClient();
    const [showAllRecommendations, setShowAllRecommendations] = useState(false);
    const [recommendationsPage, setRecommendationsPage] = useState(1);
    const [allAudiobooks, setAllAudiobooks] = useState<Audiobook[]>([]);
@@ -130,13 +136,18 @@ export default function MoodDetailScreen() {
       data: mood,
       isLoading: isMoodLoading,
       error: moodError,
+      isNotFound,
+      refetch: refetchMood,
+      isRefetching: isMoodRefetching,
    } = useMood(moodId);
+   useNotFoundRedirect(isNotFound, 'This mood is no longer available.');
 
    const {
       data: audiobooksData,
       isLoading: isAudiobooksLoading,
       error: audiobooksError,
       isFetching: isAudiobooksFetching,
+      isRefetching: isAudiobooksRefetching,
    } = useMoodAudiobooks(moodId, recommendationsPage);
 
    const moodColor = mood?.hexCode ?? '#6F431B';
@@ -184,6 +195,25 @@ export default function MoodDetailScreen() {
       }
    }, [pagination?.hasNextPage, isAudiobooksFetching]);
 
+   const handleMoodRefresh = useCallback(async () => {
+      setRecommendationsPage(1);
+      setAllAudiobooks([]);
+      await Promise.all([
+         refetchMood(),
+         queryClient.refetchQueries({
+            queryKey: queryKeys.audiobooks.byMood(moodId, 1),
+         }),
+      ]);
+   }, [refetchMood, queryClient, moodId]);
+
+   const moodRefreshFns = useMemo(
+      () => [handleMoodRefresh],
+      [handleMoodRefresh]
+   );
+   const { refreshing, onRefresh } = usePullToRefresh(moodRefreshFns, {
+      isRefetching: isMoodRefetching || isAudiobooksRefetching,
+   });
+
    if (isMoodLoading) {
       return (
          <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -208,6 +238,14 @@ export default function MoodDetailScreen() {
                style={styles.scrollView}
                contentContainerStyle={styles.scrollContent}
                showsVerticalScrollIndicator={false}
+               refreshControl={
+                  <RefreshControl
+                     refreshing={refreshing}
+                     onRefresh={onRefresh}
+                     tintColor={colors.accent.primary}
+                     colors={[colors.accent.primary]}
+                  />
+               }
                onScroll={({ nativeEvent }) => {
                   if (!showAllRecommendations) return;
                   const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;

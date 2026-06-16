@@ -59,11 +59,16 @@ export function getCommentAuthorInitials(label: string, user?: CommentUser): str
 export function getCommentAvatarUri(
    comment: Comment,
    currentUserProfileId: string | null | undefined,
-   currentUserAvatar: string | null | undefined
+   currentUserAvatar: string | null | undefined,
+   currentUserImageAssets?: CommentUser['imageAssets']
 ): string | undefined {
-   const avatarPath = isOwnComment(comment, currentUserProfileId)
+   const isOwn = isOwnComment(comment, currentUserProfileId);
+   const avatarPath = isOwn
       ? currentUserAvatar ?? comment.user?.avatar ?? null
       : comment.user?.avatar ?? null;
+   const imageAssets = isOwn
+      ? currentUserImageAssets ?? comment.user?.imageAssets
+      : comment.user?.imageAssets;
 
-   return resolveAvatarUrl(avatarPath);
+   return resolveAvatarUrl(avatarPath, imageAssets);
 }

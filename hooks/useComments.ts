@@ -5,6 +5,7 @@ import {
    CreateCommentRequest,
 } from '@/services/comments';
 import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { useAuthQueryEnabled } from './useAuthQueryEnabled';
 
 export function useComments(
@@ -16,7 +17,7 @@ export function useComments(
    const enabled = useAuthQueryEnabled(!!audiobookId && queryEnabled);
 
    return useQuery({
-      queryKey: ['comments', audiobookId, page, parentId ?? 'root'],
+      queryKey: queryKeys.audiobooks.comments(audiobookId, page, parentId),
       queryFn: () =>
          getComments({
             audiobookId,
@@ -28,7 +29,6 @@ export function useComments(
          if (error instanceof ApiError && error.status === 401) return false;
          return failureCount < 2;
       },
-      staleTime: 30 * 1000,
    });
 }
 
@@ -39,7 +39,9 @@ export function useCommentMutation(audiobookId: string) {
       mutationFn: (request: Omit<CreateCommentRequest, 'audiobookId'>) =>
          createComment({ audiobookId, ...request }),
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['comments', audiobookId] });
+         queryClient.invalidateQueries({
+            queryKey: queryKeys.audiobooks.commentsAll(audiobookId),
+         });
       },
    });
 }

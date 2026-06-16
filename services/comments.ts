@@ -4,6 +4,7 @@
 
 import { get, post, ApiError, API_V1_PATH } from './api';
 import { PaginationInfo } from './audiobooks';
+import type { ImageAssetsMap } from '@/constants/imageVariants';
 
 export interface CommentMeta {
    position?: number;
@@ -13,6 +14,7 @@ export interface CommentUser {
    firstName: string | null;
    lastName: string | null;
    avatar: string | null;
+   imageAssets?: ImageAssetsMap;
 }
 
 export interface Comment {

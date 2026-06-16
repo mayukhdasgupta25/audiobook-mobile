@@ -8,13 +8,15 @@ import {
    ScrollView,
    ActivityIndicator,
    TouchableOpacity,
+   RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useSelector } from 'react-redux';
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
 import { APP_BACK_ICON, APP_BACK_ICON_SIZE } from '@/constants/navigationIcons';
 import { typography, spacing, borderRadius } from '@/theme';
@@ -22,6 +24,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { Chapter, getChapters, initializePlaybackSession } from '@/services/audiobooks';
 import { useAudiobook } from '@/hooks/useAudiobook';
+import { useNotFoundRedirect } from '@/hooks/useNotFoundRedirect';
 import { useStreamingPlaylist } from '@/hooks/useStreamingPlaylist';
 import { ChapterListItem } from '@/components/ChapterListItem';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -30,7 +33,7 @@ import { SkeletonChapterRow, SkeletonDetailsHeader, SkeletonDetailsAbout } from 
 import { TabUnderline } from '@/components/TabUnderline';
 import { TabSlideView } from '@/components/TabSlideView';
 import { formatDuration } from '@/utils/duration';
-import { apiConfig } from '@/services/api';
+import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
 import { useDispatch } from 'react-redux';
 import { setTotalDuration, play } from '@/store/player';
 import { useChaptersProgress } from '@/hooks/useChaptersProgress';
@@ -41,6 +44,7 @@ import { StarRating } from '@/components/StarRating';
 import { useFavorite, useFavoriteMutations } from '@/hooks/useFavorite';
 import { useReviewMutation } from '@/hooks/useReviewMutation';
 import { AddToPlaylistSheet } from '@/components/AddToPlaylistSheet';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 export default function DetailsScreen() {
    const { colors } = useTheme();
@@ -416,13 +420,26 @@ export default function DetailsScreen() {
    },
    upgradeSection: {
       paddingHorizontal: spacing.md,
-      marginBottom: spacing.md,
       gap: spacing.sm,
+      alignItems: 'center',
+   },
+   upgradeSectionContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: '100%',
+      paddingHorizontal: spacing.md,
+   },
+   scrollContentRestricted: {
+      flexGrow: 1,
+   },
+   restrictedTabList: {
+      flex: 1,
    },
    upgradeBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      alignSelf: 'flex-start',
+      alignSelf: 'center',
       gap: spacing.xs,
       backgroundColor: t.colors.app.red,
       paddingHorizontal: spacing.md,
@@ -442,7 +459,7 @@ export default function DetailsScreen() {
    },
    upgradeBadgeText: {
       fontSize: typography.fontSize.base,
-      color: t.colors.text.dark,
+      color: t.colors.primary[50],
       fontWeight: '600',
       ...Platform.select({
          ios: {
@@ -457,6 +474,7 @@ export default function DetailsScreen() {
    upgradeMessage: {
       fontSize: typography.fontSize.sm,
       color: t.colors.text.secondaryDark,
+      textAlign: 'center',
       lineHeight: typography.lineHeight.relaxed * typography.fontSize.sm,
       ...Platform.select({
          ios: {
@@ -599,12 +617,22 @@ export default function DetailsScreen() {
       return { paddingBottom };
    }, [isPlayerVisible, insets.bottom]);
 
+   const queryClient = useQueryClient();
+
    // Fetch audiobook data
-   const { data: audiobookData, isLoading: isAudiobookLoading } = useAudiobook(id || '');
+   const {
+      data: audiobookData,
+      isLoading: isAudiobookLoading,
+      isNotFound,
+      refetch: refetchAudiobook,
+      isRefetching: isAudiobookRefetching,
+   } = useAudiobook(id || '');
+   useNotFoundRedirect(isNotFound, 'This audiobook is no longer available.');
 
    const audiobook = audiobookData?.data;
 
-   const { data: favorite } = useFavorite(id || '');
+   const { data: favorite, refetch: refetchFavorite, isRefetching: isFavoriteRefetching } =
+      useFavorite(id || '');
    const { add: addFavorite, remove: removeFavorite } = useFavoriteMutations(id || '');
    const reviewMutation = useReviewMutation(id || '');
 
@@ -647,7 +675,7 @@ export default function DetailsScreen() {
       const options = [];
       for (let page = 1; page <= currentPage; page++) {
          options.push({
-            queryKey: ['chapters', id, page],
+            queryKey: queryKeys.audiobooks.chapters(id, page),
             queryFn: () => getChapters(id, page),
             enabled: true,
          });
@@ -896,6 +924,28 @@ export default function DetailsScreen() {
       router.push('/subscription-plans');
    }, []);
 
+   const renderUpgradeSection = useCallback(() => {
+      if (!isAccessRestricted) {
+         return null;
+      }
+
+      return (
+         <View style={styles.upgradeSection}>
+            <TouchableOpacity
+               style={styles.upgradeBadge}
+               onPress={handleUpgradePlanPress}
+               activeOpacity={0.7}
+            >
+               <Ionicons name="lock-closed" size={16} color={colors.primary[50]} />
+               <Text style={styles.upgradeBadgeText}>Upgrade your plan</Text>
+            </TouchableOpacity>
+            {upgradeMessage ? (
+               <Text style={styles.upgradeMessage}>{upgradeMessage}</Text>
+            ) : null}
+         </View>
+      );
+   }, [isAccessRestricted, upgradeMessage, handleUpgradePlanPress, colors.primary, styles]);
+
    // Handle chapter press
    const handleChapterPress = useCallback(
       async (chapter: Chapter) => {
@@ -1033,7 +1083,11 @@ export default function DetailsScreen() {
    // Render empty state
    const renderEmpty = useCallback(() => {
       if (isAccessRestricted) {
-         return null;
+         return (
+            <View style={styles.upgradeSectionContainer}>
+               {renderUpgradeSection()}
+            </View>
+         );
       }
 
       if (isLoadingChapters) {
@@ -1061,7 +1115,7 @@ export default function DetailsScreen() {
             <Text style={styles.emptyText}>No chapters available</Text>
          </View>
       );
-   }, [isAccessRestricted, isLoadingChapters, chaptersError]);
+   }, [isAccessRestricted, isLoadingChapters, chaptersError, renderUpgradeSection]);
 
    const handleDetailTabPress = useCallback((key: string) => {
       setDetailTab(key as 'chapters' | 'about');
@@ -1087,32 +1141,11 @@ export default function DetailsScreen() {
       );
    }, [audiobook, isAudiobookLoading]);
 
-   const renderUpgradeSection = useCallback(() => {
-      if (!isAccessRestricted) {
-         return null;
-      }
-
-      return (
-         <View style={styles.upgradeSection}>
-            <TouchableOpacity
-               style={styles.upgradeBadge}
-               onPress={handleUpgradePlanPress}
-               activeOpacity={0.7}
-            >
-               <Ionicons name="lock-closed" size={16} color={colors.accent.primary} />
-               <Text style={styles.upgradeBadgeText}>Upgrade your plan</Text>
-            </TouchableOpacity>
-            {upgradeMessage ? (
-               <Text style={styles.upgradeMessage}>{upgradeMessage}</Text>
-            ) : null}
-         </View>
-      );
-   }, [isAccessRestricted, upgradeMessage, handleUpgradePlanPress]);
-
    // Render book header (above tab slide panels)
    const renderBookHeader = useCallback(() => {
-      const coverPath = audiobook?.coverImage || audiobook?.chaptersHeroCoverImage;
-      const smallCoverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
+      const smallCoverUri = audiobook
+         ? resolveAudiobookImageUrl(audiobook, 'detailsThumb')
+         : undefined;
       const chapterCount = allChapters.length;
       const genres = audiobook?.genres ?? [];
 
@@ -1214,8 +1247,6 @@ export default function DetailsScreen() {
                activeKey={detailTab}
                onTabPress={handleDetailTabPress}
             />
-
-            {renderUpgradeSection()}
          </>
       );
    }, [
@@ -1227,7 +1258,6 @@ export default function DetailsScreen() {
       handleBack,
       handlePlayAll,
       handleDetailTabPress,
-      renderUpgradeSection,
       isAccessRestricted,
       handleFavoritePress,
       favorite,
@@ -1237,6 +1267,43 @@ export default function DetailsScreen() {
       canRate,
       handleRate,
    ]);
+
+   const handleDetailsRefresh = useCallback(async () => {
+      setCurrentPage(1);
+      setAllChapters([]);
+      setPagination(null);
+      lastProcessedDataRef.current = { chapterIds: new Set(), pagination: null };
+
+      const refetches: Promise<unknown>[] = [refetchAudiobook(), refetchFavorite()];
+      if (id) {
+         refetches.push(
+            queryClient.refetchQueries({
+               queryKey: queryKeys.audiobooks.chapters(id, 1),
+            })
+         );
+      }
+      await Promise.all(refetches);
+   }, [refetchAudiobook, refetchFavorite, id, queryClient]);
+
+   const detailsRefreshFns = useMemo(
+      () => [handleDetailsRefresh],
+      [handleDetailsRefresh]
+   );
+   const { refreshing, onRefresh } = usePullToRefresh(detailsRefreshFns, {
+      isRefetching:
+         isAudiobookRefetching ||
+         isFavoriteRefetching ||
+         chapterQueries.some((query) => query.isRefetching),
+   });
+
+   const detailsRefreshControl = (
+      <RefreshControl
+         refreshing={refreshing}
+         onRefresh={onRefresh}
+         tintColor={colors.accent.primary}
+         colors={[colors.accent.primary]}
+      />
+   );
 
    return (
       <>
@@ -1256,6 +1323,7 @@ export default function DetailsScreen() {
                style={styles.tabSlideContainer}
             >
                <FlatList
+                  style={isAccessRestricted ? styles.restrictedTabList : undefined}
                   data={isAccessRestricted ? [] : allChapters}
                   renderItem={renderChapterItem}
                   keyExtractor={(item) => item.id}
@@ -1265,10 +1333,16 @@ export default function DetailsScreen() {
                   onEndReachedThreshold={0.5}
                   removeClippedSubviews={true}
                   showsVerticalScrollIndicator={false}
-                  contentContainerStyle={[styles.scrollContent, scrollContentStyle]}
+                  refreshControl={detailsRefreshControl}
+                  contentContainerStyle={[
+                     styles.scrollContent,
+                     scrollContentStyle,
+                     isAccessRestricted && styles.scrollContentRestricted,
+                  ]}
                />
                <ScrollView
                   showsVerticalScrollIndicator={false}
+                  refreshControl={detailsRefreshControl}
                   contentContainerStyle={[styles.scrollContent, scrollContentStyle]}
                >
                   {renderAboutContent()}

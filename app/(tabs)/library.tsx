@@ -1,8 +1,9 @@
-import React, { useCallback, useState, useRef } from 'react';
+import React, { useCallback, useState, useRef, useMemo } from 'react';
 import {
    View,
    StyleSheet,
    ScrollView,
+   RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -23,11 +24,14 @@ import { useFavorites } from '@/hooks/useFavorites';
 import { useFavoriteAudiobooks } from '@/hooks/useFavoriteAudiobooks';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePlayBookmarkChapter } from '@/hooks/usePlayBookmarkChapter';
-import { apiConfig } from '@/services/api';
+import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
 import { getBookmarkAudiobookId } from '@/utils/bookmarkDisplay';
 import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { useTheme } from '@/contexts/ThemeContext';
 
 function LibraryScreenContent() {
+   const { colors } = useTheme();
    const styles = useThemedStyles((t) =>
       StyleSheet.create({
          container: {
@@ -46,14 +50,20 @@ function LibraryScreenContent() {
    const {
       data: playlistsData,
       isLoading: playlistsLoading,
+      refetch: refetchPlaylists,
+      isRefetching: isPlaylistsRefetching,
    } = usePlaylists(LIBRARY_PREVIEW_LIMIT);
    const {
       data: favoritesData,
       isLoading: favoritesLoading,
+      refetch: refetchFavorites,
+      isRefetching: isFavoritesRefetching,
    } = useFavorites(LIBRARY_PREVIEW_LIMIT);
    const {
       data: bookmarksData,
       isLoading: bookmarksLoading,
+      refetch: refetchBookmarks,
+      isRefetching: isBookmarksRefetching,
    } = useBookmarks(LIBRARY_PREVIEW_LIMIT);
 
    const { create } = usePlaylistMutations();
@@ -87,6 +97,15 @@ function LibraryScreenContent() {
 
    useTabScrollToTop('library', scrollRef);
 
+   const libraryRefreshFns = useMemo(
+      () => [refetchPlaylists, refetchFavorites, refetchBookmarks],
+      [refetchPlaylists, refetchFavorites, refetchBookmarks]
+   );
+   const { refreshing, onRefresh } = usePullToRefresh(libraryRefreshFns, {
+      isRefetching:
+         isPlaylistsRefetching || isFavoritesRefetching || isBookmarksRefetching,
+   });
+
    return (
       <SafeAreaView style={styles.container} edges={['top']}>
          <TabScreenHeader headerIcon="library" />
@@ -95,6 +114,14 @@ function LibraryScreenContent() {
             ref={scrollRef}
             contentContainerStyle={{ paddingBottom: scrollPadding }}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+               <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={colors.accent.primary}
+                  colors={[colors.accent.primary]}
+               />
+            }
          >
             <LibrarySectionHeader
                title="Playlists"
@@ -127,10 +154,7 @@ function LibraryScreenContent() {
                skeletonVariant="favorite"
             >
                {favoriteBooks.map((book) => {
-                  const coverPath = book.contentCardCoverImage || book.coverImage;
-                  const imageUri = coverPath
-                     ? `${apiConfig.baseURL}${coverPath}`
-                     : undefined;
+                  const imageUri = resolveAudiobookImageUrl(book, 'contentRow');
                   return (
                      <View key={book.id} style={styles.favoriteCardWrap}>
                         <ContentCard

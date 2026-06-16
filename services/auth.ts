@@ -60,20 +60,23 @@ export interface LoginResponse {
 }
 
 /**
- * Signup request payload
+ * Signup request payload for listener registration
  */
 export interface SignupRequest {
    email: string;
    password: string;
+   confirmPassword: string;
+   role?: 'LISTENER';
+   address: string;
+   contact: string;
 }
 
 /**
- * Signup response from API (same structure as login)
+ * Signup response from API — OTP is sent; tokens arrive after verification
  */
 export interface SignupResponse {
    message: string;
-   accessToken: string;
-   refreshToken: string;
+   otpSent?: boolean;
    user: User;
 }
 
@@ -136,17 +139,17 @@ export async function login(
 
 /**
  * Signup function
- * Calls POST /auth/signup with email and password
- * @param credentials - Email and password
- * @returns Promise with signup response containing accessToken, refreshToken, and user
- * @throws ApiError if signup fails
+ * Calls POST /auth/register with listener registration fields
  */
 export async function signup(
    credentials: SignupRequest
 ): Promise<SignupResponse> {
    try {
-      // Use auth API (port 8080) for signup endpoint
-      const response = await post<SignupResponse>('/auth/register', credentials, false, true);
+      const body: SignupRequest = {
+         ...credentials,
+         role: 'LISTENER',
+      };
+      const response = await post<SignupResponse>('/auth/register', body, false, true);
       return response.data;
    } catch (error) {
       console.error('[Auth Service] Signup error', {

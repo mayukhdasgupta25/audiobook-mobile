@@ -1,53 +1,56 @@
-import { useQuery } from '@tanstack/react-query';
-import {
-   getOrganizations,
-   getOrganizationById,
-   getOrganizationAudiobooks,
-} from '@/services/organizations';
-import { ApiError } from '@/services/api';
-import { useAuthQueryEnabled } from './useAuthQueryEnabled';
-
-export function useOrganizations() {
-   const enabled = useAuthQueryEnabled();
-
-   return useQuery({
-      queryKey: ['organizations'],
-      queryFn: () => getOrganizations(),
-      enabled,
-      retry: (failureCount, error) => {
-         if (error instanceof ApiError && error.status === 401) return false;
-         return failureCount < 2;
-      },
-      staleTime: 5 * 60 * 1000,
-   });
-}
-
-export function useOrganization(organizationId: string) {
-   const enabled = useAuthQueryEnabled(!!organizationId);
-
-   return useQuery({
-      queryKey: ['organization', organizationId],
-      queryFn: () => getOrganizationById(organizationId),
-      enabled,
-      retry: (failureCount, error) => {
-         if (error instanceof ApiError && error.status === 401) return false;
-         return failureCount < 2;
-      },
-      staleTime: 5 * 60 * 1000,
-   });
-}
-
-export function useOrganizationAudiobooks(organizationId: string, page = 1) {
-   const enabled = useAuthQueryEnabled(!!organizationId);
-
-   return useQuery({
-      queryKey: ['organizationAudiobooks', organizationId, page],
-      queryFn: () => getOrganizationAudiobooks(organizationId, page),
-      enabled,
-      retry: (failureCount, error) => {
-         if (error instanceof ApiError && error.status === 401) return false;
-         return failureCount < 2;
-      },
-      staleTime: 5 * 60 * 1000,
-   });
-}
+import { useQuery } from '@tanstack/react-query';
+import {
+   getOrganizations,
+   getOrganizationById,
+   getOrganizationAudiobooks,
+} from '@/services/organizations';
+import { queryKeys } from '@/constants/queryKeys';
+import { isNotFoundError } from '@/utils/isNotFoundError';
+import { shouldRetryQuery } from '@/utils/queryRetry';
+import { useAuthQueryEnabled } from './useAuthQueryEnabled';
+import { useResourceDeleted } from './useResourceDeleted';
+
+export function useOrganizations() {
+   const enabled = useAuthQueryEnabled();
+
+   return useQuery({
+      queryKey: queryKeys.organizations.all(),
+      queryFn: () => getOrganizations(),
+      enabled,
+      retry: shouldRetryQuery,
+   });
+}
+
+export function useOrganization(organizationId: string) {
+   const isDeleted = useResourceDeleted('organizations', organizationId);
+   const enabled = useAuthQueryEnabled(!!organizationId && !isDeleted);
+
+   const query = useQuery({
+      queryKey: queryKeys.organizations.detail(organizationId),
+      queryFn: () => getOrganizationById(organizationId),
+      enabled,
+      retry: shouldRetryQuery,
+      meta: { silent404: true },
+   });
+
+   const isNotFound = isDeleted || isNotFoundError(query.error);
+
+   return {
+      ...query,
+      isNotFound,
+   };
+}
+
+export function useOrganizationAudiobooks(organizationId: string, page = 1) {
+   const isDeleted = useResourceDeleted('organizations', organizationId);
+   const enabled = useAuthQueryEnabled(!!organizationId && !isDeleted);
+
+   return useQuery({
+      queryKey: queryKeys.organizations.audiobooks(organizationId, page),
+      queryFn: () => getOrganizationAudiobooks(organizationId, page),
+      enabled,
+      retry: shouldRetryQuery,
+      meta: { silent404: true },
+   });
+}
+

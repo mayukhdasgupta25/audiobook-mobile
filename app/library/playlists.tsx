@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
    View,
    Text,
@@ -6,6 +6,7 @@ import {
    FlatList,
    TouchableOpacity,
    Platform,
+   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -15,6 +16,7 @@ import { PlaylistCard, PLAYLIST_CARD_WIDTH } from '@/components/PlaylistCard';
 import { CreatePlaylistModal } from '@/components/CreatePlaylistModal';
 import { SkeletonPlaylistGrid } from '@/components/skeleton';
 import { usePlaylists, usePlaylistMutations } from '@/hooks/usePlaylists';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { spacing, typography } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
@@ -70,9 +72,12 @@ export default function LibraryPlaylistsScreen() {
       })
    );
    const [createModalVisible, setCreateModalVisible] = useState(false);
-   const { data, isLoading } = usePlaylists();
+   const { data, isLoading, refetch, isRefetching } = usePlaylists();
    const { create } = usePlaylistMutations();
    const playlists = data?.data ?? [];
+
+   const refreshFns = useMemo(() => [refetch], [refetch]);
+   const { refreshing, onRefresh } = usePullToRefresh(refreshFns, { isRefetching });
 
    const handleCreate = useCallback(
       (name: string, description: string) => {
@@ -128,6 +133,14 @@ export default function LibraryPlaylistsScreen() {
                numColumns={NUM_COLUMNS}
                columnWrapperStyle={styles.columnWrapper}
                contentContainerStyle={styles.listContent}
+               refreshControl={
+                  <RefreshControl
+                     refreshing={refreshing}
+                     onRefresh={onRefresh}
+                     tintColor={colors.accent.primary}
+                     colors={[colors.accent.primary]}
+                  />
+               }
                ListEmptyComponent={
                   <View style={styles.center}>
                      <Text style={styles.emptyText}>No playlists yet</Text>

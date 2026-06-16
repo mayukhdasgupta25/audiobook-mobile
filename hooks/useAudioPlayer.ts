@@ -18,7 +18,7 @@ import {
 } from '@/store/player';
 import { setPlaylist } from '@/store/streaming';
 import { initializePlaybackSession, syncPlayback } from '@/services/audiobooks';
-import { apiConfig } from '@/services/api';
+import { toDisplayImageUri } from '@/utils/imageAssets';
 import {
    advanceToNextChapter,
    skipToNextChapterRemote,
@@ -43,21 +43,35 @@ import {
    syncTrackProgressToPlayerStore,
    clearPlayerLoadingIfNeeded,
 } from '@/utils/playerStoreSync';
-import { clampPlaybackSeekSeconds } from '@/utils/playbackPosition';
+import { clampPlaybackSeekSeconds, getMaxSeekableSeconds } from '@/utils/playbackPosition';
+import { CHAPTER_END_POSITION_MARGIN_SEC } from '@/constants/playbackConstants';
+import { notifyNextChapterPrefetchProgress } from '@/services/nextChapterPrefetchProgress';
 import { Platform } from 'react-native';
 import type { PlaybackSpeed } from '@/constants/playbackSpeed';
 import { applyPlaybackSpeed } from '@/utils/applyPlaybackSpeed';
 import { usePlayingChapterBounds } from '@/hooks/usePlayingChapterBounds';
+import { usePreferredPlaybackBitrate } from '@/hooks/usePreferredPlaybackBitrate';
+import { getNextLowerBitrateKbps } from '@/utils/audioQualityDisplay';
 import { shouldPauseAtChapterEnd } from '@/utils/sleepTimer';
+import { markChapterCompletedAtEnd } from '@/utils/markChapterCompletedAtEnd';
 import { clearSleepTimer } from '@/store/settings';
 
 const LOAD_TIMEOUT_MS = 30_000;
 
 function buildArtworkUrl(coverImage: string | null): string | undefined {
-   if (!coverImage) {
-      return undefined;
+   return toDisplayImageUri(coverImage ?? undefined);
+}
+
+function isAuthPlaybackError(error: unknown): boolean {
+   const message = error instanceof Error ? error.message : String(error ?? '');
+   return /\b(401|403|unauthorized|forbidden)\b/i.test(message);
+}
+
+function shouldAttemptBitrateFallback(error?: unknown): boolean {
+   if (error !== undefined && isAuthPlaybackError(error)) {
+      return false;
    }
-   return `${apiConfig.baseURL}${coverImage}`;
+   return true;
 }
 
 /**
@@ -66,10 +80,14 @@ function buildArtworkUrl(coverImage: string | null): string | undefined {
 export function useAudioPlayer() {
    const dispatch = useDispatch();
    usePlayingChapterBounds();
+   const preferredPlaybackBitrate = usePreferredPlaybackBitrate();
    const isDraggingRef = useRef(false);
    const lastLoadedChapterRef = useRef<string | null>(null);
    const lastInitializedChapterRef = useRef<string | null>(null);
    const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   const chapterBitrateAttemptRef = useRef(preferredPlaybackBitrate);
+   const loadChapterRef = useRef<() => Promise<void>>(async () => {});
+   const isAdvancingChapterRef = useRef(false);
 
    const { isPlaying, currentChapterId, chapterMetadata, playbackPosition } = useSelector(
       (state: RootState) => state.player
@@ -106,6 +124,83 @@ export function useAudioPlayer() {
       [user?.id]
    );
 
+   const handleChapterEnded = useCallback(async () => {
+      if (isAdvancingChapterRef.current) {
+         return;
+      }
+      isAdvancingChapterRef.current = true;
+      try {
+         const state = store.getState().player;
+         if (!state.audiobookId || !state.currentChapterId) {
+            dispatch(stop());
+            return;
+         }
+         if (shouldPauseAtChapterEnd(store.getState().settings)) {
+            store.dispatch(clearSleepTimer());
+            dispatch(pause());
+            try {
+               await TrackPlayer.pause();
+            } catch (error: unknown) {
+               console.warn('[Audio Player] Sleep timer pause failed:', error);
+            }
+            await markChapterCompletedAtEnd(
+               state.audiobookId,
+               state.currentChapterId,
+               state.playbackPosition > 0 ? state.playbackPosition : state.totalDuration,
+               state.totalDuration
+            );
+            return;
+         }
+         lastLoadedChapterRef.current = null;
+         await advanceToNextChapter({
+            dispatch,
+            audiobookId: state.audiobookId,
+            currentChapterId: state.currentChapterId,
+            isVisible: state.isVisible,
+            totalDuration: state.totalDuration,
+            onChapterSwitched,
+         });
+      } finally {
+         isAdvancingChapterRef.current = false;
+      }
+   }, [dispatch, onChapterSwitched]);
+
+   const maybeTriggerChapterEndFromPosition = useCallback(
+      (position: number, duration: number) => {
+         if (!store.getState().player.isPlaying) {
+            return;
+         }
+         const { chapterEndPosition } = store.getState().player;
+         const effectiveEnd = getMaxSeekableSeconds(duration, chapterEndPosition);
+         if (position >= effectiveEnd - CHAPTER_END_POSITION_MARGIN_SEC) {
+            void handleChapterEnded();
+         }
+      },
+      [handleChapterEnded]
+   );
+
+   const attemptBitrateFallback = useCallback((reason: string, error?: unknown): boolean => {
+      if (!shouldAttemptBitrateFallback(error)) {
+         return false;
+      }
+
+      const currentBitrate = chapterBitrateAttemptRef.current;
+      const nextBitrate = getNextLowerBitrateKbps(currentBitrate);
+      if (nextBitrate === null) {
+         return false;
+      }
+
+      if (__DEV__) {
+         console.warn(
+            `[Audio Player] Falling back ${currentBitrate}k → ${nextBitrate}k (${reason})`
+         );
+      }
+
+      chapterBitrateAttemptRef.current = nextBitrate;
+      lastLoadedChapterRef.current = null;
+      return true;
+   }, []);
+
    const loadChapter = useCallback(async () => {
       if (!isActivePlaybackSession()) {
          return;
@@ -135,6 +230,10 @@ export function useAudioPlayer() {
          const playerState = store.getState().player;
          if (playerState.isLoading && playerState.currentChapterId === currentChapterId) {
             console.warn('[Audio Player] Load timed out');
+            if (attemptBitrateFallback('load timeout')) {
+               void loadChapterRef.current();
+               return;
+            }
             dispatch(setError('Audio took too long to load. Check your connection and try again.'));
             dispatch(setLoading(false));
          }
@@ -152,17 +251,16 @@ export function useAudioPlayer() {
 
          const playbackSource = await resolveChapterPlaybackSource(
             currentChapterId,
-            user.id
+            user.id,
+            { forceBitrateKbps: chapterBitrateAttemptRef.current }
          );
 
-         if (!store.getState().streaming.playlistsByChapterId[currentChapterId]) {
-            dispatch(
-               setPlaylist({
-                  chapterId: currentChapterId,
-                  playlistData: playbackSource.playlistData,
-               })
-            );
-         }
+         dispatch(
+            setPlaylist({
+               chapterId: currentChapterId,
+               playlistData: playbackSource.playlistData,
+            })
+         );
 
          if (!isActivePlaybackSession()) {
             clearLoadTimeout();
@@ -184,6 +282,7 @@ export function useAudioPlayer() {
          if (__DEV__) {
             console.log('[Audio Player] Loading track', {
                platform: Platform.OS,
+               bitrateKbps: chapterBitrateAttemptRef.current,
                url: playbackUrl,
             });
          }
@@ -196,7 +295,9 @@ export function useAudioPlayer() {
             artist: chapterMetadata.audiobookTitle ?? 'AudioBook',
             // `album` stores audiobook id for notification tap navigation
             album: audiobookId ?? undefined,
-            artwork: buildArtworkUrl(chapterMetadata.coverImage),
+            artwork: buildArtworkUrl(
+               chapterMetadata.minimizedChapterCoverImage ?? chapterMetadata.coverImage
+            ),
             ...(speed !== 1 ? { pitchAlgorithm: PitchAlgorithm.Voice } : {}),
             // iOS plays the public bit_transcode HLS URL; auth headers break AVPlayer sub-requests.
             ...(Platform.OS === 'android'
@@ -229,6 +330,11 @@ export function useAudioPlayer() {
          clearLoadTimeout();
       } catch (error: unknown) {
          console.error('[Audio Player] Failed to load chapter:', error);
+         if (attemptBitrateFallback('load failure', error)) {
+            clearLoadTimeout();
+            void loadChapterRef.current();
+            return;
+         }
          if (isActivePlaybackSession()) {
             dispatch(
                setError(
@@ -246,11 +352,17 @@ export function useAudioPlayer() {
       user?.id,
       dispatch,
       clearLoadTimeout,
+      attemptBitrateFallback,
    ]);
 
    useEffect(() => {
+      loadChapterRef.current = loadChapter;
+   }, [loadChapter]);
+
+   useEffect(() => {
       lastLoadedChapterRef.current = null;
-   }, [currentChapterId]);
+      chapterBitrateAttemptRef.current = preferredPlaybackBitrate;
+   }, [currentChapterId, preferredPlaybackBitrate]);
 
    // Register listeners before load/play so early events are not missed
    useEffect(() => {
@@ -271,34 +383,13 @@ export function useAudioPlayer() {
                event.position,
                event.duration
             );
+            notifyNextChapterPrefetchProgress(event.position, event.duration);
+            maybeTriggerChapterEndFromPosition(event.position, event.duration);
             clearLoadTimeout();
          }),
 
          TrackPlayer.addEventListener(Event.PlaybackQueueEnded, async () => {
-            const state = store.getState().player;
-            if (!state.audiobookId || !state.currentChapterId) {
-               dispatch(stop());
-               return;
-            }
-            if (shouldPauseAtChapterEnd(store.getState().settings)) {
-               store.dispatch(clearSleepTimer());
-               dispatch(pause());
-               try {
-                  await TrackPlayer.pause();
-               } catch (error: unknown) {
-                  console.warn('[Audio Player] Sleep timer pause failed:', error);
-               }
-               return;
-            }
-            lastLoadedChapterRef.current = null;
-            await advanceToNextChapter({
-               dispatch,
-               audiobookId: state.audiobookId,
-               currentChapterId: state.currentChapterId,
-               isVisible: state.isVisible,
-               totalDuration: state.totalDuration,
-               onChapterSwitched,
-            });
+            await handleChapterEnded();
          }),
 
          TrackPlayer.addEventListener(Event.PlaybackError, (event) => {
@@ -310,6 +401,12 @@ export function useAudioPlayer() {
                'message' in event && typeof event.message === 'string'
                   ? event.message
                   : 'Playback error occurred';
+            if (attemptBitrateFallback('playback error', message)) {
+               clearLoadTimeout();
+               dispatch(setError(null));
+               void loadChapterRef.current();
+               return;
+            }
             dispatch(setError(message));
             dispatch(setLoading(false));
             clearLoadTimeout();
@@ -329,7 +426,12 @@ export function useAudioPlayer() {
             const playerSnapshot = store.getState().player;
             if (playerSnapshot.currentChapterId) {
                if (playbackState === State.Playing && !playerSnapshot.isPlaying) {
-                  dispatch(play());
+                  // Redux paused first (user tap) but native still playing — reconcile, never flip to play.
+                  try {
+                     await TrackPlayer.pause();
+                  } catch (error: unknown) {
+                     console.warn('[Audio Player] Reconcile pause failed:', error);
+                  }
                } else if (
                   (playbackState === State.Paused || playbackState === State.Stopped) &&
                   playerSnapshot.isPlaying
@@ -375,6 +477,12 @@ export function useAudioPlayer() {
             }
 
             if (playbackState === State.Error) {
+               if (attemptBitrateFallback('playback state error')) {
+                  clearLoadTimeout();
+                  dispatch(setError(null));
+                  void loadChapterRef.current();
+                  return;
+               }
                dispatch(setError('Playback error occurred'));
                dispatch(setLoading(false));
                clearLoadTimeout();
@@ -385,7 +493,14 @@ export function useAudioPlayer() {
       return () => {
          subs.forEach((sub) => sub.remove());
       };
-   }, [dispatch, onChapterSwitched, clearLoadTimeout]);
+   }, [
+      dispatch,
+      onChapterSwitched,
+      clearLoadTimeout,
+      attemptBitrateFallback,
+      handleChapterEnded,
+      maybeTriggerChapterEndFromPosition,
+   ]);
 
    useEffect(() => {
       void loadChapter();
@@ -416,7 +531,11 @@ export function useAudioPlayer() {
 
          const reduxPlayer = store.getState().player;
          if (playbackState.state === State.Playing && !reduxPlayer.isPlaying) {
-            dispatch(play());
+            try {
+               await TrackPlayer.pause();
+            } catch (error: unknown) {
+               console.warn('[Audio Player] Poll reconcile pause failed:', error);
+            }
          } else if (
             (playbackState.state === State.Paused ||
                playbackState.state === State.Stopped) &&
@@ -432,6 +551,8 @@ export function useAudioPlayer() {
          const trackIsPlaying = playbackState.state === State.Playing;
          if (trackIsPlaying) {
             syncTrackProgressToPlayerStore(dispatch, position, duration);
+            notifyNextChapterPrefetchProgress(position, duration);
+            maybeTriggerChapterEndFromPosition(position, duration);
          } else {
             clearPlayerLoadingIfNeeded(dispatch);
          }
@@ -439,7 +560,7 @@ export function useAudioPlayer() {
       } catch {
          // Player not ready yet
       }
-   }, [currentChapterId, dispatch, clearLoadTimeout]);
+   }, [currentChapterId, dispatch, clearLoadTimeout, maybeTriggerChapterEndFromPosition]);
 
    // Poll only while playing — RNTP progress events can be unreliable on Android with HLS
    useEffect(() => {

@@ -1,4 +1,8 @@
 import type { Bookmark } from '@/services/bookmarks';
+import {
+   resolveAudiobookImageUrl,
+   resolveChapterImageUrl,
+} from '@/utils/imageAssets';
 
 export function getBookmarkAudiobookId(bookmark: Bookmark): string | undefined {
    return (
@@ -18,6 +22,42 @@ export function getBookmarkAudiobookTitle(bookmark: Bookmark): string | undefine
    );
 }
 
+export function getBookmarkCoverUri(bookmark: Bookmark): string | undefined {
+   const chapter = bookmark.chapter;
+   if (!chapter) return undefined;
+
+   const chapterUri = resolveChapterImageUrl(
+      {
+         coverImage: chapter.coverImage ?? '',
+         imageAssets: chapter.imageAssets,
+         chapterCardCoverImage: chapter.chapterCardCoverImage ?? null,
+         maximizedChapterCoverImage: null,
+         minimizedChapterCoverImage: null,
+      },
+      'bookmarkCard'
+   );
+   if (chapterUri) {
+      return chapterUri;
+   }
+
+   const audiobook = chapter.audiobook;
+   if (!audiobook?.coverImage && !audiobook?.contentCardCoverImage && !audiobook?.imageAssets) {
+      return undefined;
+   }
+
+   return resolveAudiobookImageUrl(
+      {
+         coverImage: audiobook.coverImage ?? '',
+         imageAssets: audiobook.imageAssets,
+         contentCardCoverImage: audiobook.contentCardCoverImage ?? null,
+         chaptersHeroCoverImage: null,
+         homeHeroCoverImage: null,
+      },
+      'listRow'
+   );
+}
+
+/** @deprecated Prefer getBookmarkCoverUri */
 export function getBookmarkCoverPath(bookmark: Bookmark): string | undefined {
    const chapter = bookmark.chapter;
    if (!chapter) return undefined;
