@@ -11,7 +11,8 @@ import { useGenres } from './useGenres';
 import { getAudiobooksByTag, getAudiobooksByGenre } from '@/services/audiobooks';
 import { Audiobook, PaginationInfo, AudiobooksResponse } from '@/services/audiobooks';
 import { ContentItem } from '@/components/ContentRow';
-import { apiConfig } from '@/services/api';
+import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
+import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
 
 /**
@@ -31,11 +32,7 @@ export interface ContentRowData {
  * Convert Audiobook to ContentItem format
  */
 function audiobookToContentItem(audiobook: Audiobook): ContentItem {
-   // Use contentCardCoverImage if available, fallback to coverImage
-   const imagePath = audiobook.contentCardCoverImage || audiobook.coverImage;
-   const imageUri = imagePath
-      ? `${apiConfig.baseURL}${imagePath}`
-      : undefined;
+   const imageUri = resolveAudiobookImageUrl(audiobook, 'contentRow');
 
    // Extract badge from tags (e.g., "TOP 10" from trending tag)
    const badge = audiobook.audiobookTags.find((tag) => tag.name.includes('TOP'))
@@ -70,11 +67,15 @@ export function useHomeContent() {
       data: tagsData,
       isLoading: tagsLoading,
       error: tagsError,
+      refetch: refetchTags,
+      isRefetching: isTagsRefetching,
    } = useTags();
    const {
       data: genresData,
       isLoading: genresLoading,
       error: genresError,
+      refetch: refetchGenres,
+      isRefetching: isGenresRefetching,
    } = useGenres();
 
    // Get first 2 tags for content rows, sorted so Trending comes before New Releases
@@ -107,20 +108,18 @@ export function useHomeContent() {
    // Build query options for tags - fetch all pages up to current page
    const tagQueryOptions = useMemo(() => {
       const options: {
-         queryKey: unknown[];
+         queryKey: readonly unknown[];
          queryFn: () => Promise<AudiobooksResponse>;
          enabled: boolean;
-         staleTime: number;
       }[] = [];
       tags.forEach((tag) => {
          const currentPage = rowPages[`tag-${tag.name}`] || 1;
          // Fetch all pages from 1 to currentPage
          for (let page = 1; page <= currentPage; page++) {
             options.push({
-               queryKey: ['audiobooks', 'tag', tag.name, page],
+               queryKey: queryKeys.audiobooks.byTag(tag.name, page),
                queryFn: () => getAudiobooksByTag(tag.name, page),
                enabled: !!tag.name && isAuthenticated && isInitialized && page > 0,
-               staleTime: 5 * 60 * 1000,
             });
          }
       });
@@ -130,20 +129,18 @@ export function useHomeContent() {
    // Build query options for genres - fetch all pages up to current page
    const genreQueryOptions = useMemo(() => {
       const options: {
-         queryKey: unknown[];
+         queryKey: readonly unknown[];
          queryFn: () => Promise<AudiobooksResponse>;
          enabled: boolean;
-         staleTime: number;
       }[] = [];
       genres.forEach((genre) => {
          const currentPage = rowPages[`genre-${genre.id}`] || 1;
          // Fetch all pages from 1 to currentPage
          for (let page = 1; page <= currentPage; page++) {
             options.push({
-               queryKey: ['audiobooks', 'genre', genre.id, page],
+               queryKey: queryKeys.audiobooks.byGenre(genre.id, page),
                queryFn: () => getAudiobooksByGenre(genre.id, page),
                enabled: !!genre.id && isAuthenticated && isInitialized && page > 0,
-               staleTime: 5 * 60 * 1000,
             });
          }
       });
@@ -368,12 +365,32 @@ export function useHomeContent() {
       return sorted;
    }, [contentRows, tagQueries]);
 
+   const isRefetching =
+      isTagsRefetching ||
+      isGenresRefetching ||
+      tagQueries.some((query) => query.isRefetching) ||
+      genreQueries.some((query) => query.isRefetching);
+
+   const refetchAll = useCallback(async () => {
+      setRowPages({});
+      paginationLoadingRef.current = {};
+
+      await Promise.all([
+         refetchTags(),
+         refetchGenres(),
+         ...tagQueries.map((query) => query.refetch()),
+         ...genreQueries.map((query) => query.refetch()),
+      ]);
+   }, [refetchTags, refetchGenres, tagQueries, genreQueries]);
+
    return {
       contentRows,
       isLoading,
       error,
       loadNextPage,
-      heroCarouselItems, // Return array of audiobooks for hero carousel
+      heroCarouselItems,
+      refetchAll,
+      isRefetching,
    };
 }
 

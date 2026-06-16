@@ -15,7 +15,6 @@ config.resolver = {
    sourceExts: [...config.resolver.sourceExts, 'svg'],
 };
 
-// Set default port to 3000 (can be overridden by PORT environment variable)
 config.server = {
    ...config.server,
    port: process.env.PORT ? parseInt(process.env.PORT, 10) : 3000,

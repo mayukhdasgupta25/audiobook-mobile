@@ -113,8 +113,12 @@ function normalizeUrl(url: string, defaultPort: string): string {
       return normalized;
    }
 
-   // If URL includes protocol but no port, add port
+   // If URL includes protocol but no port, add port (omit default 80/443)
    if (normalized.match(/^https?:\/\//)) {
+      const isHttps = normalized.startsWith('https://');
+      if ((isHttps && defaultPort === '443') || (!isHttps && defaultPort === '80')) {
+         return normalized;
+      }
       return `${normalized}:${defaultPort}`;
    }
 
@@ -141,14 +145,7 @@ function buildApiUrl(port: string): string {
 
    // For main API (port 8082), check EXPO_PUBLIC_API_URL
    if (port === getMainApiPort() && process.env.EXPO_PUBLIC_API_URL) {
-      const mainApiUrl = normalizeUrl(process.env.EXPO_PUBLIC_API_URL, port);
-      // Warn if the URL is using the wrong port (8080 or 8081 instead of 8082)
-      if ((mainApiUrl.includes(':8080') || mainApiUrl.includes(':8081')) && !mainApiUrl.includes(':8082')) {
-         console.warn(
-            '[API Config Warning] EXPO_PUBLIC_API_URL is using port 8080 or 8081, but main API should use port 8082. Consider updating to port 8082.'
-         );
-      }
-      return mainApiUrl;
+      return normalizeUrl(process.env.EXPO_PUBLIC_API_URL, port);
    }
 
    // If auth API URL is set but main API URL is not, extract host from auth URL for main API
@@ -223,34 +220,34 @@ export const API_V1_PATH = getApiV1Path();
 // API v1 stream base path
 export const API_V1_STREAM_PATH = getApiV1StreamPath();
 
-// Log API configuration on module load
-console.log('[API Config]', {
-   AUTH_API_BASE_URL,
-   API_BASE_URL,
-   STREAMING_API_BASE_URL,
-   API_V1_PATH,
-   API_V1_STREAM_PATH,
-   Platform: Platform.OS,
-   EXPO_PUBLIC_AUTH_API_URL: process.env.EXPO_PUBLIC_AUTH_API_URL,
-   EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
-   EXPO_PUBLIC_STREAMING_URL: process.env.EXPO_PUBLIC_STREAMING_URL,
-   EXPO_PUBLIC_AUTH_API_PORT: process.env.EXPO_PUBLIC_AUTH_API_PORT,
-   EXPO_PUBLIC_API_PORT: process.env.EXPO_PUBLIC_API_PORT,
-   EXPO_PUBLIC_STREAMING_URL_PORT: process.env.EXPO_PUBLIC_STREAMING_URL_PORT,
-   EXPO_PUBLIC_API_V1_PATH: process.env.EXPO_PUBLIC_API_V1_PATH,
-   EXPO_PUBLIC_API_V1_STREAM_PATH: process.env.EXPO_PUBLIC_API_V1_STREAM_PATH,
-   authPort: getAuthApiPort(),
-   mainPort: getMainApiPort(),
-   streamingPort: getStreamingApiPort(),
-   note: Platform.OS === 'android'
-      ? 'Using 10.0.2.2 for Android emulator (maps to host localhost)'
-      : Platform.OS === 'ios'
-         ? 'Using localhost for iOS simulator'
-         : 'Using localhost for web',
-   warning: API_BASE_URL.includes(':8080') || API_BASE_URL.includes(':8081')
-      ? 'WARNING: Main API URL is using port 8080 or 8081! Should be 8082.'
-      : undefined,
-});
+// Log API configuration on module load (non-production / debug builds only)
+const appEnv = process.env.EXPO_PUBLIC_APP_ENV ?? 'development';
+if (__DEV__ || appEnv !== 'production') {
+   console.log('[API Config]', {
+      AUTH_API_BASE_URL,
+      API_BASE_URL,
+      STREAMING_API_BASE_URL,
+      API_V1_PATH,
+      API_V1_STREAM_PATH,
+      Platform: Platform.OS,
+      EXPO_PUBLIC_AUTH_API_URL: process.env.EXPO_PUBLIC_AUTH_API_URL,
+      EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+      EXPO_PUBLIC_STREAMING_URL: process.env.EXPO_PUBLIC_STREAMING_URL,
+      EXPO_PUBLIC_AUTH_API_PORT: process.env.EXPO_PUBLIC_AUTH_API_PORT,
+      EXPO_PUBLIC_API_PORT: process.env.EXPO_PUBLIC_API_PORT,
+      EXPO_PUBLIC_STREAMING_URL_PORT: process.env.EXPO_PUBLIC_STREAMING_URL_PORT,
+      EXPO_PUBLIC_API_V1_PATH: process.env.EXPO_PUBLIC_API_V1_PATH,
+      EXPO_PUBLIC_API_V1_STREAM_PATH: process.env.EXPO_PUBLIC_API_V1_STREAM_PATH,
+      authPort: getAuthApiPort(),
+      mainPort: getMainApiPort(),
+      streamingPort: getStreamingApiPort(),
+      note: Platform.OS === 'android'
+         ? 'Using 10.0.2.2 for Android emulator (maps to host localhost)'
+         : Platform.OS === 'ios'
+            ? 'Using localhost for iOS simulator'
+            : 'Using localhost for web',
+   });
+}
 
 /**
  * API client configuration
@@ -448,19 +445,24 @@ export async function apiRequest<T>(
       }
    }
 
+   const isM3U8Endpoint = endpoint.includes('.m3u8');
+
    try {
       const response = await fetch(url, {
          ...options,
          headers,
+         ...(isM3U8Endpoint ? { cache: 'no-store' as RequestCache } : {}),
       });
 
       if (!response.ok) {
          const errorData = await response.json().catch(() => ({}));
-         console.error('[API Error]', {
-            status: response.status,
-            statusText: response.statusText,
-            errorData,
-         });
+         if (response.status !== 404) {
+            console.error('[API Error]', {
+               status: response.status,
+               statusText: response.statusText,
+               errorData,
+            });
+         }
          const apiError = new ApiError(
             response.status,
             response.statusText,
@@ -502,8 +504,6 @@ export async function apiRequest<T>(
       const contentType = response.headers.get('content-type') || '';
       let data: T;
 
-      // Check if endpoint is M3U8 or content-type indicates text/plain
-      const isM3U8Endpoint = endpoint.includes('.m3u8');
       const isTextContent =
          contentType.includes('text/plain') ||
          contentType.includes('application/vnd.apple.mpegurl') ||
@@ -512,6 +512,9 @@ export async function apiRequest<T>(
       if (isM3U8Endpoint || isTextContent) {
          // Handle text/plain responses (e.g., M3U8 playlists)
          const textData = await response.text();
+         if (isM3U8Endpoint && !textData.trim().startsWith('#')) {
+            throw new Error('Invalid or empty M3U8 playlist response');
+         }
          data = textData as unknown as T;
       } else {
          // Handle JSON responses (default)
@@ -585,12 +588,14 @@ export async function apiRequest<T>(
          }
       }
 
-      console.error('[API Request Error]', {
-         error,
-         errorType: error instanceof Error ? error.constructor.name : typeof error,
-         errorMessage: error instanceof Error ? error.message : String(error),
-         url,
-      });
+      if (!(error instanceof ApiError && error.status === 404)) {
+         console.error('[API Request Error]', {
+            error,
+            errorType: error instanceof Error ? error.constructor.name : typeof error,
+            errorMessage: error instanceof Error ? error.message : String(error),
+            url,
+         });
+      }
 
       if (error instanceof ApiError) {
          throw error;

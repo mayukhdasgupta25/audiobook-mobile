@@ -10,7 +10,7 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Audiobook } from '@/services/audiobooks';
-import { apiConfig } from '@/services/api';
+import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
 import { spacing, typography, borderRadius } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
@@ -87,8 +87,7 @@ export const AudiobookGridCard: React.FC<AudiobookGridCardProps> = ({
       })
    );
 
-   const coverPath = item.contentCardCoverImage || item.coverImage;
-   const coverUri = coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined;
+   const coverUri = resolveAudiobookImageUrl(item, 'gridCard');
    const label = footerText ?? item.author;
 
    return (

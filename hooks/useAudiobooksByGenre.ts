@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { getAudiobooksByGenre } from '@/services/audiobooks';
 import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
 
 /**
@@ -24,7 +25,7 @@ export function useAudiobooksByGenre(genreId: string, page = 1) {
    );
 
    return useQuery({
-      queryKey: ['audiobooks', 'genre', genreId, page],
+      queryKey: queryKeys.audiobooks.byGenre(genreId, page),
       queryFn: () => getAudiobooksByGenre(genreId, page),
       // Only fetch if genreId is valid, user is authenticated, and auth is initialized
       enabled: !!genreId && isAuthenticated && isInitialized && page > 0,
@@ -36,7 +37,6 @@ export function useAudiobooksByGenre(genreId: string, page = 1) {
          // Retry up to 2 times for other errors
          return failureCount < 2;
       },
-      staleTime: 5 * 60 * 1000, // 5 minutes - same as global config
    });
 }
 

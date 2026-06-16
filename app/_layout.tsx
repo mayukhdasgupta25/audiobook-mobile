@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Stack, router, useSegments, type Href } from 'expo-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/utils/queryClient';
@@ -27,8 +27,16 @@ import { ToastProvider } from '@/contexts/ToastContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { Toast } from '@/components/Toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { DomainEventsSync } from '@/components/DomainEventsSync';
+import { EnvironmentBadge } from '@/components/EnvironmentBadge';
 import { preloadAppAssets } from '@/utils/preloadAppAssets';
 import '../global.css';
+
+const styles = StyleSheet.create({
+   splashOverlay: {
+      ...StyleSheet.absoluteFillObject,
+   },
+});
 
 // Initialize Reactotron in development mode
 if (__DEV__) {
@@ -68,8 +76,15 @@ function InnerLayout() {
    );
    const [isAppReady, setIsAppReady] = useState(false);
    const [showSplash, setShowSplash] = useState(true);
-   const hasSetInitialRoute = useRef(false);
+   const [isInitialRouteSet, setIsInitialRouteSet] = useState(false);
    const splashStartTime = useRef<number>(Date.now());
+
+   const stackReady = isAppReady && isInitialized;
+   const initialStackRoute = !isAuthenticated
+      ? 'signin'
+      : requiresOnboarding
+         ? 'onboarding'
+         : '(tabs)';
 
    const screenBackground = { backgroundColor: colors.background.screen };
 
@@ -94,31 +109,14 @@ function InnerLayout() {
    }, []);
 
    useEffect(() => {
-      if (isAppReady && isInitialized) {
-         const elapsed = Date.now() - splashStartTime.current;
-         const minDisplayTime = 1000;
-
-         if (elapsed < minDisplayTime) {
-            const remainingTime = minDisplayTime - elapsed;
-            setTimeout(() => {
-               setShowSplash(false);
-            }, remainingTime);
-         } else {
-            setShowSplash(false);
-         }
-      }
-   }, [isAppReady, isInitialized]);
-
-   useEffect(() => {
-      if (!isAppReady || !isInitialized || hasSetInitialRoute.current || showSplash) {
+      if (!stackReady || isInitialRouteSet) {
          return;
       }
-
-      hasSetInitialRoute.current = true;
 
       void (async () => {
          if (!isAuthenticated) {
             router.replace('/signin');
+            setIsInitialRouteSet(true);
             return;
          }
 
@@ -127,21 +125,40 @@ function InnerLayout() {
             const returnRoute = await resolvePersistedPlaybackRoute();
             if (returnRoute) {
                router.replace(returnRoute as Href);
+               setIsInitialRouteSet(true);
                return;
             }
          }
 
          if (requiresOnboarding) {
             router.replace('/onboarding/age' as Href);
+            setIsInitialRouteSet(true);
             return;
          }
 
          router.replace('/(tabs)');
+         setIsInitialRouteSet(true);
       })();
-   }, [isAppReady, isInitialized, isAuthenticated, requiresOnboarding, showSplash]);
+   }, [stackReady, isAuthenticated, requiresOnboarding, isInitialRouteSet]);
 
    useEffect(() => {
-      if (!isAppReady || !isInitialized || showSplash) {
+      if (!stackReady || !isInitialRouteSet) {
+         return;
+      }
+
+      const elapsed = Date.now() - splashStartTime.current;
+      const minDisplayTime = 1000;
+      const remainingTime = Math.max(0, minDisplayTime - elapsed);
+
+      const timer = setTimeout(() => {
+         setShowSplash(false);
+      }, remainingTime);
+
+      return () => clearTimeout(timer);
+   }, [stackReady, isInitialRouteSet]);
+
+   useEffect(() => {
+      if (!stackReady || showSplash) {
          return;
       }
 
@@ -188,23 +205,25 @@ function InnerLayout() {
       requiresOnboarding,
       profileFetched,
       isInitialized,
-      isAppReady,
+      stackReady,
       segments,
       showSplash,
    ]);
 
-   if (showSplash) {
+   if (!stackReady) {
       return <SplashScreen />;
    }
 
    return (
-      <AudioPlaybackProvider>
-         <Stack
-            screenOptions={{
-               headerShown: false,
-               contentStyle: screenBackground,
-            }}
-         >
+      <>
+         <AudioPlaybackProvider>
+            <Stack
+               initialRouteName={initialStackRoute}
+               screenOptions={{
+                  headerShown: false,
+                  contentStyle: screenBackground,
+               }}
+            >
             <Stack.Screen name="(tabs)" options={{ contentStyle: screenBackground }} />
             <Stack.Screen name="details/[id]" options={{ contentStyle: screenBackground }} />
             <Stack.Screen name="search" options={{ contentStyle: screenBackground }} />
@@ -244,6 +263,12 @@ function InnerLayout() {
 
          <AudioPlayer />
       </AudioPlaybackProvider>
+      {showSplash ? (
+         <View style={styles.splashOverlay} pointerEvents="auto">
+            <SplashScreen />
+         </View>
+      ) : null}
+      </>
    );
 }
 
@@ -256,9 +281,11 @@ export default function RootLayout() {
                   <Provider store={store}>
                      <PersistGate loading={null} persistor={persistor}>
                         <QueryClientProvider client={queryClient}>
+                           <DomainEventsSync />
                            <ThemeProvider>
                               <ThemedAppShell>
                                  <InnerLayout />
+                                 <EnvironmentBadge />
                                  <Toast />
                               </ThemedAppShell>
                            </ThemeProvider>

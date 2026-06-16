@@ -5,6 +5,7 @@
 
 import React, { createContext, useContext, type PropsWithChildren } from 'react';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { useNextChapterPrefetch } from '@/hooks/useNextChapterPrefetch';
 import { useSleepTimer } from '@/hooks/useSleepTimer';
 
 export type AudioPlaybackControls = ReturnType<typeof useAudioPlayer>;
@@ -13,6 +14,7 @@ const AudioPlaybackContext = createContext<AudioPlaybackControls | null>(null);
 
 export function AudioPlaybackProvider({ children }: PropsWithChildren): React.ReactElement {
    const controls = useAudioPlayer();
+   useNextChapterPrefetch();
    useSleepTimer();
 
    return (

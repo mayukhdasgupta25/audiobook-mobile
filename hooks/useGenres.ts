@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { getGenres } from '@/services/audiobooks';
 import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { RootState } from '@/store';
 
 /**
@@ -19,7 +20,7 @@ export function useGenres() {
    );
 
    return useQuery({
-      queryKey: ['genres'],
+      queryKey: queryKeys.genres.all(),
       queryFn: () => getGenres(),
       enabled: isInitialized, // Only fetch after auth is initialized
       retry: (failureCount, error) => {
@@ -30,7 +31,6 @@ export function useGenres() {
          // Retry up to 2 times for other errors
          return failureCount < 2;
       },
-      staleTime: 10 * 60 * 1000, // 10 minutes - genres don't change often
    });
 }
 

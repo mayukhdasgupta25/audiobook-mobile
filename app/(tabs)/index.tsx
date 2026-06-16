@@ -6,6 +6,7 @@ import {
    Text,
    TouchableOpacity,
    Platform,
+   RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -33,13 +34,15 @@ import {
    SkeletonMoodCards,
    SkeletonTrendingList,
 } from '@/components/skeleton';
-import { apiConfig } from '@/services/api';
-import { Organization } from '@/services/organizations';
+import { Organization, getOrganizationImagePath, getOrganizationImageUri } from '@/services/organizations';
 import { logout } from '@/utils/logout';
+import { RootState } from '@/store';
 import { resolveAvatarUrl } from '@/utils/resolveAvatarUrl';
+import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
 import { resolveMembershipTier } from '@/utils/membershipDisplay';
 import { useUserSubscription } from '@/hooks/useUserSubscription';
 import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { playContinueListeningChapter } from '@/utils/playContinueListeningChapter';
 
 const HEADER_ICON_SIZE = 24;
@@ -227,10 +230,14 @@ function HomeScreenContent() {
    const { greeting, subtitle: timeOfDaySubtitle } = useTimeOfDay();
 
    const userProfile = useSelector((state: RootState) => state.auth.userProfile);
-   const { activeSubscription } = useUserSubscription();
+   const { activeSubscription, refetch: refetchSubscription, isRefetching: isSubscriptionRefetching } =
+      useUserSubscription();
    const dispatch = useDispatch();
-   const { data: continueListening, isLoading: isContinueListeningLoading } =
-      useContinueListening();
+   const {
+      data: continueListening,
+      isLoading: isContinueListeningLoading,
+      refetch: refetchContinueListening,
+   } = useContinueListening();
 
    const greetingName = useMemo(() => {
       if (userProfile?.firstName) return userProfile.firstName;
@@ -245,7 +252,10 @@ function HomeScreenContent() {
       if (userProfile?.username) return userProfile.username;
       return 'User';
    }, [userProfile]);
-   const drawerAvatarUri = resolveAvatarUrl(userProfile?.avatar);
+   const drawerAvatarUri = resolveAvatarUrl(
+      userProfile?.avatar,
+      userProfile?.imageAssets
+   );
    const membershipTier = resolveMembershipTier(activeSubscription?.plan);
    const planName = activeSubscription?.plan.name;
 
@@ -261,18 +271,36 @@ function HomeScreenContent() {
       }
    }, []);
 
-   const { contentRows, isLoading, loadNextPage, heroCarouselItems } = useHomeContent();
-   const { data: moods, isLoading: moodsLoading } = useMoods();
-   const { data: organizationsData, isLoading: organizationsLoading, isPending: organizationsPending } = useOrganizations();
-   const organizations = organizationsData?.data ?? [];
+   const {
+      contentRows,
+      isLoading,
+      loadNextPage,
+      heroCarouselItems,
+      refetchAll,
+      isRefetching: isHomeContentRefetching,
+   } = useHomeContent();
+   const {
+      data: moods,
+      isLoading: moodsLoading,
+      refetch: refetchMoods,
+      isRefetching: isMoodsRefetching,
+   } = useMoods();
+   const {
+      data: organizationsData,
+      isLoading: organizationsLoading,
+      isPending: organizationsPending,
+      refetch: refetchOrganizations,
+      isRefetching: isOrganizationsRefetching,
+   } = useOrganizations();
+   const organizations = organizationsData?.organizations ?? [];
 
-   const getOrganizationImageUri = useCallback((org: Organization) => {
-      const path = org.logo ?? org.coverImage;
-      return path ? `${apiConfig.baseURL}${path}` : undefined;
-   }, []);
+   const getOrganizationImageUriForCard = useCallback(
+      (org: Organization) => getOrganizationImageUri(org),
+      []
+   );
 
    const handlePublisherPress = useCallback((org: Organization) => {
-      const imagePath = org.logo ?? org.coverImage;
+      const imagePath = getOrganizationImagePath(org);
       router.push({
          pathname: '/publisher/[id]',
          params: {
@@ -297,14 +325,13 @@ function HomeScreenContent() {
 
       const mapBook = (id: string, title: string, imageUri?: string) => {
          const book = booksById.get(id);
-         const coverPath = book?.coverImage || book?.contentCardCoverImage;
          return {
             id,
             title,
             author: book?.author ?? 'Unknown author',
             imageUri:
                imageUri ??
-               (coverPath ? `${apiConfig.baseURL}${coverPath}` : undefined),
+               (book ? resolveAudiobookImageUrl(book, 'popularStory') : undefined),
          };
       };
 
@@ -318,7 +345,7 @@ function HomeScreenContent() {
          mapBook(
             book.id,
             book.title,
-            book.coverImage ? `${apiConfig.baseURL}${book.coverImage}` : undefined
+            resolveAudiobookImageUrl(book, 'popularStory')
          )
       );
    }, [contentRows, heroCarouselItems]);
@@ -379,6 +406,30 @@ function HomeScreenContent() {
 
    useTabScrollToTop('index', scrollRef);
 
+   const homeRefreshFns = useMemo(
+      () => [
+         refetchAll,
+         refetchMoods,
+         refetchOrganizations,
+         refetchSubscription,
+         refetchContinueListening,
+      ],
+      [
+         refetchAll,
+         refetchMoods,
+         refetchOrganizations,
+         refetchSubscription,
+         refetchContinueListening,
+      ]
+   );
+   const { refreshing, onRefresh } = usePullToRefresh(homeRefreshFns, {
+      isRefetching:
+         isHomeContentRefetching ||
+         isMoodsRefetching ||
+         isOrganizationsRefetching ||
+         isSubscriptionRefetching,
+   });
+
    return (
       <SafeAreaView style={styles.container} edges={['top']}>
          <View style={styles.topBar}>
@@ -414,6 +465,14 @@ function HomeScreenContent() {
                { paddingBottom: scrollPadding },
             ]}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+               <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={colors.accent.primary}
+                  colors={[colors.accent.primary]}
+               />
+            }
          >
             {/* Greeting */}
             <View style={styles.greetingSection}>
@@ -436,7 +495,7 @@ function HomeScreenContent() {
             <PublisherRow
                organizations={organizations}
                isLoading={showPublishersSkeleton}
-               getImageUri={getOrganizationImageUri}
+               getImageUri={getOrganizationImageUriForCard}
                onPress={handlePublisherPress}
             />
 

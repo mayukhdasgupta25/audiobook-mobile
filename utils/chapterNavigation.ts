@@ -2,11 +2,16 @@
  * Chapter navigation — auto-advance, lock screen next/prev, in-app controls.
  */
 
+import TrackPlayer from 'react-native-track-player';
 import type { AppDispatch } from '@/store';
+import { store } from '@/store';
 import { stop } from '@/store/player';
-import { getChapters, syncPlayback, type Chapter } from '@/services/audiobooks';
+import { getChapters, type Chapter } from '@/services/audiobooks';
 import { openChapterForPlayback } from '@/utils/openChapterForPlayback';
 import { requestChapterReload } from '@/services/playbackReload';
+import { markChapterCompletedAtEnd } from '@/utils/markChapterCompletedAtEnd';
+import { queryKeys } from '@/constants/queryKeys';
+import { queryClient } from '@/utils/queryClient';
 
 export async function fetchAllChapters(audiobookId: string): Promise<Chapter[]> {
    let allChapters: Chapter[] = [];
@@ -29,29 +34,56 @@ export async function fetchAllChapters(audiobookId: string): Promise<Chapter[]> 
    return allChapters;
 }
 
+export async function getCachedOrFetchAllChapters(audiobookId: string): Promise<Chapter[]> {
+   return queryClient.fetchQuery({
+      queryKey: queryKeys.audiobooks.chaptersAll(audiobookId),
+      queryFn: () => fetchAllChapters(audiobookId),
+   });
+}
+
+function totalDurationFromCachedPlaylist(chapterId: string): number | undefined {
+   const cached = store.getState().streaming.playlistsByChapterId[chapterId];
+   if (!cached) {
+      return undefined;
+   }
+   return cached.playlist.segments.reduce((sum, segment) => sum + segment.duration, 0);
+}
+
 export async function getAdjacentChapter(
    audiobookId: string,
    currentChapterId: string,
    offset: 1 | -1
 ): Promise<Chapter | null> {
-   const allChapters = await fetchAllChapters(audiobookId);
-   const current = allChapters.find((c) => c.id === currentChapterId);
-   if (!current) {
+   const allChapters = await getCachedOrFetchAllChapters(audiobookId);
+   const currentIndex = allChapters.findIndex((c) => c.id === currentChapterId);
+   if (currentIndex === -1) {
       return null;
    }
-   return allChapters.find((c) => c.chapterNumber === current.chapterNumber + offset) ?? null;
+   const targetIndex = currentIndex + offset;
+   if (targetIndex < 0 || targetIndex >= allChapters.length) {
+      return null;
+   }
+   return allChapters[targetIndex] ?? null;
 }
 
 export async function switchToChapter(
    dispatch: AppDispatch,
    chapter: Chapter,
-   options?: { onChapterSwitched?: (chapterId: string) => void; totalChapters?: number }
+   options?: {
+      onChapterSwitched?: (chapterId: string) => void;
+      totalChapters?: number;
+      startFromBeginning?: boolean;
+   }
 ): Promise<void> {
+   const totalDurationSeconds = totalDurationFromCachedPlaylist(chapter.id);
+
    await openChapterForPlayback({
       chapter,
       dispatch,
       totalChapters: options?.totalChapters,
+      totalDurationSeconds,
       autoPlay: true,
+      startFromBeginning: options?.startFromBeginning,
    });
    requestChapterReload();
    options?.onChapterSwitched?.(chapter.id);
@@ -66,42 +98,75 @@ export interface AdvanceToNextChapterParams {
    onChapterSwitched?: (chapterId: string) => void;
 }
 
+export interface FinalizeAudiobookPlaybackParams {
+   dispatch: AppDispatch;
+   audiobookId: string;
+   currentChapterId: string;
+   isVisible: boolean;
+   totalDuration: number;
+}
+
+/** Stop playback at the last chapter — never loop back to chapter 1. */
+export async function finalizeAudiobookPlayback(
+   params: FinalizeAudiobookPlaybackParams
+): Promise<void> {
+   const { dispatch, audiobookId, currentChapterId, isVisible, totalDuration } = params;
+
+   try {
+      await TrackPlayer.pause();
+   } catch (error: unknown) {
+      console.warn('[Chapter Navigation] Failed to pause at book end:', error);
+   }
+
+   await markChapterCompletedAtEnd(
+      audiobookId,
+      currentChapterId,
+      totalDuration,
+      totalDuration
+   );
+
+   dispatch(stop());
+}
+
 export async function advanceToNextChapter(params: AdvanceToNextChapterParams): Promise<void> {
    const { dispatch, audiobookId, currentChapterId, isVisible, totalDuration, onChapterSwitched } =
       params;
 
    try {
+      const allChapters = await getCachedOrFetchAllChapters(audiobookId);
       const nextChapter = await getAdjacentChapter(audiobookId, currentChapterId, 1);
 
       if (nextChapter) {
-         await switchToChapter(dispatch, nextChapter, { onChapterSwitched });
+         await markChapterCompletedAtEnd(
+            audiobookId,
+            currentChapterId,
+            totalDuration,
+            totalDuration
+         );
+         await switchToChapter(dispatch, nextChapter, {
+            onChapterSwitched,
+            totalChapters: allChapters.length,
+            startFromBeginning: true,
+         });
          return;
       }
 
-      if (isVisible) {
-         await syncPlayback({
-            audiobookId,
-            chapterId: currentChapterId,
-            action: 'pause',
-            position: totalDuration,
-            durationSeconds: totalDuration,
-         }).catch((error: unknown) => {
-            console.error('[Chapter Navigation] Failed to sync at end:', error);
-         });
-      }
-      dispatch(stop());
+      await finalizeAudiobookPlayback({
+         dispatch,
+         audiobookId,
+         currentChapterId,
+         isVisible,
+         totalDuration,
+      });
    } catch (error) {
       console.error('[Chapter Navigation] Error advancing:', error);
-      if (isVisible) {
-         await syncPlayback({
-            audiobookId,
-            chapterId: currentChapterId,
-            action: 'pause',
-            position: totalDuration,
-            durationSeconds: totalDuration,
-         }).catch(() => undefined);
-      }
-      dispatch(stop());
+      await finalizeAudiobookPlayback({
+         dispatch,
+         audiobookId,
+         currentChapterId,
+         isVisible,
+         totalDuration,
+      });
    }
 }
 
@@ -111,9 +176,9 @@ export async function skipToNextChapterRemote(
    currentChapterId: string,
    onChapterSwitched?: (chapterId: string) => void
 ): Promise<void> {
+   const allChapters = await getCachedOrFetchAllChapters(audiobookId);
    const next = await getAdjacentChapter(audiobookId, currentChapterId, 1);
    if (next) {
-      const allChapters = await fetchAllChapters(audiobookId);
       await switchToChapter(dispatch, next, {
          onChapterSwitched,
          totalChapters: allChapters.length,
@@ -127,9 +192,9 @@ export async function skipToPreviousChapterRemote(
    currentChapterId: string,
    onChapterSwitched?: (chapterId: string) => void
 ): Promise<void> {
+   const allChapters = await getCachedOrFetchAllChapters(audiobookId);
    const prev = await getAdjacentChapter(audiobookId, currentChapterId, -1);
    if (prev) {
-      const allChapters = await fetchAllChapters(audiobookId);
       await switchToChapter(dispatch, prev, {
          onChapterSwitched,
          totalChapters: allChapters.length,

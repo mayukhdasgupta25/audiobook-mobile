@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import Animated, {
    runOnJS,
    useAnimatedStyle,
@@ -26,8 +26,10 @@ export function Toast() {
             position: 'absolute',
             left: spacing.md,
             right: spacing.md,
-            zIndex: 9999,
-            elevation: 9999,
+            zIndex: 100,
+            ...Platform.select({
+               android: { elevation: 8 },
+            }),
          },
          banner: {
             flexDirection: 'row',
@@ -41,7 +43,6 @@ export function Toast() {
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.12,
             shadowRadius: 8,
-            elevation: 6,
          },
          bannerSuccess: {},
          bannerError: {},

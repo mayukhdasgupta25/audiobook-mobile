@@ -90,66 +90,109 @@ Before you begin, ensure you have the following installed:
    yarn install
    ```
 
-3. **Configure environment variables** (if needed)
-   Create a `.env` file in the root directory:
+3. **Configure environment variables**
+
+   The app supports four environments, each with a committed template in the repo:
+
+   | Environment   | App name      | Bundle ID                  | Env file              |
+   |---------------|---------------|----------------------------|-----------------------|
+   | development   | Srota Dev     | `com.srota.mobile.dev`     | `.env.development`    |
+   | testing       | Srota Test    | `com.srota.mobile.test`    | `.env.testing`        |
+   | staging       | Srota Staging | `com.srota.mobile.staging` | `.env.staging`        |
+   | production    | Srota         | `com.srota.mobile`         | `.env.production`     |
+
+   Copy [`.env.example`](.env.example) for reference. For local secrets or LAN IP overrides, create a gitignored `.env.local`:
 
    ```env
-   # Main API (for audiobooks and other endpoints) - Port 8082
-   EXPO_PUBLIC_API_URL=http://localhost:8082
-   EXPO_PUBLIC_API_PORT=8082
-
-   # Auth API (for login/signup) - Port 8080
-   EXPO_PUBLIC_AUTH_API_URL=http://localhost:8080
+   EXPO_PUBLIC_AUTH_API_URL=http://192.168.1.100
+   EXPO_PUBLIC_API_URL=http://192.168.1.100
+   EXPO_PUBLIC_STREAMING_URL=http://192.168.1.100
    EXPO_PUBLIC_AUTH_API_PORT=8080
+   EXPO_PUBLIC_API_PORT=8081
+   EXPO_PUBLIC_STREAMING_URL_PORT=8082
    ```
 
-   **Note**:
-   - **Auth API (Login/Signup)**: Uses port **8080** by default
-     - `EXPO_PUBLIC_AUTH_API_URL`: Full auth API URL (overrides default)
-     - `EXPO_PUBLIC_AUTH_API_PORT`: Auth API port number (default: 8080)
-   - **Main API (Audiobooks and others)**: Uses port **8082** by default
-     - `EXPO_PUBLIC_API_URL`: Full main API URL (overrides default)
-     - `EXPO_PUBLIC_API_PORT`: Main API port number (default: 8082)
-   - For Android emulator, the app automatically uses `10.0.2.2` instead of `localhost`
-   - For physical devices, set the full URLs to your computer's IP address (e.g., `http://192.168.1.100:8080` for auth, `http://192.168.1.100:8082` for main API)
+   **Ports (development defaults)**:
+   - Auth API: **8080**
+   - Main app API: **8081**
+   - Streaming API: **8082**
+   - Android emulator uses `10.0.2.2` automatically when URLs are empty
+   - iOS simulator uses `localhost` when URLs are empty
 
 ### Running the App
 
-#### Development Mode
-
-**Start the development server:**
+#### Development Mode (default)
 
 ```bash
-npm start
-# or
-npm run start:dev
+# Start Metro with development env
+npm run start:development
+# alias: npm start, npm run start:dev
+
+# Run on a specific platform (local native build)
+npm run run:android:development   # alias: npm run build:dev:android
+npm run run:ios:development       # alias: npm run build:dev:ios
 ```
 
-**Run on specific platform:**
+#### Other environments (Metro)
 
 ```bash
-# iOS
-npm run ios
+npm run start:testing
+npm run start:staging
+npm run start:production
+```
 
-# Android
-npm run android
+#### Local native builds (`expo run`)
 
-# Web
+```bash
+npm run run:android:testing
+npm run run:ios:testing
+npm run run:android:staging
+npm run run:ios:staging
+npm run run:android:production   # release variant
+npm run run:ios:production       # Release configuration
+```
+
+**Switching bundle ID / environment:** run prebuild once for the target env before the first native build:
+
+```bash
+npm run prebuild:development   # or prebuild:testing / staging / production
+```
+
+#### Cloud builds (EAS)
+
+Requires [EAS CLI](https://docs.expo.dev/build/setup/) and `eas login`. Set production secrets via [EAS Secrets](https://docs.expo.dev/build-reference/variables/) rather than committing them.
+
+```bash
+npm run build:android:development
+npm run build:ios:development
+npm run build:android:testing
+npm run build:ios:testing
+npm run build:android:staging
+npm run build:ios:staging
+npm run build:android:production   # AAB for Play Store
+npm run build:ios:production       # IPA for App Store
+```
+
+#### OTA updates (expo-updates)
+
+```bash
+npm run update:testing
+npm run update:staging
+npm run update:production
+```
+
+Run `eas update:configure` once to set `EXPO_PUBLIC_UPDATES_URL`.
+
+#### Windows note
+
+If Android builds fail with a Java error, set `JAVA_HOME` in your shell before running native builds (e.g. `C:\Program Files\Java\jdk-21`). It is intentionally not hardcoded in `package.json`.
+
+#### Legacy commands
+
+```bash
+npm run android    # starts Metro + opens Android (development)
+npm run ios        # starts Metro + opens iOS (development)
 npm run web
-```
-
-#### Building for Production
-
-**Android:**
-
-```bash
-npm run build:dev:android
-```
-
-**iOS:**
-
-```bash
-npm run build:dev:ios
 ```
 
 ## 📁 Project Structure

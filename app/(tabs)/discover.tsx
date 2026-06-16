@@ -4,8 +4,8 @@ import {
    Text,
    StyleSheet,
    ScrollView,
-   Platform,
    TouchableOpacity,
+   RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -22,8 +22,9 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
 import { getTabScreenPaddingBottom } from '@/theme/tabLayout';
 import { useHomeContent } from '@/hooks/useHomeContent';
-import { apiConfig } from '@/services/api';
+import { resolveAudiobookImageUrl } from '@/utils/imageAssets';
 import { useTabScrollToTop } from '@/hooks/useTabScrollToTop';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 function DiscoverScreenContent() {
    const { colors } = useTheme();
@@ -99,8 +100,19 @@ function DiscoverScreenContent() {
    );
    const scrollRef = useRef<ScrollView>(null);
    const insets = useSafeAreaInsets();
-   const { contentRows, isLoading, heroCarouselItems } = useHomeContent();
-   const { data: moods, isLoading: moodsLoading } = useMoods();
+   const {
+      contentRows,
+      isLoading,
+      heroCarouselItems,
+      refetchAll,
+      isRefetching: isHomeContentRefetching,
+   } = useHomeContent();
+   const {
+      data: moods,
+      isLoading: moodsLoading,
+      refetch: refetchMoods,
+      isRefetching: isMoodsRefetching,
+   } = useMoods();
 
    const genreRows = useMemo(
       () => contentRows.filter((row) => row.type === 'genre' && row.items.length > 0),
@@ -113,9 +125,7 @@ function DiscoverScreenContent() {
             id: book.id,
             title: book.title,
             author: book.author,
-            imageUri: book.coverImage
-               ? `${apiConfig.baseURL}${book.coverImage}`
-               : undefined,
+            imageUri: resolveAudiobookImageUrl(book, 'popularStory'),
          })),
       [heroCarouselItems]
    );
@@ -128,6 +138,14 @@ function DiscoverScreenContent() {
 
    useTabScrollToTop('discover', scrollRef);
 
+   const discoverRefreshFns = useMemo(
+      () => [refetchAll, refetchMoods],
+      [refetchAll, refetchMoods]
+   );
+   const { refreshing, onRefresh } = usePullToRefresh(discoverRefreshFns, {
+      isRefetching: isHomeContentRefetching || isMoodsRefetching,
+   });
+
    return (
       <SafeAreaView style={styles.container} edges={['top']}>
          <TabScreenHeader headerIcon="discover" />
@@ -135,6 +153,14 @@ function DiscoverScreenContent() {
             ref={scrollRef}
             contentContainerStyle={{ paddingBottom: scrollPadding }}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+               <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={colors.accent.primary}
+                  colors={[colors.accent.primary]}
+               />
+            }
          >
             <Text style={styles.sectionTitle}>Explore By Mood</Text>
             <ScrollView

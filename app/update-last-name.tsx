@@ -17,7 +17,7 @@ import { TextInput } from '@/components/TextInput';
 import { spacing, typography, borderRadius } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
-import { updateUserProfile } from '@/services/user';
+import { updateAuthUserProfile } from '@/services/authProfile';
 import { fetchUserProfile } from '@/store/auth';
 import { AppDispatch, RootState } from '@/store';
 import { ApiError } from '@/services/api';
@@ -182,8 +182,8 @@ export default function UpdateLastNameScreen() {
 
       try {
          // Update profile
-         await updateUserProfile({
-            lastName: lastName.trim() || null,
+         await updateAuthUserProfile({
+            lastName: lastName.trim(),
          });
 
          // Refresh user profile

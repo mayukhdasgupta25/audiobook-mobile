@@ -1,4 +1,9 @@
 import { ExpoConfig, ConfigContext } from 'expo/config';
+import { ENVIRONMENT_BUILD_CONFIG } from './config/appEnvironments.js';
+import { loadEnv } from './config/loadEnv.js';
+
+const appEnv = loadEnv();
+const envConfig = ENVIRONMENT_BUILD_CONFIG[appEnv];
 
 function getGoogleIosUrlScheme(clientId: string): string {
    if (clientId.startsWith('com.googleusercontent.apps.')) {
@@ -12,9 +17,9 @@ function getGoogleIosUrlScheme(clientId: string): string {
 
    throw new Error(
       'EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID must be a valid iOS OAuth client ID ' +
-         '(e.g. 123456789-abc.apps.googleusercontent.com) or reversed URL scheme ' +
-         '(e.g. com.googleusercontent.apps.123456789-abc). ' +
-         'Get this from Google Cloud Console → APIs & Services → Credentials → iOS client.',
+      '(e.g. 123456789-abc.apps.googleusercontent.com) or reversed URL scheme ' +
+      '(e.g. com.googleusercontent.apps.123456789-abc). ' +
+      'Get this from Google Cloud Console → APIs & Services → Credentials → iOS client.',
    );
 }
 
@@ -22,38 +27,52 @@ const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
 const googleSignInPlugin: [string, { iosUrlScheme: string }] | null =
    googleIosClientId && googleIosClientId !== 'com.googleusercontent.apps'
       ? [
-           '@react-native-google-signin/google-signin',
-           { iosUrlScheme: getGoogleIosUrlScheme(googleIosClientId) },
-        ]
+         '@react-native-google-signin/google-signin',
+         { iosUrlScheme: getGoogleIosUrlScheme(googleIosClientId) },
+      ]
       : null;
+
+const updatesUrl = process.env.EXPO_PUBLIC_UPDATES_URL?.trim();
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
    ...config,
-   name: 'AudioBook',
+   name: envConfig.name,
    slug: 'audiobook-mobile',
    version: '1.0.0',
    orientation: 'portrait',
    icon: './assets/icon.png',
    userInterfaceStyle: 'automatic',
    splash: {
+      image: './assets/images/srota-launch-logo.png',
       resizeMode: 'contain',
       backgroundColor: '#E8DCC4',
    },
    assetBundlePatterns: ['**/*'],
+   runtimeVersion: '1.0.0',
+   updates: envConfig.enableUpdates
+      ? {
+         enabled: true,
+         fallbackToCacheTimeout: 0,
+         checkAutomatically: 'ON_LOAD',
+         ...(updatesUrl ? { url: updatesUrl } : {}),
+      }
+      : {
+         enabled: false,
+      },
    ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.audiobook.mobile',
+      bundleIdentifier: envConfig.bundleId,
       icon: './assets/icon.png',
       jsEngine: 'hermes',
       googleServicesFile: process.env.EXPO_PUBLIC_GOOGLE_SERVICES_IOS || undefined,
       infoPlist: {
+         CFBundleDisplayName: envConfig.name,
          UIBackgroundModes: ['audio'],
          NSLocalNetworkUsageDescription:
-            'AudioBook connects to your audiobook server on your local network to stream chapters.',
-         // Triggers the Local Network privacy prompt so AVPlayer can reach LAN streaming URLs.
+            'Srota connects to your audiobook server on your local network to stream chapters.',
          NSBonjourServices: ['_http._tcp'],
          NSLocationWhenInUseUsageDescription:
-            'AudioBook uses your location to personalize your experience and improve our service.',
+            'Srota uses your location to personalize your experience and improve our service.',
       },
    },
    android: {
@@ -62,7 +81,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
          foregroundImage: './assets/adaptive-icon.png',
          backgroundColor: '#E8DCC4',
       },
-      package: 'com.audiobook.mobile',
+      package: envConfig.bundleId,
       jsEngine: 'hermes',
       googleServicesFile: process.env.EXPO_PUBLIC_GOOGLE_SERVICES_ANDROID || undefined,
       permissions: [
@@ -92,16 +111,29 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
          'expo-location',
          {
             locationWhenInUsePermission:
-               'AudioBook uses your location to personalize your experience and improve our service.',
+               'Srota uses your location to personalize your experience and improve our service.',
             isAndroidBackgroundLocationEnabled: false,
          },
       ],
       './app.plugin.js',
       ...(googleSignInPlugin ? [googleSignInPlugin] : []),
    ],
-   scheme: ['audiobook', 'trackplayer'],
+   scheme: ['srota', 'trackplayer'],
    newArchEnabled: true,
    experiments: {
       typedRoutes: true,
+   },
+   extra: {
+      appEnv,
+      updateChannel: envConfig.channel,
+      enableDebugLogging: envConfig.enableDebugLogging,
+      apiUrls: {
+         auth: process.env.EXPO_PUBLIC_AUTH_API_URL ?? null,
+         main: process.env.EXPO_PUBLIC_API_URL ?? null,
+         streaming: process.env.EXPO_PUBLIC_STREAMING_URL ?? null,
+      },
+      eas: {
+         projectId: '62c94c82-9f9f-4915-b161-306dc5b932b7',
+      },
    },
 });

@@ -4,40 +4,41 @@
 
 import { get, ApiError, API_V1_PATH } from './api';
 import { PaginationInfo, AudiobooksResponse } from './audiobooks';
+import type { ImageAssetsMap } from '@/constants/imageVariants';
+import { ORGANIZATION_IMAGE_SLOT_VARIANT } from '@/constants/imageVariants';
+import { pickImageAssetPath, resolveOrganizationImageUrl } from '@/utils/imageAssets';
 
 export interface Organization {
    id: string;
    name: string;
+   slug: string;
    description?: string;
-   logo?: string;
-   coverImage?: string;
+   image?: string | null;
+   imageAssets?: ImageAssetsMap;
+   preferredGenre?: string | null;
+   websiteUrl?: string | null;
+   teamSize?: string | null;
+   memberCount?: number;
    createdAt?: string;
    updatedAt?: string;
 }
 
-export interface OrganizationsResponse {
-   success: boolean;
-   data: Organization[];
+export interface OrganizationsListResponse {
    message: string;
-   statusCode: number;
-   timestamp: string;
-   path: string;
+   organizations: Organization[];
    pagination?: PaginationInfo;
 }
 
-export interface OrganizationResponse {
-   success: boolean;
-   data: Organization;
+export interface OrganizationDetailResponse {
    message: string;
-   statusCode: number;
-   timestamp: string;
-   path: string;
+   organization: Organization;
 }
 
-export async function getOrganizations(): Promise<OrganizationsResponse> {
+export async function getOrganizations(): Promise<OrganizationsListResponse> {
    try {
-      const response = await get<OrganizationsResponse>(
-         `${API_V1_PATH}/organizations/all`,
+      const response = await get<OrganizationsListResponse>(
+         '/auth/organizations/all',
+         true,
          true
       );
       return response.data;
@@ -51,10 +52,11 @@ export async function getOrganizations(): Promise<OrganizationsResponse> {
    }
 }
 
-export async function getOrganizationById(id: string): Promise<OrganizationResponse> {
+export async function getOrganizationById(id: string): Promise<OrganizationDetailResponse> {
    try {
-      const response = await get<OrganizationResponse>(
-         `${API_V1_PATH}/organizations/${id}`,
+      const response = await get<OrganizationDetailResponse>(
+         `/auth/catalog/organizations/${id}`,
+         true,
          true
       );
       return response.data;
@@ -69,7 +71,7 @@ export async function getOrganizationById(id: string): Promise<OrganizationRespo
 }
 
 /**
- * Audiobooks belonging to an organization
+ * Audiobooks belonging to an organization (app-service)
  * GET /api/v1/organizations/{id}/audiobooks
  */
 export async function getOrganizationAudiobooks(
@@ -90,4 +92,17 @@ export async function getOrganizationAudiobooks(
          `Failed to fetch organization audiobooks: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
    }
+}
+
+export function getOrganizationImageUri(org: Organization): string | undefined {
+   return resolveOrganizationImageUrl(org, 'logo');
+}
+
+/** Returns relative path for route params when a full URI is not needed. */
+export function getOrganizationImagePath(org: Organization): string | undefined {
+   return pickImageAssetPath(
+      org.image,
+      org.imageAssets,
+      ORGANIZATION_IMAGE_SLOT_VARIANT.logo
+   );
 }

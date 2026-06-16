@@ -1,6 +1,8 @@
 import {
    getAudioQualityForTier,
+   getNextLowerBitrateKbps,
    getPlanAudioQualityDisplay,
+   getPreferredBitrateKbpsForTier,
 } from '@/utils/audioQualityDisplay';
 import type { SubscriptionPlan } from '@/services/subscriptions';
 
@@ -28,6 +30,19 @@ function makePlan(name: string, tierLevel: number): SubscriptionPlan {
 }
 
 describe('audioQualityDisplay', () => {
+   it('maps membership tiers to preferred playback bitrates', () => {
+      expect(getPreferredBitrateKbpsForTier('none')).toBe(64);
+      expect(getPreferredBitrateKbpsForTier('base')).toBe(64);
+      expect(getPreferredBitrateKbpsForTier('standard')).toBe(128);
+      expect(getPreferredBitrateKbpsForTier('premium')).toBe(256);
+   });
+
+   it('steps down through the playback fallback chain', () => {
+      expect(getNextLowerBitrateKbps(256)).toBe(128);
+      expect(getNextLowerBitrateKbps(128)).toBe(64);
+      expect(getNextLowerBitrateKbps(64)).toBeNull();
+   });
+
    it('maps tiers to kbps labels', () => {
       expect(getAudioQualityForTier('base')?.kbpsLabel).toBe('64 kbps');
       expect(getAudioQualityForTier('standard')?.kbpsLabel).toBe('128 kbps');

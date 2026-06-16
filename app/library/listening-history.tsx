@@ -1,12 +1,12 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
    ScrollView,
    StyleSheet,
    View,
-   ActivityIndicator,
    TouchableOpacity,
    Text,
    Platform,
+   RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { LibraryScreenLayout } from '@/components/library/LibraryScreenLayout';
@@ -16,6 +16,7 @@ import { LibraryEmptyState } from '@/components/library/LibraryEmptyState';
 import { SkeletonBookmarkRow } from '@/components/skeleton';
 import { useListeningHistory } from '@/hooks/useListeningHistory';
 import { useListeningHistoryAudiobooks } from '@/hooks/useListeningHistoryAudiobooks';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { spacing, typography } from '@/theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemedStyles } from '@/hooks/useThemedStyles';
@@ -52,6 +53,9 @@ export default function LibraryListeningHistoryScreen() {
 
    const loading = isLoading || (entries.length > 0 && booksLoading);
 
+   const refreshFns = useMemo(() => [refetch], [refetch]);
+   const { refreshing, onRefresh } = usePullToRefresh(refreshFns, { isRefetching });
+
    const handleItemPress = useCallback((audiobookId: string) => {
       router.push(`/details/${audiobookId}` as never);
    }, []);
@@ -79,13 +83,15 @@ export default function LibraryListeningHistoryScreen() {
             <ScrollView
                contentContainerStyle={styles.scrollContent}
                showsVerticalScrollIndicator={false}
-            >
-               {isRefetching ? (
-                  <ActivityIndicator
-                     color={colors.accent.primary}
-                     style={{ marginBottom: spacing.md }}
+               refreshControl={
+                  <RefreshControl
+                     refreshing={refreshing}
+                     onRefresh={onRefresh}
+                     tintColor={colors.accent.primary}
+                     colors={[colors.accent.primary]}
                   />
-               ) : null}
+               }
+            >
                <LibraryListCard>
                   {items.map((item) => (
                      <ListeningHistoryRow

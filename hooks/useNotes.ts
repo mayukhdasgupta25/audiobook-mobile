@@ -6,20 +6,20 @@ import {
    CreateNoteRequest,
 } from '@/services/notes';
 import { ApiError } from '@/services/api';
+import { queryKeys } from '@/constants/queryKeys';
 import { useAuthQueryEnabled } from './useAuthQueryEnabled';
 
 export function useNotes(audiobookId: string) {
    const enabled = useAuthQueryEnabled(!!audiobookId);
 
    return useQuery({
-      queryKey: ['notes', audiobookId],
+      queryKey: queryKeys.audiobooks.notes(audiobookId),
       queryFn: () => getNotes(audiobookId),
       enabled,
       retry: (failureCount, error) => {
          if (error instanceof ApiError && error.status === 401) return false;
          return failureCount < 2;
       },
-      staleTime: 30 * 1000,
    });
 }
 
@@ -30,14 +30,18 @@ export function useNoteMutations(audiobookId: string) {
       mutationFn: (request: Omit<CreateNoteRequest, 'audiobookId'>) =>
          createNote({ audiobookId, ...request }),
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['notes', audiobookId] });
+         queryClient.invalidateQueries({
+            queryKey: queryKeys.audiobooks.notes(audiobookId),
+         });
       },
    });
 
    const remove = useMutation({
       mutationFn: (noteId: string) => deleteNote(noteId),
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ['notes', audiobookId] });
+         queryClient.invalidateQueries({
+            queryKey: queryKeys.audiobooks.notes(audiobookId),
+         });
       },
    });
 
