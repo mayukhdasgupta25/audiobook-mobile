@@ -17,11 +17,11 @@ function resolveAppEnv() {
    return 'development';
 }
 
-/** Load `.env.{APP_ENV}`, then `.env.local`, then `.env` overrides. */
+/** Load `.env.{APP_ENV}` (overrides Expo's NODE_ENV-based env), then `.env.local`, then `.env`. */
 function loadEnv() {
    const appEnv = resolveAppEnv();
 
-   dotenv.config({ path: path.join(projectRoot, `.env.${appEnv}`) });
+   dotenv.config({ path: path.join(projectRoot, `.env.${appEnv}`), override: true });
    dotenv.config({ path: path.join(projectRoot, '.env.local'), override: true });
    dotenv.config({ path: path.join(projectRoot, '.env'), override: true });
 
