@@ -132,5 +132,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
          main: process.env.EXPO_PUBLIC_API_URL ?? null,
          streaming: process.env.EXPO_PUBLIC_STREAMING_URL ?? null,
       },
+      eas: {
+         projectId: '62c94c82-9f9f-4915-b161-306dc5b932b7',
+      },
    },
 });
